@@ -647,12 +647,28 @@ document.addEventListener('DOMContentLoaded', async () => {
 // Load project context
 async function loadProjectContext() {
   try {
+    console.log('Loading context with token:', token);
+    
     const { data, error } = await supabase.rpc('get_project_context', { p_token: token });
     
-    if (error) throw error;
-    if (data?.error) throw new Error(data.error);
+    console.log('Context response:', { data, error });
+    
+    if (error) {
+      console.error('Supabase error:', error);
+      throw error;
+    }
+    if (data?.error) {
+      console.error('RPC error:', data.error);
+      throw new Error(data.error);
+    }
     
     projectContext = data;
+    console.log('Project context loaded:', projectContext);
+    
+    if (!projectContext.questions || projectContext.questions.length === 0) {
+      throw new Error('Ingen spørgsmål fundet i evalueringen');
+    }
+    
     renderSetup();
     
   } catch (error) {
@@ -661,6 +677,8 @@ async function loadProjectContext() {
     
     if (error.message.includes('Invalid') || error.message.includes('closed')) {
       message = 'Dette evalueringslink er ikke længere aktivt eller er udløbet.';
+    } else if (error.message.includes('Ingen spørgsmål')) {
+      message = 'Der blev ikke fundet spørgsmål til denne evaluering. Kontakt administratoren.';
     }
     
     showError('Evalueringen er ikke tilgængelig', message);
@@ -669,44 +687,58 @@ async function loadProjectContext() {
 
 // Render setup form
 function renderSetup() {
+  console.log('Rendering setup with context:', projectContext);
+  
   hide('loadingState');
+  hide('errorContainer');
   show('setupSection');
   
   // Update header
-  $('projectTitle').textContent = projectContext.title;
+  $('projectTitle').textContent = projectContext.title || 'KOMPAS Evaluering';
   $('projectSubtitle').textContent = 'Evaluering & Feedback';
   
   // Project info
+  const infoEl = $('projectInfo');
   if (projectContext.info_text) {
-    $('projectInfo').textContent = projectContext.info_text;
-    $('projectInfo').style.display = 'block';
+    infoEl.textContent = projectContext.info_text;
+    infoEl.style.display = 'block';
+  } else {
+    infoEl.style.display = 'none';
   }
   
   // Populate feedback types
   const typeSelect = $('feedbackType');
   typeSelect.innerHTML = '<option value="">-- Vælg type --</option>';
   
-  Object.entries(projectContext.labels).forEach(([key, label]) => {
-    const option = document.createElement('option');
-    option.value = key;
-    option.textContent = label;
-    typeSelect.appendChild(option);
-  });
+  if (projectContext.labels) {
+    Object.entries(projectContext.labels).forEach(([key, label]) => {
+      const option = document.createElement('option');
+      option.value = key;
+      option.textContent = label;
+      typeSelect.appendChild(option);
+    });
+  }
   
   // Populate target persons
   const targetSelect = $('targetPerson');
   targetSelect.innerHTML = '<option value="">-- Vælg person --</option>';
   
-  projectContext.people.forEach(person => {
-    const option = document.createElement('option');
-    option.value = person.id;
-    option.textContent = person.name;
-    targetSelect.appendChild(option);
-  });
+  if (projectContext.people && projectContext.people.length > 0) {
+    projectContext.people.forEach(person => {
+      const option = document.createElement('option');
+      option.value = person.id;
+      option.textContent = person.name;
+      targetSelect.appendChild(option);
+    });
+  } else {
+    console.warn('No people found in project context');
+  }
   
   // Show/hide employee field based on anonymity
   if (!projectContext.is_anonymous) {
     show('employeeField');
+  } else {
+    hide('employeeField');
   }
   
   // Event listeners
@@ -714,6 +746,8 @@ function renderSetup() {
   targetSelect.onchange = validateSetup;
   
   $('startEvaluation').onclick = startEvaluation;
+  
+  console.log('Setup rendered successfully');
 }
 
 // Validate setup form
@@ -726,24 +760,51 @@ function validateSetup() {
 
 // Start evaluation
 function startEvaluation() {
+  console.log('Starting evaluation...');
+  
+  const type = $('feedbackType').value;
+  const target = $('targetPerson').value;
+  
+  if (!type || !target) {
+    alert('Vælg både type og målperson før du starter evalueringen');
+    return;
+  }
+  
+  console.log('Selected type:', type, 'Target:', target);
+  console.log('Questions available:', projectContext.questions?.length || 0);
+  
   hide('setupSection');
   renderQuestions();
   show('questionsContainer');
   show('formFooter');
   updateProgress();
+  
+  console.log('Evaluation started successfully');
 }
 
 // Render questions
 function renderQuestions() {
+  console.log('Rendering questions...');
+  
   const container = $('questionsContent');
   const questions = projectContext.questions;
   totalQuestions = questions.length;
   
+  console.log('Total questions:', totalQuestions);
+  console.log('Questions data:', questions);
+  
   // Clear container
   container.innerHTML = '';
   
+  if (!questions || questions.length === 0) {
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">Ingen spørgsmål fundet</div>';
+    return;
+  }
+  
   // Render each question individually (Google Analytics style)
   questions.forEach((question, index) => {
+    console.log(`Rendering question ${index + 1}:`, question);
+    
     const questionDiv = document.createElement('div');
     questionDiv.className = 'question-item';
     questionDiv.dataset.questionId = question.id;
@@ -779,6 +840,7 @@ function renderQuestions() {
     // Add change handlers to radio buttons
     questionDiv.querySelectorAll('input[type="radio"]').forEach(radio => {
       radio.onchange = () => {
+        console.log('Radio changed:', radio.dataset);
         if (radio.dataset.sg === "true") {
           selectAnswer(question.id, 3, true, questionDiv);
         } else {
@@ -789,6 +851,8 @@ function renderQuestions() {
     
     container.appendChild(questionDiv);
   });
+  
+  console.log('Questions rendered successfully');
   
   // Submit button handler
   $('submitBtn').onclick = submitEvaluation;
