@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>KOMPAS • Evaluator Backoffice</title>
   <link rel="icon" href="data:," />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: https://api.qrserver.com; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co">
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
@@ -720,37 +721,58 @@ window.addEventListener('load', function() {
     });
   }
 
-  function copyQRAsImage(canvas, icon) {
+  async function copyQRPNG(url, icon) {
     const originalText = icon.textContent;
     const originalTitle = icon.title;
-    
+
+    const feedback = (ok) => {
+      icon.classList.add('copied');
+      icon.textContent = ok ? '✅' : '📥';
+      icon.title = ok ? 'QR billede kopieret!' : 'QR billede gjort klar!';
+      icon.style.transform = 'scale(1.2)';
+      setTimeout(() => {
+        icon.textContent = originalText;
+        icon.title = originalTitle;
+        icon.classList.remove('copied');
+        icon.style.transform = '';
+      }, 1500);
+    };
+
+    // Generér et HØJopløst offscreen-canvas, så indsætning i Word/Mail bliver skarp
+    const off = document.createElement('canvas');
     try {
-      canvas.toBlob((blob) => {
-        const item = new ClipboardItem({ 'image/png': blob });
-        navigator.clipboard.write([item]).then(() => {
-          icon.classList.add('copied');
-          icon.textContent = '✅';
-          icon.title = 'QR billede kopieret!';
-          icon.style.transform = 'scale(1.2)';
-          
-          setTimeout(() => {
-            icon.textContent = originalText;
-            icon.title = originalTitle;
-            icon.classList.remove('copied');
-            icon.style.transform = '';
-          }, 1500);
-        }).catch(() => {
-          // Fallback - copy as data URL
-          const dataUrl = canvas.toDataURL();
-          copyToClipboard(dataUrl, icon, 'qr');
-        });
+      await new Promise((resolve, reject) => {
+        QRCode.toCanvas(off, url, { width: 512, margin: 2 }, (err) => err ? reject(err) : resolve());
       });
-    } catch (err) {
-      // Fallback - copy as data URL
-      const dataUrl = canvas.toDataURL();
-      copyToClipboard(dataUrl, icon, 'qr');
+
+      // Skriv som rigtigt PNG-billede til udklipsholderen
+      const blob = await new Promise((resolve, reject) => {
+        off.toBlob((b) => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/png');
+      });
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      feedback(true);
+    } catch (e) {
+      // Fallback: download PNG (så brugeren kan indsætte som billede)
+      try {
+        const dataUrl = await new Promise((resolve, reject) => {
+          QRCode.toDataURL(url, { width: 512, margin: 2 }, (err, d) => err ? reject(err) : resolve(d));
+        });
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = 'qr.png';
+        a.click();
+        feedback(false);
+      } catch (_) {
+        alert('Kunne ikke kopiere eller generere QR-billede.');
+      }
     }
   }
+
+  // Ny signatur: vi får direkte URL i stedet for canvas-id
+  window.copyQRFromIcon = (url, icon) => {
+    copyQRPNG(url, icon);
+  };
+
 
    function showLargeQR(url, title) {
     const modal = document.createElement('div');
@@ -758,8 +780,9 @@ window.addEventListener('load', function() {
     modal.innerHTML = `
       <div class="modal-content">
         <h3 style="margin-bottom:16px">${title}</h3>
-        <canvas id="large-qr-canvas" width="300" height="300" style="display:block;margin:0 auto"></canvas>
-        <div style="margin-top:12px">
+        <img id="large-qr-img" alt="QR" style="display:block;margin:0 auto;max-width:70vw;height:auto"/>
+        <div style="margin-top:12px;display:flex;gap:8px;justify-content:center">
+          <button class="btn small" id="btnCopyQR">Kopiér QR</button>
           <button class="btn small" id="btnDownloadQR">Download QR</button>
         </div>
         <p style="margin-top:16px;color:var(--muted);font-size:0.9rem">
@@ -767,45 +790,39 @@ window.addEventListener('load', function() {
         </p>
       </div>
     `;
-    
     document.body.appendChild(modal);
-    
-    // Generate large QR
-    const canvas = modal.querySelector('#large-qr-canvas');
-    if (typeof QRCode !== 'undefined' && canvas) {
-      QRCode.toCanvas(canvas, url, { width: 300, height: 300, margin: 1 }, (err) => {
+
+    const img = modal.querySelector('#large-qr-img');
+
+    // Generér som data-URL (robust i alle browsere)
+    if (typeof QRCode !== 'undefined') {
+      QRCode.toDataURL(url, { width: 600, margin: 2 }, (err, dataUrl) => {
         if (err) {
           console.error('QR (stor) fejlede:', err);
-          const parent = canvas.parentElement || modal.querySelector('.modal-content');
-          if (parent) parent.insertAdjacentHTML('beforeend','<p>QR kunne ikke genereres</p>');
+          img.alt = 'QR kunne ikke genereres';
+          return;
         }
+        img.src = dataUrl;
       });
     } else {
-      const parent = canvas?.parentElement || modal.querySelector('.modal-content');
-      if (parent) parent.insertAdjacentHTML('beforeend','<p>QR lib ikke indlæst</p>');
+      img.alt = 'QR lib ikke indlæst';
     }
 
-    // Download button
-    const btn = modal.querySelector('#btnDownloadQR');
-    if (btn && canvas) {
-      btn.onclick = () => {
-        const a = document.createElement('a');
-        a.href = canvas.toDataURL('image/png');
-        a.download = 'qr.png';
-        a.click();
-      };
-    }
-    
-    // Close on click outside
-    modal.onclick = (e) => {
-      if (e.target === modal) {
-        document.body.removeChild(modal);
-      }
+    // Kopiér som rigtig PNG
+    modal.querySelector('#btnCopyQR').onclick = (e) => copyQRPNG(url, e.currentTarget);
+
+    // Download PNG
+    modal.querySelector('#btnDownloadQR').onclick = () => {
+      const a = document.createElement('a');
+      a.href = img.src;
+      a.download = 'qr.png';
+      a.click();
     };
-    
-    // Prevent content click from closing
+
+    modal.onclick = (e) => { if (e.target === modal) document.body.removeChild(modal); };
     modal.querySelector('.modal-content').onclick = (e) => e.stopPropagation();
   }
+
 
 
   async function createProjectLink(projectId) {
@@ -897,10 +914,10 @@ window.addEventListener('load', function() {
           <div class="status-indicator">
             <div class="status-row">
               ${hasLink ? `
-                <span class="status-icon success" title="Link findes">✓</span>
-                <span class="copy-icon" onclick="copyProjectLink('${projectUrl}', this)" title="Kopiér link">📋</span>
+                <span class="status-icon success" onclick="showLargeProjectQR('${projectUrl}', '${p.title.replace(/'/g, '\\\'')}')" title="Vis stort QR">✓</span>
+                <span class="copy-icon" onclick="copyQRFromIcon('${projectUrl}', this)" title="Kopiér QR">📋</span>
               ` : `
-                <span class="status-icon error" title="Intet link">✗</span>
+                <span class="status-icon error" title="Ingen QR">✗</span>
               `}
             </div>
           </div>
