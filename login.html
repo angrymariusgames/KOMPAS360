@@ -3,16 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>KOMPAS • Evaluator Backoffice</title>
+  <title>KOMPAS • Login</title>
   <link rel="icon" href="data:," />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co wss://*.supabase.co">
-
-
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-
+  
   <style>
     /* Theme */
     *{box-sizing:border-box;margin:0;padding:0}
@@ -26,1300 +20,686 @@
       font-family:"Segoe UI",Tahoma,Geneva,Verdana,sans-serif;
       background:linear-gradient(135deg,var(--bg1) 0%,var(--bg2) 100%);
       min-height:100vh;
+      display:grid;
+      place-items:center;
       padding:20px;
       color:var(--ink);
     }
     
-    .app{
-      max-width:1400px;
-      margin:0 auto;
-      background:#fff;
-      border-radius:20px;
+    .container{
+      width:100%;
+      max-width:480px;
+      background:var(--card);
+      border-radius:var(--radius);
       box-shadow:0 20px 40px rgba(0,0,0,.15);
       overflow:hidden;
     }
-
-    /* Header */
+    
     .header{
       background:linear-gradient(135deg,#2d3748 0%,#4a5568 100%);
       color:#fff;
-      padding:20px 24px;
+      padding:32px;
+      text-align:center;
+    }
+    
+    .logo{
+      width:80px;
+      height:80px;
+      margin:0 auto 16px;
+      background:white;
+      border-radius:20px;
       display:grid;
-      grid-template-columns:1fr auto;
-      gap:16px;
-      align-items:center;
-      position:sticky;
-      top:0;
-      z-index:30;
+      place-items:center;
     }
     
-    .club-title{display:flex;align-items:center;gap:14px}
-    .club-logo{width:56px;height:56px;border-radius:14px;background:#fff;display:grid;place-items:center}
-    .club-logo img{height:38px;object-fit:contain}
-    .club-name{font-size:1.6rem;font-weight:800;margin-bottom:2px}
-    .club-sub{opacity:.85;font-size:.92rem}
-    .header-tools{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+    .logo img{
+      max-width:65px;
+      max-height:65px;
+      width:auto;
+      height:auto;
+      object-fit:contain;
+    }
     
-    .input, .select{
-      border:1px solid var(--line);
-      background:#fff;
-      color:#111;
-      padding:10px 12px;
-      border-radius:10px;
+    .title{
+      font-size:1.8rem;
+      font-weight:800;
+      margin-bottom:8px;
+    }
+    
+    .subtitle{
+      opacity:.9;
       font-size:.95rem;
-      box-sizing:border-box;
-    }
-    .btn{cursor:pointer;font-weight:700;border:1px solid var(--line);background:#fff;color:#111;padding:10px 14px;border-radius:10px;transition:.25s}
-    .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
-    .btn.ghost{background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.35)}
-    .btn.small{padding:6px 10px;font-size:.85rem}
-    .btn.success{background:var(--success);border-color:var(--success);color:#fff}
-
-    /* Tabs */
-    .tabbar{
-      background:var(--card);
-      border-bottom:1px solid var(--line);
-      padding:0 20px;
-      display:flex;
-      gap:0;
-      position:sticky;
-      top:120px;
-      z-index:20;
-      justify-content:space-between;
-      align-items:center;
     }
     
-    .tabbtn{
+    .tabs{
+      display:flex;
+      background:#f7fafc;
+      border-bottom:1px solid var(--line);
+    }
+    
+    .tab{
+      flex:1;
+      padding:16px;
       background:none;
       border:none;
-      padding:16px 22px;
-      font-size:1.05rem;
-      font-weight:700;
+      font-size:1rem;
+      font-weight:600;
       color:#64748b;
       cursor:pointer;
-      border-bottom:3px solid transparent;
       transition:.25s;
-      white-space:nowrap;
+      border-bottom:3px solid transparent;
+    }
+    
+    .tab.active{
+      color:var(--brand);
+      background:#fff;
+      border-bottom-color:var(--brand);
+    }
+    
+    .content{
+      padding:32px;
+    }
+    
+    .panel{
+      display:none;
+    }
+    
+    .panel.active{
+      display:block;
+    }
+    
+    .form-group{
+      margin-bottom:20px;
+    }
+    
+    label{
+      display:block;
+      font-weight:600;
+      margin-bottom:8px;
+      color:#4a5568;
+      font-size:.95rem;
+    }
+    
+    .input{
+      width:100%;
+      padding:12px 16px;
+      border:1px solid var(--line);
+      border-radius:10px;
+      font-size:1rem;
+      transition:.25s;
+      background:#fff;
+    }
+    
+    .input:focus{
+      outline:none;
+      border-color:var(--brand);
+      box-shadow:0 0 0 3px rgba(102,126,234,.1);
+    }
+    
+    .input.error{
+      border-color:var(--error);
+    }
+    
+    .btn{
+      width:100%;
+      padding:14px;
+      border:none;
+      border-radius:10px;
+      font-size:1rem;
+      font-weight:700;
+      cursor:pointer;
+      transition:.25s;
+      text-transform:uppercase;
+      letter-spacing:.5px;
+    }
+    
+    .btn.primary{
+      background:var(--brand);
+      color:#fff;
+    }
+    
+    .btn.primary:hover{
+      background:#5a67d8;
+      transform:translateY(-1px);
+      box-shadow:0 4px 12px rgba(102,126,234,.3);
+    }
+    
+    .btn:disabled{
+      opacity:.5;
+      cursor:not-allowed;
+      transform:none!important;
+    }
+    
+    .message{
+      padding:12px 16px;
+      border-radius:10px;
+      margin-bottom:20px;
+      font-size:.92rem;
+      animation:slideIn .3s ease;
+    }
+    
+    .message.error{
+      background:#fed7d7;
+      color:#9b2c2c;
+      border:1px solid #fc8181;
+    }
+    
+    .message.success{
+      background:#c6f6d5;
+      color:#22543d;
+      border:1px solid #68d391;
+    }
+    
+    .message.info{
+      background:#e6fffa;
+      color:#234e52;
+      border:1px solid #81e6d9;
+    }
+    
+    @keyframes slideIn{
+      from{opacity:0;transform:translateY(-10px)}
+      to{opacity:1;transform:translateY(0)}
+    }
+    
+    .divider{
+      text-align:center;
+      margin:24px 0;
       position:relative;
     }
     
-    .tabbtn:hover{color:#334155;background:rgba(102,126,234,.06)}
-    .tabbtn.active{color:var(--brand);border-bottom-color:var(--brand);background:#fff}
+    .divider::before{
+      content:'';
+      position:absolute;
+      top:50%;
+      left:0;
+      right:0;
+      height:1px;
+      background:var(--line);
+    }
     
-    .content{padding:20px;max-width:100%}
+    .divider span{
+      background:#fff;
+      padding:0 16px;
+      position:relative;
+      color:var(--muted);
+      font-size:.9rem;
+    }
     
-    .project-layout{
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:20px;
+    .help-text{
+      color:var(--muted);
+      font-size:.9rem;
+      margin-top:8px;
+    }
+    
+    .step-indicator{
+      display:flex;
+      justify-content:center;
+      gap:8px;
       margin-bottom:24px;
     }
     
-    .project-left{
-      background:var(--card);
+    .step{
+      width:12px;
+      height:12px;
+      border-radius:50%;
+      background:var(--line);
+      transition:.3s;
+    }
+    
+    .step.active{
+      background:var(--brand);
+      transform:scale(1.2);
+    }
+    
+    .step.completed{
+      background:var(--success);
+    }
+    
+    .password-requirements{
+      background:#f7fafc;
       border:1px solid var(--line);
-      border-radius:var(--radius);
-      padding:20px;
-      box-sizing:border-box;
+      border-radius:8px;
+      padding:12px;
+      margin-top:8px;
+      font-size:.85rem;
     }
     
-    .project-right{
-      background:var(--card);
-      border:1px solid var(--line);
-      border-radius:var(--radius);
-      padding:20px;
-      box-sizing:border-box;
-    }
-    
-    .project-right input,
-    .project-right select,
-    .project-right table{
-      box-sizing:border-box;
-    }
-    
-    .project-left .grid > *{
-      margin-bottom:16px;
-    }
-    
-    .project-left .grid > *:last-child{
-      margin-bottom:0;
-    }
-    
-    .project-left .grid2{
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:12px;
-      margin-bottom:0;
-      width:100%;
-    }
-    
-    .project-left .grid2 input,
-    .project-left .grid2 select{
-      width:100%;
-    }
-    
-    @media(max-width:1000px){
-      .project-layout{
-        grid-template-columns:1fr;
-      }
-    }
-    .section{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
-    .grid{display:grid;gap:16px}
-    .grid2{display:grid;gap:10px;grid-template-columns:1fr 1fr}
-    .grid2 > *{
-      box-sizing:border-box;
-    }
-    .row{display:flex;gap:8px;align-items:center}
-    .muted{color:var(--muted);font-size:.92rem}
-
-    /* Tables */
-    table{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed}
-    th,td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:.95rem;overflow:hidden}
-    thead th{position:sticky;top:0;background:#fff;z-index:2}
-    
-    /* Project table specific widths */
-    .projects-table th:nth-child(1) { width: 30%; } /* Titel */
-    .projects-table th:nth-child(2) { width: 15%; } /* Åbner */
-    .projects-table th:nth-child(3) { width: 15%; } /* Lukker */
-    .projects-table th:nth-child(4) { width: 10%; } /* Link */
-    .projects-table th:nth-child(5) { width: 10%; } /* QR */
-    .projects-table th:nth-child(6) { width: 20%; } /* Handling */
-
-    /* Status indicators */
-    .status-indicator{
+    .requirement{
       display:flex;
       align-items:center;
-      justify-content:center;
-      gap:6px;
-      flex-direction:column;
-    }
-    
-    .status-row{
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      gap:4px;
-    }
-    
-    .status-icon{
-      font-size:1.1rem;
-      cursor:default;            /* ikke klikbar */
-      padding:3px 6px;
-      border-radius:4px;
+      gap:8px;
+      margin:4px 0;
+      color:var(--muted);
       transition:.2s;
-      display:inline-block;
-      min-width:20px;
-      text-align:center;
-      pointer-events:none;       /* slug klik helt, så den ikke trigger noget ved siden af */
     }
-
-    /* ingen :hover på status-icon – kun copy-ikon må “shine” */
-
     
-    .status-icon.success{
+    .requirement.met{
       color:var(--success);
     }
     
-    .status-icon.error{
-      color:var(--error);
+    .requirement::before{
+      content:'○';
+      font-weight:bold;
     }
-        
-    .copy-icon{
-      font-size:0.9rem;
-      cursor:pointer;
-      padding:2px 4px;
-      border-radius:3px;
-      transition:.2s;
+    
+    .requirement.met::before{
+      content:'✓';
+    }
+    
+    .link{
       color:var(--brand);
-      opacity:0.7;
-    }
-    
-    .copy-icon:hover{
-      background:rgba(102,126,234,.1);
-      opacity:1;
-      transform:scale(1.1);
-    }
-
-    /* Success animations */
-    @keyframes copied {
-      0% { background: var(--success); transform: scale(1); }
-      50% { transform: scale(1.05); }
-      100% { background: var(--success); transform: scale(1); }
-    }
-    
-    .copied {
-      animation: copied 0.6s ease;
-    }
-
-    /* Modal for large QR */
-    .modal{
-      position:fixed;
-      top:0;left:0;right:0;bottom:0;
-      background:rgba(0,0,0,0.8);
-      z-index:1000;
-      display:flex;
-      align-items:center;
-      justify-content:center;
+      text-decoration:none;
+      font-weight:600;
       cursor:pointer;
     }
-
     
-    .modal-content{
-      background:white;
-      padding:20px;
-      border-radius:12px;
-      text-align:center;
-      max-width:90vw;
-      cursor:default;
+    .link:hover{
+      text-decoration:underline;
     }
-
-    /* Collapsed state */
-    .project-form-collapsed {
-      display: none;
+    
+    .footer{
+      padding:20px 32px;
+      background:#f7fafc;
+      border-top:1px solid var(--line);
+      text-align:center;
+      color:var(--muted);
+      font-size:.9rem;
     }
   </style>
 </head>
 <body>
-<div class="app">
-  <!-- HEADER -->
+
+<div class="container">
   <div class="header">
-    <div class="club-title">
-      <div class="club-logo"><img src="./assets/logo.png" alt="logo" onerror="this.style.display='none'"></div>
-      <div>
-        <div class="club-name">KOMPAS — Evaluator Backoffice</div>
-        <div class="club-sub">360° evaluering • Projekter • Resultater</div>
-      </div>
+    <div class="logo">
+      <!-- Læg dit logo fx i ./assets/dit_logo.png -->
+      <img src="./assets/logo.png" alt="logo" onerror="this.style.display='none'">
     </div>
-
-    <div class="header-tools" id="authArea">
-      <button id="logoutBtn" class="btn ghost">Log ud</button>
-    </div>
+    <div class="title">KOMPAS 360</div>
+    <div class="subtitle">Evaluering & Feedback System</div>
   </div>
-
-  <!-- TABS -->
-  <div class="tabbar">
-    <div style="display:flex;align-items:center;flex:1">
-      <button class="tabbtn active" data-tab="projects">📂 Projekter</button>
-      <button class="tabbtn" data-tab="results">📈 Resultater</button>
-    </div>
-    <div style="padding:16px 0">
-      <button id="createNewProjectBtn" class="btn primary">+ Opret nyt projekt</button>
-    </div>
+  
+  <div class="tabs">
+    <button class="tab active" data-tab="login">Log ind</button>
+    <button class="tab" data-tab="activate">Aktivér konto</button>
   </div>
-
-  <!-- MAIN CONTENT -->
+  
   <div class="content">
-
-    <!-- Projekter (default synlig) -->
-    <div id="tab-projects" style="display:block">
+    <!-- Login Panel -->
+    <div id="login-panel" class="panel active">
+      <div id="login-message"></div>
       
-      <!-- Project Creation Layout (initially hidden) -->
-      <div id="projectForm" class="project-layout project-form-collapsed">
+      <form id="login-form">
+        <div class="form-group">
+          <label for="login-email">Email</label>
+          <input type="email" id="login-email" class="input" required placeholder="din@email.dk">
+        </div>
         
-        <!-- LEFT SIDE: Project Creation -->
-        <div class="project-left">
-          <h3 id="formTitle" style="margin-bottom:16px">📂 Opret nyt projekt</h3>
-          <div class="grid">
-            <label>Projekt-titel
-              <input id="p-title" class="input" placeholder="Fx KOMPAS 360 — 3. bataljon" style="width:100%">
-            </label>
-
-            <label>Skabelon
-              <select id="p-template" class="select" style="width:100%"></select>
-            </label>
-
-            <label>Info-tekst
-              <textarea id="p-info" class="input" rows="3" placeholder="Kort introduktion …" style="width:100%"></textarea>
-            </label>
-
-            <label>Variant
-              <select id="p-lite" class="select" style="width:100%">
-                <option value="false">FULD (48)</option>
-                <option value="true">LITE (16)</option>
-              </select>
-            </label>
-
-            <label>Anonymitet
-              <select id="p-anon" class="select" style="width:100%">
-                <option value="true">Anonym (peer/leader kræver min. n)</option>
-                <option value="false">Ikke anonym</option>
-              </select>
-            </label>
-
-            <div class="grid2">
-              <label>Åbn
-                <input id="p-open" class="input" type="datetime-local" style="width:100%">
-              </label>
-              <label>Luk
-                <input id="p-close" class="input" type="datetime-local" style="width:100%">
-              </label>
-            </div>
-
-            <div class="row" style="margin-top:20px">
-              <button id="saveProjectBtn" class="btn primary">Opret projekt</button>
-              <span id="projectStatus" class="muted"></span>
-            </div>
-          </div>
+        <div class="form-group">
+          <label for="login-password">Adgangskode</label>
+          <input type="password" id="login-password" class="input" required placeholder="••••••••">
         </div>
-
-        <!-- RIGHT SIDE: Labels & People Management -->
-        <div class="project-right">
-          
-          <!-- Labels Section -->
-          <h4 style="margin-bottom:12px">🏷️ Evaluerings Labels</h4>
-          <div style="margin-bottom:20px">
-            <div style="margin-bottom:8px">
-              <label style="display:block;font-size:0.9rem;margin-bottom:4px;color:var(--muted)">Label — Selv</label>
-              <input id="label-self" class="input" value="Vurdering af sig selv" style="width:100%">
-            </div>
-            <div style="margin-bottom:8px">
-              <label style="display:block;font-size:0.9rem;margin-bottom:4px;color:var(--muted)">Label — Kollega</label>
-              <input id="label-peer" class="input" value="Vurdering af kollega" style="width:100%">
-            </div>
-            <div style="margin-bottom:8px">
-              <label style="display:block;font-size:0.9rem;margin-bottom:4px;color:var(--muted)">Label — Fører</label>
-              <input id="label-leader" class="input" value="Fører vurdering" style="width:100%">
-            </div>
-          </div>
-
-          <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
-
-          <!-- People Management Section -->
-          <h4 style="margin-bottom:12px">👥 Navneliste</h4>
-          
-          <!-- People management controls -->
-          <div id="peopleControls">
-            <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-              <button id="btnReloadPeople" class="btn small">Genindlæs</button>
-              <input type="file" id="csvFile" accept=".csv,.txt,.tsv" style="display:none">
-              <button id="importCsv" class="btn small">Import CSV</button>
-            </div>
-
-            <div style="margin-bottom:12px">
-              <div style="margin-bottom:6px">
-                <input id="personName" class="input" placeholder="Fulde navn" style="width:100%;margin-bottom:6px">
-              </div>
-              <div style="display:flex;gap:6px">
-                <input id="personNo" class="input" placeholder="Nr." style="flex:1">
-                <button id="addPerson" class="btn primary small">Tilføj</button>
-              </div>
-            </div>
-
-            <!-- People Table -->
-            <div style="max-height:250px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;background:#fff">
-              <table id="peopleTbl" style="font-size:0.85rem;width:100%">
-                <thead style="background:var(--card);position:sticky;top:0">
-                  <tr>
-                    <th style="padding:8px;border-bottom:1px solid var(--line)">Navn</th>
-                    <th style="padding:8px;width:60px;border-bottom:1px solid var(--line)">Nr.</th>
-                    <th style="padding:8px;width:50px;text-align:center;border-bottom:1px solid var(--line)">Slet</th>
-                  </tr>
-                </thead>
-                <tbody></tbody>
-              </table>
-            </div>
-          </div>
-
+        
+        <button type="submit" class="btn primary">Log ind</button>
+      </form>
+      
+      <div class="divider">
+        <span>Ny bruger?</span>
+      </div>
+      
+      <p class="help-text" style="text-align:center">
+        Har du modtaget en aktiveringsnøgle? 
+        <a class="link" onclick="switchTab('activate')">Aktivér din konto her</a>
+      </p>
+    </div>
+    
+    <!-- Activation Panel -->
+    <div id="activate-panel" class="panel">
+      <div id="activate-message"></div>
+      
+      <!-- Step 1: Enter key and email -->
+      <div id="step1" class="activation-step">
+        <div class="step-indicator">
+          <div class="step active"></div>
+          <div class="step"></div>
+          <div class="step"></div>
         </div>
+        
+        <h3 style="margin-bottom:20px">Indtast aktiveringsnøgle</h3>
+        
+        <form id="activate-form-step1">
+          <div class="form-group">
+            <label for="activation-key">Aktiveringsnøgle</label>
+            <input type="text" id="activation-key" class="input" required 
+                   placeholder="F.eks. ABC123" maxlength="6" style="text-transform:uppercase">
+            <p class="help-text">Indtast den 6-cifrede kode du har modtaget</p>
+          </div>
+          
+          <div class="form-group">
+            <label for="activation-email">Email</label>
+            <input type="email" id="activation-email" class="input" required 
+                   placeholder="din@email.dk">
+            <p class="help-text">Brug samme email som nøglen er sendt til</p>
+          </div>
+          
+          <button type="submit" class="btn primary">Fortsæt</button>
+        </form>
       </div>
-
-      <!-- Projects Table -->
-      <div class="section">
-        <table id="projectsTbl" class="projects-table" style="margin-top:12px">
-          <thead>
-            <tr>
-              <th>Titel</th>
-              <th>Åbner</th>
-              <th>Lukker</th>
-              <th>Link</th>
-              <th>QR</th>
-              <th style="text-align:right">Handling</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
+      
+      <!-- Step 2: Create password -->
+      <div id="step2" class="activation-step" style="display:none">
+        <div class="step-indicator">
+          <div class="step completed"></div>
+          <div class="step active"></div>
+          <div class="step"></div>
+        </div>
+        
+        <h3 style="margin-bottom:20px">Opret adgangskode</h3>
+        
+        <form id="activate-form-step2">
+          <div class="form-group">
+            <label for="new-password">Ny adgangskode</label>
+            <input type="password" id="new-password" class="input" required 
+                   placeholder="••••••••" minlength="8">
+            
+            <div class="password-requirements">
+              <div class="requirement" data-req="length">Mindst 8 tegn</div>
+              <div class="requirement" data-req="upper">Mindst ét stort bogstav</div>
+              <div class="requirement" data-req="lower">Mindst ét lille bogstav</div>
+              <div class="requirement" data-req="number">Mindst ét tal</div>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="confirm-password">Gentag adgangskode</label>
+            <input type="password" id="confirm-password" class="input" required 
+                   placeholder="••••••••">
+            <p class="help-text" id="password-match" style="display:none"></p>
+          </div>
+          
+          <button type="submit" class="btn primary" disabled>Opret konto</button>
+        </form>
       </div>
+      
+      <!-- Step 3: Success -->
+      <div id="step3" class="activation-step" style="display:none">
+        <div class="step-indicator">
+          <div class="step completed"></div>
+          <div class="step completed"></div>
+          <div class="step completed"></div>
+        </div>
+        
+        <div class="message success">
+          <h3 style="margin-bottom:8px">Konto aktiveret!</h3>
+          <p>Din konto er nu oprettet og klar til brug.</p>
+        </div>
+        
+        <p style="text-align:center;margin:24px 0">
+          Du bliver automatisk sendt til admin-panelet...
+        </p>
+        
+        <button class="btn primary" onclick="goToAdmin()">Gå til admin panel</button>
+      </div>
+      
+      <div class="divider" id="activate-divider">
+        <span>Allerede aktiveret?</span>
+      </div>
+      
+      <p class="help-text" style="text-align:center" id="activate-footer">
+        <a class="link" onclick="switchTab('login')">Log ind her</a>
+      </p>
     </div>
-
-    <!-- Resultater -->
-    <div id="tab-results" class="section" style="display:none">
-      <div class="grid2" style="margin-bottom:8px">
-        <select id="selProject2" class="select"></select>
-        <select id="selTarget" class="select"></select>
-      </div>
-      <div class="row" style="margin-bottom:10px">
-        <button id="btnLoadRadar" class="btn">Vis KOMPAS-hjul</button>
-        <button id="btnPdf" class="btn">Download PDF</button>
-        <button id="btnZip" class="btn">Download alle (ZIP)</button>
-      </div>
-      <div class="section" style="background:#fff">
-        <canvas id="radar" height="360"></canvas>
-      </div>
-      <div id="resultNote" class="muted" style="margin-top:6px"></div>
-    </div>
-
+  </div>
+  
+  <div class="footer">
+    KOMPAS 360 • Evaluering & Feedback System
   </div>
 </div>
 
 <script>
-// Vent til hele siden er indlæst
-window.addEventListener('load', function() {
-  let radar = null;
-  let user = null;
-  let currentEditProject = null; // Track which project is being edited
+const SUPABASE_URL = "https://wsrstyrsuwhcmmlmnbrz.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzcnN0eXJzdXdoY21tbG1uYnJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MTU0NTIsImV4cCI6MjA3MTE5MTQ1Mn0.Rf3Z3bQGjV5CKXKZr6IMOjzPdbhVJCh3SwuvlkpxUD0";
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  // State management for temporary people (before project is saved)
-  let temporaryPeople = [];
+const $ = (id) => document.getElementById(id);
+let activationData = {};
 
-  const SUPABASE_URL = "https://wsrstyrsuwhcmmlmnbrz.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzcnN0eXJzdXdoY21tbG1uYnJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MTU0NTIsImV4cCI6MjA3MTE5MTQ1Mn0.Rf3Z3bQGjV5CKXKZr6IMOjzPdbhVJCh3SwuvlkpxUD0";
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-  const $ = (id)=>document.getElementById(id);
+// Tab switching
+function switchTab(tabName) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   
-  // Tabs: skift aktiv fane
-  document.querySelectorAll('.tabbtn').forEach(btn=>{
-    btn.onclick = ()=>{
-      document.querySelectorAll('.tabbtn').forEach(x=>x.classList.remove('active'));
-      btn.classList.add('active');
+  document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+  $(`${tabName}-panel`).classList.add('active');
+}
 
-      // skjul alle sektioner
-      ['projects','results'].forEach(name=>{
-        const panel = $('tab-'+name);
-        if(panel) panel.style.display = 'none';
-      });
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+});
 
-      // vis valgt sektion
-      const target = $('tab-' + btn.dataset.tab);
-      if(target) target.style.display = 'block';
-    };
-  });
-
-  // Logout
-  $('logoutBtn').onclick = async ()=>{ 
-    await supabase.auth.signOut(); 
-    window.location.href = 'login.html';
-  };
-
-  // Render temporary people list (for new projects)
-  function renderTemporaryPeople() {
-    const tb = $('peopleTbl').querySelector('tbody');
-    tb.innerHTML = '';
-    
-    if (temporaryPeople.length === 0) {
-      tb.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:16px;color:var(--muted);font-style:italic">Tilføj personer til dit nye projekt</td></tr>';
-      return;
-    }
-    
-    temporaryPeople.forEach((person, index) => {
-      const tr = document.createElement('tr');
-      tr.style.borderBottom = '1px solid var(--line)';
-      tr.innerHTML = `
-        <td style="padding:8px">${person.full_name}</td>
-        <td style="padding:8px;color:var(--muted)">${person.employee_no || '—'}</td>
-        <td style="padding:8px;text-align:center">
-          <button class="btn small" onclick="removeTemporaryPerson(${index})" style="background:#dc3545;color:white;border-color:#dc3545;padding:3px 8px;font-size:0.75rem;border-radius:4px">×</button>
-        </td>
-      `;
-      tb.appendChild(tr);
-    });
-  }
-
-  // Add person to temporary list (for new projects)
-  function addToTemporaryList(name, employeeNo) {
-    if (!name.trim()) {
-      alert('Navn påkrævet');
-      return;
-    }
-    
-    temporaryPeople.push({
-      full_name: name.trim(),
-      employee_no: employeeNo.trim() || null
-    });
-    
-    renderTemporaryPeople();
-    $('personName').value = '';
-    $('personNo').value = '';
-  }
-
-  // Remove person from temporary list
-  window.removeTemporaryPerson = (index) => {
-    temporaryPeople.splice(index, 1);
-    renderTemporaryPeople();
-  };
-
-  // Process CSV for temporary list
-  function processCSVForTemporary(csvData) {
-    const validRows = csvData.filter(r => r.full_name?.trim());
-    
-    if (validRows.length === 0) {
-      alert('Ingen gyldige rækker fundet i CSV');
-      return;
-    }
-    
-    validRows.forEach(row => {
-      temporaryPeople.push({
-        full_name: row.full_name.trim(),
-        employee_no: row.employee_no?.trim() || null
-      });
-    });
-    
-    renderTemporaryPeople();
-    alert(`${validRows.length} personer tilføjet fra CSV`);
-  }
-
-  // Project form state management
-  function showProjectForm(isEdit = false, project = null) {
-    $('projectForm').classList.remove('project-form-collapsed');
-    $('createNewProjectBtn').style.display = 'none';
-    
-    if (isEdit && project) {
-      currentEditProject = project;
-      temporaryPeople = []; // Clear temporary list for edit mode
-      $('formTitle').textContent = '✏️ Rediger projekt';
-      $('saveProjectBtn').textContent = 'Gem projekt';
-      
-      // Helper function to convert UTC timestamp to local datetime-local format
-      function convertFromUTCToLocal(utcString) {
-        if (!utcString) return '';
-        
-        const utcDate = new Date(utcString);
-        // Convert to local timezone and format for datetime-local
-        const localDate = new Date(utcDate.getTime() - (utcDate.getTimezoneOffset() * 60000));
-        return localDate.toISOString().slice(0, 16);
-      }
-      
-      // Load project data into form
-      $('p-title').value = project.title || '';
-      $('p-template').value = project.template_id || '';
-      $('p-info').value = project.info_text || '';
-      $('p-lite').value = project.is_lite ? 'true' : 'false';
-      $('p-anon').value = project.is_anonymous ? 'true' : 'false';
-      $('p-open').value = convertFromUTCToLocal(project.open_at);
-      $('p-close').value = convertFromUTCToLocal(project.close_at);
-      
-      // Load labels
-      const labels = project.settings?.labels || {};
-      $('label-self').value = labels.self || 'Vurdering af sig selv';
-      $('label-peer').value = labels.peer || 'Vurdering af kollega';
-      $('label-leader').value = labels.leader || 'Fører vurdering';
-      
-      // Load people for this project from database
-      loadPeople();
-    } else {
-      // New project mode
-      currentEditProject = null;
-      temporaryPeople = []; // Reset temporary list
-      $('formTitle').textContent = '📂 Opret nyt projekt';
-      $('saveProjectBtn').textContent = 'Opret projekt';
-      
-      // Clear form
-      clearProjectForm();
-      
-      // Show empty temporary people list
-      renderTemporaryPeople();
-    }
-  }
-
-  function hideProjectForm() {
-    $('projectForm').classList.add('project-form-collapsed');
-    $('createNewProjectBtn').style.display = 'inline-block';
-    currentEditProject = null;
-    temporaryPeople = [];
-    clearProjectForm();
-  }
-
-  function clearProjectForm() {
-    $('p-title').value = '';
-    $('p-info').value = '';
-    $('p-open').value = '';
-    $('p-close').value = '';
-    $('p-lite').value = 'false';
-    $('p-anon').value = 'true';
-    $('label-self').value = 'Vurdering af sig selv';
-    $('label-peer').value = 'Vurdering af kollega';
-    $('label-leader').value = 'Fører vurdering';
-    $('projectStatus').textContent = '';
-   
-    // Clear people table
-    const tb = $('peopleTbl').querySelector('tbody');
-    tb.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:16px;color:var(--muted);font-style:italic">Vælg eller opret et projekt først</td></tr>';
-  }
-
-  // Event listeners for form state
-  $('createNewProjectBtn').onclick = () => showProjectForm(false);
-
-  // Utility functions
-  function generateProjectUrl(token) {
-    const protocol = window.location.protocol;
-    const hostname = window.location.hostname;
-    const port = window.location.port;
-    const pathname = window.location.pathname;
-
-    let baseUrl;
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      baseUrl = `${protocol}//${hostname}${port ? ':' + port : ''}`;
-    } else {
-      baseUrl = `${protocol}//${hostname}${port && port !== '80' && port !== '443' ? ':' + port : ''}`;
-      
-      if (hostname.includes('github.io')) {
-        const pathParts = pathname.split('/').filter(p => p);
-        if (pathParts.length > 0) {
-          baseUrl += '/' + pathParts[0];
-        }
-      }
-    }
-    
-    return baseUrl + '/respondent.html?t=' + token;
-  }
-
-  function copyToClipboard(text, element, type = 'link') {
-    const originalText = element.textContent;
-    const originalTitle = element.title;
-    
-    navigator.clipboard.writeText(text).then(() => {
-      element.classList.add('copied');
-      element.textContent = '✅';
-      element.title = type === 'qr' ? 'QR kopieret!' : 'Link kopieret!';
-      element.style.transform = 'scale(1.2)';
-      
-      setTimeout(() => {
-        element.textContent = originalText;
-        element.title = originalTitle;
-        element.classList.remove('copied');
-        element.style.transform = '';
-      }, 1500);
-    }).catch(() => {
-      // Fallback
-      const textArea = document.createElement('textarea');
-      textArea.value = text;
-      textArea.style.position = 'fixed';
-      textArea.style.opacity = '0';
-      document.body.appendChild(textArea);
-      textArea.select();
-      
-      try {
-        document.execCommand('copy');
-        element.textContent = '✅';
-        element.title = type === 'qr' ? 'QR kopieret!' : 'Link kopieret!';
-        element.style.transform = 'scale(1.2)';
-        
-        setTimeout(() => {
-          element.textContent = originalText;
-          element.title = originalTitle;
-          element.style.transform = '';
-        }, 1500);
-      } catch (err) {
-        alert('Kopiér dette link manuelt:\n\n' + text);
-      }
-      
-      document.body.removeChild(textArea);
-    });
-  }
-
-  async function copyQRPNG(url, icon) {
-    const originalText = icon.textContent;
-    const originalTitle = icon.title;
-
-    const feedback = (ok) => {
-      icon.classList.add('copied');
-      icon.textContent = ok ? '✅' : '📥';
-      icon.title = ok ? 'QR billede kopieret!' : 'QR billede gjort klar (downloadet)';
-      icon.style.transform = 'scale(1.2)';
-      setTimeout(() => {
-        icon.textContent = originalText;
-        icon.title = originalTitle;
-        icon.classList.remove('copied');
-        icon.style.transform = '';
-      }, 1500);
-    };
-
-    try {
-      const off = document.createElement('canvas');
-      await new Promise((resolve, reject) => {
-        if (typeof QRCode === 'undefined') return reject(new Error('QRCode lib mangler'));
-        QRCode.toCanvas(off, url, { width: 512, margin: 2 }, (err) => err ? reject(err) : resolve());
-      });
-
-      if (!('ClipboardItem' in window) || !navigator.clipboard?.write || !window.isSecureContext) {
-        throw new Error('Clipboard image API ikke tilgængelig');
-      }
-
-      const blob = await new Promise((resolve, reject) => {
-        if (off.toBlob) {
-          off.toBlob((b) => b ? resolve(b) : reject(new Error('toBlob mislykkedes')), 'image/png');
-        } else {
-          try { resolve(dataURLToBlob(off.toDataURL('image/png'))); }
-          catch(e){ reject(e); }
-        }
-      });
-
-      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-      feedback(true);
-    } catch (e) {
-      try {
-        const dataUrl = await new Promise((resolve, reject) => {
-          if (typeof QRCode === 'undefined') return reject(new Error('QRCode lib mangler'));
-          QRCode.toDataURL(url, { width: 512, margin: 2 }, (err, d) => err ? reject(err) : resolve(d));
-        });
-        const a = document.createElement('a');
-        a.href = dataUrl;
-        a.download = 'qr.png';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        feedback(false);
-      } catch {
-        alert('Kunne ikke kopiere eller generere QR-billede.');
-      }
-    }
-
-    function dataURLToBlob(dataURL) {
-      const [header, data] = dataURL.split(',');
-      const mime = header.match(/:(.*?);/)[1] || 'image/png';
-      const bin = atob(data);
-      const len = bin.length;
-      const u8 = new Uint8Array(len);
-      for (let i = 0; i < len; i++) u8[i] = bin.charCodeAt(i);
-      return new Blob([u8], { type: mime });
-    }
-  }
-
-  function showLargeQR(url, title) {
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.innerHTML = `
-      <div class="modal-content">
-        <h3 style="margin-bottom:16px">${title}</h3>
-        <img id="large-qr-img" alt="QR" style="display:block;margin:0 auto;max-width:70vw;height:auto"/>
-        <div style="margin-top:12px;display:flex;gap:8px;justify-content:center">
-          <button class="btn small" id="btnCopyQR">Kopiér QR</button>
-          <button class="btn small" id="btnDownloadQR">Download QR</button>
-        </div>
-        <p style="margin-top:16px;color:var(--muted);font-size:0.9rem">Klik udenfor for at lukke</p>
-      </div>
-    `;
-    document.body.appendChild(modal);
-
-    const img = modal.querySelector('#large-qr-img');
-
-    if (typeof QRCode !== 'undefined') {
-      QRCode.toDataURL(url, { width: 600, margin: 2 }, (err, dataUrl) => {
-        if (err) {
-          console.error('QR (stor) fejlede:', err);
-          img.alt = 'QR kunne ikke genereres';
-          return;
-        }
-        img.src = dataUrl;
-      });
-    } else {
-      img.alt = 'QR lib ikke indlæst';
-    }
-
-    modal.querySelector('#btnCopyQR').onclick = (e) => copyQRPNG(url, e.currentTarget);
-
-    modal.querySelector('#btnDownloadQR').onclick = () => {
-      const a = document.createElement('a');
-      a.href = img.src;
-      a.download = 'qr.png';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    };
-
-    modal.onclick = (e) => { if (e.target === modal) document.body.removeChild(modal); };
-    modal.querySelector('.modal-content').onclick = (e) => e.stopPropagation();
-  }
-
-
-
-  async function createProjectLink(projectId) {
-    try {
-      // Check if link already exists
-      let { data: link } = await supabase.from('project_link').select().eq('project_id', projectId).maybeSingle();
-      
-      if (!link) {
-        // Create new link
-        const token = crypto.randomUUID().replaceAll('-', '');
-        const { data, error } = await supabase.from('project_link').insert({
-          project_id: projectId,
-          token
-        }).select().single();
-        
-        if (error) throw error;
-        link = data;
-      }
-      
-      return generateProjectUrl(link.token);
-    } catch (error) {
-      console.error('Error creating project link:', error);
-      return null;
-    }
-  }
-
-  async function loadAll(){ 
-    await loadTemplates(); 
-    await loadProjects(); 
-    await loadProjectsInto(['selProject2']); 
-  }
+// Message display
+function showMessage(elementId, message, type = 'error') {
+  const el = $(elementId);
+  el.className = `message ${type}`;
+  el.innerHTML = message;
+  el.style.display = 'block';
   
-  // Templates (læs-only for evaluatorer)
-  async function loadTemplates(){
-    const { data, error } = await supabase.from('templates').select().order('created_at',{ascending:false});
-    
-    if(error) {
-      console.error('Template load error:', error);
-      return;
-    }
-    
-    const sel = $('p-template'); 
-    sel.innerHTML = '<option value="">-- Vælg skabelon --</option>'; 
-    
-    if(!data || data.length === 0) {
-      sel.innerHTML = '<option value="">Ingen skabeloner tilgængelige</option>';
-      return;
-    }
-    
-    data.forEach(t => { 
-      const o = document.createElement('option'); 
-      o.value = t.id; 
-      o.textContent = `${t.name} v${t.version}`;
-      if(t.description) o.title = t.description;
-      sel.appendChild(o); 
-    });
-    
-    // Auto-select first template if only one
-    if(data.length === 1) {
-      sel.value = data[0].id;
-    }
+  if (type === 'success') {
+    setTimeout(() => { el.style.display = 'none'; }, 5000);
   }
+}
 
-  // Projects (kun egne projekter)
-  async function loadProjects(){
-    const { data } = await supabase.from('projects').select().order('created_at',{ascending:false}).limit(1000);
-    const tb = $('projectsTbl').querySelector('tbody'); 
-    tb.innerHTML='';
-    
-    for (const p of (data||[])) {
-      const tr = document.createElement('tr');
-      
-      // Get existing link
-      const { data: linkData } = await supabase.from('project_link').select().eq('project_id', p.id).maybeSingle();
-      const hasLink = !!linkData;
-      const projectUrl = hasLink ? generateProjectUrl(linkData.token) : null;
-      
-      // (fjernet) – mini-canvas bruges ikke
-
-      
-      tr.innerHTML = `
-        <td>
-          <strong>${p.title}</strong><br>
-          <span class="muted">${p.info_text || ''}</span>
-        </td>
-        <td>${p.open_at ? new Date(p.open_at).toLocaleString('da-DK') : 'Ikke sat'}</td>
-        <td>${p.close_at ? new Date(p.close_at).toLocaleString('da-DK') : 'Ikke sat'}</td>
-        <!-- Link-kolonne -->
-        <td>
-          <div class="status-indicator">
-            <div class="status-row">
-              ${hasLink ? `
-                <span class="status-icon success" title="Link findes">✓</span>
-                <span class="copy-icon" onclick="copyProjectLink('${projectUrl}', this)" title="Kopiér link">📋</span>
-              ` : `
-                <span class="status-icon error" title="Intet link">✗</span>
-              `}
-            </div>
-          </div>
-        </td>
-
-        <!-- QR-kolonne -->
-        <td>
-          <div class="status-indicator">
-            <div class="status-row">
-              ${hasLink ? `
-                <span class="status-icon success" title="QR genereret">✓</span>
-                <span class="copy-icon" onclick="showLargeProjectQR('${projectUrl}', '${p.title.replace(/'/g, '\\\'')}')" title="Vis og kopier QR">📋</span>
-              ` : `
-                <span class="status-icon error" title="Ingen QR">✗</span>
-              `}
-            </div>
-          </div>
-        </td>
-
-
-        <td style="text-align:right">
-          <button class="btn small" onclick="editProject('${p.id}')" style="background:var(--brand);color:white;border-color:var(--brand);margin-right:8px">Rediger</button>
-          <button class="btn small" onclick="deleteProject('${p.id}', '${p.title.replace(/'/g, '\\\'')}')" style="background:#dc3545;color:white;border-color:#dc3545">Slet</button>
-        </td>
-      `;
-
-      
-      tb.appendChild(tr);
-      
-      // (fjernet) – mini-canvas bruges ikke længere
-
-    }
-  }
-
-  // Global functions for table actions
-window.copyProjectLink = (url, element) => {
-  copyToClipboard(url, element, 'link');
-};
-
-window.copyQRFromIcon = (url, icon) => {
-  copyQRPNG(url, icon);
-};
-
-window.showLargeProjectQR = (url, title) => {
-  showLargeQR(url, title);
-};
-
-
-  window.editProject = async (projectId) => {
-    try {
-      const { data: project, error } = await supabase.from('projects').select('*').eq('id', projectId).single();
-      if (error) throw error;
-      
-      showProjectForm(true, project);
-    } catch (error) {
-      alert(`⚠ Fejl ved indlæsning af projekt: ${error.message}`);
-    }
-  };
-
-  window.deleteProject = async (projectId, projectTitle) => {
-    if(!confirm(`Er du sikker på du vil slette projektet "${projectTitle}"?\n\nDette vil også slette:\n• Alle personer tilknyttet projektet\n• Alle besvarelser\n• Project links\n\nDenne handling kan ikke fortrydes!`)) {
-      return;
-    }
-    
-    try {
-      const { error } = await supabase.from('projects').delete().eq('id', projectId);
-      if(error) throw error;
-      
-      alert(`✅ Projekt "${projectTitle}" er slettet`);
-      
-      await Promise.all([
-        loadProjects(),
-        loadProjectsInto(['selProject2'])
-      ]);
-      
-      // If we were editing this project, hide the form
-      if (currentEditProject && currentEditProject.id === projectId) {
-        hideProjectForm();
-      }
-      
-    } catch(error) {
-      alert(`⚠ Fejl ved sletning: ${error.message}`);
-    }
-  };
-
-  async function loadProjectsInto(ids){
-    const { data } = await supabase.from('projects').select('id,title').order('title');
-    ids.forEach(id=>{ 
-      const s=$(id); 
-      s.innerHTML='<option value="">-- Vælg projekt --</option>'; 
-      (data||[]).forEach(p=>{ 
-        const o=document.createElement('option'); 
-        o.value=p.id; 
-        o.textContent=p.title; 
-        s.appendChild(o); 
-      }); 
-    });
-  }
-
-  $('saveProjectBtn').onclick = async ()=>{
-    const title = $('p-title').value.trim();
-    const templateId = $('p-template').value;
-    
-    if(!title) return alert('Projekt titel er påkrævet');
-    if(!templateId) return alert('Vælg en skabelon');
-    
-    const btn = $('saveProjectBtn');
-    const originalText = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = currentEditProject ? 'Gemmer...' : 'Opretter...';
-    $('projectStatus').textContent = '';
-    
-    try {
-      const u = (await supabase.auth.getUser()).data.user;
-      const settings = {
-        labels: {
-          self: $('label-self').value || 'Vurdering af sig selv',
-          peer: $('label-peer').value || 'Vurdering af kollega', 
-          leader: $('label-leader').value || 'Fører vurdering'
-        },
-        min_group_n: 2 // Fast værdi
-      };
-      
-      // Helper function to convert datetime-local to correct ISO string
-      function convertToCorrectISO(datetimeLocalValue) {
-        if (!datetimeLocalValue || !datetimeLocalValue.trim()) return null;
-        
-        // Create date object from datetime-local (which is in local timezone)
-        const localDate = new Date(datetimeLocalValue);
-        
-        // Return ISO string (this automatically converts to UTC)
-        return localDate.toISOString();
-      }
-      
-      const projectData = { 
-        template_id: templateId,
-        owner: u.id, 
-        title: title,
-        info_text: $('p-info').value.trim() || null,
-        is_lite: $('p-lite').value === 'true', 
-        is_anonymous: $('p-anon').value === 'true', 
-        open_at: convertToCorrectISO($('p-open').value), 
-        close_at: convertToCorrectISO($('p-close').value), 
-        settings 
-      };
-      
-      if (currentEditProject) {
-        // Update existing project
-        btn.textContent = 'Opdaterer projekt...';
-        const { data, error } = await supabase.from('projects').update(projectData).eq('id', currentEditProject.id).select().single();
-        if(error) throw error;
-        
-        $('projectStatus').textContent = `✅ Projekt "${title}" er opdateret!`;
-        $('projectStatus').style.color = 'green';
-        
-        // Hide form after successful update
-        setTimeout(() => {
-          hideProjectForm();
-        }, 1500);
-        
-      } else {
-        // Create new project
-        btn.textContent = 'Opretter projekt...';
-        const { data, error } = await supabase.from('projects').insert(projectData).select().single();
-        if(error) throw error;
-        
-        // Save temporary people to database
-        if (temporaryPeople.length > 0) {
-          btn.textContent = 'Gemmer navneliste...';
-          const peoplePayload = temporaryPeople.map(p => ({
-            project_id: data.id,
-            full_name: p.full_name,
-            employee_no: p.employee_no
-          }));
-          
-          const { error: peopleError } = await supabase.from('project_people').insert(peoplePayload);
-          if (peopleError) {
-            console.error('People save error:', peopleError);
-            // Continue anyway, just log the error
-          }
-        }
-        
-        // Auto-generate link
-        btn.textContent = 'Genererer link...';
-        const projectUrl = await createProjectLink(data.id);
-        
-        if (projectUrl) {
-          $('projectStatus').textContent = `✅ Projekt "${title}" oprettet med link!`;
-        } else {
-          $('projectStatus').textContent = `✅ Projekt "${title}" oprettet (link fejlede)`;
-        }
-        $('projectStatus').style.color = 'green';
-        
-        // Clear temporary people after successful save
-        temporaryPeople = [];
-        
-        // Hide form after successful creation
-        setTimeout(() => {
-          hideProjectForm();
-        }, 1500);
-      }
-      
-      // Reload data
-      await Promise.all([
-        loadProjects(),
-        loadProjectsInto(['selProject2'])
-      ]);
-      
-    } catch(error) {
-      $('projectStatus').textContent = `⚠ Fejl: ${error.message}`;
-      $('projectStatus').style.color = 'red';
-    } finally {
-      btn.disabled = false;
-      btn.textContent = originalText;
-    }
-  };
-
-  // People management
-  window.deletePerson = async (personId) => {
-    if(!confirm('Slet denne person?')) return;
-    const { error } = await supabase.from('project_people').delete().eq('id', personId);
-    if(error) return alert(error.message);
-    loadPeople();
-  };
-
-  $('addPerson').onclick = async ()=>{
-    const name = $('personName').value.trim();
-    const employeeNo = $('personNo').value.trim();
-    
-    if(!name) return alert('Navn påkrævet');
-    
-    if (currentEditProject) {
-      // Existing project - save directly to database
-      const ins = { 
-        project_id: currentEditProject.id, 
-        full_name: name, 
-        employee_no: employeeNo || null 
-      };
-      const { error } = await supabase.from('project_people').insert(ins); 
-      if(error) return alert(error.message);
-      
-      $('personName').value = ''; 
-      $('personNo').value = ''; 
-      loadPeople();
-    } else {
-      // New project - add to temporary list
-      addToTemporaryList(name, employeeNo);
-    }
-  };
-
-  $('btnReloadPeople').onclick = loadPeople;
+// Login form
+$('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
   
-  async function loadPeople(){
-    const tb=$('peopleTbl').querySelector('tbody'); 
-    
-    if(!currentEditProject) {
-      tb.innerHTML='<tr><td colspan="3" style="text-align:center;padding:16px;color:var(--muted);font-style:italic">Vælg eller opret et projekt først</td></tr>';
-      return;
-    }
-    
-    const { data } = await supabase.from('project_people').select().eq('project_id', currentEditProject.id).order('full_name');
-    tb.innerHTML='';
-    
-    if(!data || data.length === 0) {
-      tb.innerHTML='<tr><td colspan="3" style="text-align:center;padding:16px;color:var(--muted);font-style:italic">Ingen personer tilføjet endnu</td></tr>';
-      return;
-    }
-    
-    data.forEach(p=>{ 
-      const tr=document.createElement('tr'); 
-      tr.style.borderBottom = '1px solid var(--line)';
-      tr.innerHTML=`
-        <td style="padding:8px">${p.full_name}</td>
-        <td style="padding:8px;color:var(--muted)">${p.employee_no||'—'}</td>
-        <td style="padding:8px;text-align:center">
-          <button class="btn small" onclick="deletePerson('${p.id}')" style="background:#dc3545;color:white;border-color:#dc3545;padding:3px 8px;font-size:0.75rem;border-radius:4px">×</button>
-        </td>
-      `; 
-      tb.appendChild(tr); 
+  const email = $('login-email').value;
+  const password = $('login-password').value;
+  
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
     });
-  }
-
-  $('importCsv').onclick=()=>{ $('csvFile').click(); };
-  $('csvFile').addEventListener('change',(e)=>{
-    const f=e.target.files[0]; 
-    if(!f) return;
     
-    Papa.parse(f,{
-      header:true,
-      complete:async (res)=>{ 
-        const rows=res.data.filter(r=>r.full_name?.trim()); 
-        if(rows.length === 0) return alert('Ingen gyldige rækker fundet i CSV');
-        
-        if (currentEditProject) {
-          // Existing project - save directly to database
-          const payload=rows.map(r=>({
-            project_id: currentEditProject.id,
-            full_name:r.full_name.trim(),
-            employee_no:r.employee_no?.trim()||null
-          })); 
-          const { error } = await supabase.from('project_people').insert(payload); 
-          if(error) return alert(error.message); 
-          alert(`${payload.length} personer importeret`);
-          loadPeople(); 
-        } else {
-          // New project - add to temporary list
-          processCSVForTemporary(rows);
-        }
-      },
-      error: (error) => {
-        alert('Fejl ved læsning af CSV: ' + error.message);
-      }
-    });
-  });
-
-  // Results
-  $('selProject2').onchange = async ()=>{
-    const pid=$('selProject2').value; 
-    const { data } = await supabase.from('project_people').select().eq('project_id',pid).order('full_name');
-    const s=$('selTarget'); 
-    s.innerHTML=''; 
-    (data||[]).forEach(p=>{ 
-      const o=document.createElement('option'); 
-      o.value=p.id; 
-      o.textContent=p.full_name; 
-      s.appendChild(o); 
-    });
-  };
-
-  $('btnLoadRadar').onclick = async ()=>{
-    const pid=$('selProject2').value, tid=$('selTarget').value;
-    const { data } = await supabase.from('v_kompas_series').select().eq('project_id',pid).eq('target_id',tid);
-    const cats=[...new Set(data.map(d=>d.category_name))];
-    const self = cats.map(c=>data.find(r=>r.category_name===c && r.respondent_type==='self')?.safe_avg ?? null);
-    const peer = cats.map(c=>data.find(r=>r.category_name===c && r.respondent_type==='peer')?.safe_avg ?? null);
-    const leader = cats.map(c=>data.find(r=>r.category_name===c && r.respondent_type==='leader')?.safe_avg ?? null);
-    const ctx=$('radar').getContext('2d'); 
-    if(radar) radar.destroy();
-    radar = new Chart(ctx,{
-      type:'radar',
-      data:{
-        labels:cats,
-        datasets:[
-          {label:'Selv',data:self,borderColor:'#111',backgroundColor:'rgba(0,0,0,.04)',pointBackgroundColor:'#111',borderWidth:2},
-          {label:'Kollega',data:peer,borderColor:'rgba(102,126,234,1)',backgroundColor:'rgba(102,126,234,.12)',pointBackgroundColor:'rgba(102,126,234,1)',borderWidth:2},
-          {label:'Fører',data:leader,borderColor:'rgba(118,75,162,1)',backgroundColor:'rgba(118,75,162,.12)',pointBackgroundColor:'rgba(118,75,162,1)',borderWidth:2}
-        ]
-      }, 
-      options:{ 
-        scales:{ 
-          r:{beginAtZero:true,min:0,max:5,ticks:{stepSize:1}}
-        }, 
-        plugins:{legend:{position:'bottom'}} 
-      }
-    });
-    const hidden=[]; 
-    if(peer.every(v=>v===null)) hidden.push('Kollega'); 
-    if(leader.every(v=>v===null)) hidden.push('Fører');
-    $('resultNote').textContent = hidden.length? `Skjult pga. anonymitetsgrænse: ${hidden.join(', ')}`:'';
-  };
-
-  function openDoc(url){ window.open(url,'_blank'); }
-  $('btnPdf').onclick = ()=>{ 
-    const pid=$('selProject2').value, tid=$('selTarget').value; 
-    openDoc(`http://localhost:8000/pdf?project_id=${pid}&target_id=${tid}`); 
-  };
-  $('btnZip').onclick = ()=>{ 
-    const pid=$('selProject2').value; 
-    openDoc(`http://localhost:8000/zip?project_id=${pid}`); 
-  };
-
-  // Session check + rolleadskillelse
-  supabase.auth.getUser().then(async ({data})=>{
-    if(!data?.user){
-      window.location.href = 'login.html';
-      return;
-    }
+    if (error) throw error;
+    
+    // Check user role
     const { data: roleData } = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', data.user.id)
       .single();
-
-    if(roleData?.role === 'programmer'){
+    
+    if (roleData?.role === 'programmer') {
       window.location.href = 'master.html';
-      return;
+    } else {
+      window.location.href = 'admin.html';
+    }
+  } catch (error) {
+    showMessage('login-message', error.message || 'Login fejlede', 'error');
+  }
+});
+
+// Activation Step 1
+$('activate-form-step1').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  
+  const key = $('activation-key').value.trim().toUpperCase();
+  const email = $('activation-email').value.trim().toLowerCase();
+  
+  try {
+    // Validate key
+    const { data, error } = await supabase.rpc('activate_account_with_key', {
+      p_key_code: key,
+      p_email: email,
+      p_password: 'temp' // Vi validerer kun nøglen først
+    });
+    
+    if (error) throw error;
+    if (data.error) throw new Error(data.error);
+    
+    // Store for next step
+    activationData = { key, email };
+    
+    // Move to step 2
+    $('step1').style.display = 'none';
+    $('step2').style.display = 'block';
+    $('activate-divider').style.display = 'none';
+    $('activate-footer').style.display = 'none';
+    
+  } catch (error) {
+    showMessage('activate-message', error.message || 'Ugyldig nøgle eller email', 'error');
+  }
+});
+
+// Password validation
+$('new-password').addEventListener('input', validatePassword);
+$('confirm-password').addEventListener('input', validatePassword);
+
+function validatePassword() {
+  const password = $('new-password').value;
+  const confirm = $('confirm-password').value;
+  const submitBtn = $('activate-form-step2').querySelector('button[type="submit"]');
+  
+  // Check requirements
+  const requirements = {
+    length: password.length >= 8,
+    upper: /[A-Z]/.test(password),
+    lower: /[a-z]/.test(password),
+    number: /[0-9]/.test(password)
+  };
+  
+  // Update UI
+  Object.keys(requirements).forEach(req => {
+    const el = document.querySelector(`[data-req="${req}"]`);
+    if (requirements[req]) {
+      el.classList.add('met');
+    } else {
+      el.classList.remove('met');
+    }
+  });
+  
+  // Check if passwords match
+  const matchEl = $('password-match');
+  if (confirm.length > 0) {
+    if (password === confirm) {
+      matchEl.textContent = '✓ Adgangskoderne matcher';
+      matchEl.style.color = 'var(--success)';
+      matchEl.style.display = 'block';
+    } else {
+      matchEl.textContent = '✗ Adgangskoderne matcher ikke';
+      matchEl.style.color = 'var(--error)';
+      matchEl.style.display = 'block';
+    }
+  } else {
+    matchEl.style.display = 'none';
+  }
+  
+  // Enable/disable submit button
+  const allRequirementsMet = Object.values(requirements).every(v => v);
+  const passwordsMatch = password === confirm && confirm.length > 0;
+  
+  submitBtn.disabled = !(allRequirementsMet && passwordsMatch);
+}
+
+// Activation Step 2 - SIMPEL version når email confirmation er slået FRA
+$('activate-form-step2').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const password = $('new-password').value;
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Opretter konto...';
+
+  try {
+    // 1) Opret bruger (ingen email confirmation nødvendig)
+    const { error: signUpError } = await supabase.auth.signUp({
+      email: activationData.email,
+      password
+    });
+    if (signUpError) throw signUpError;
+
+    // 2) Vent kort tid for database propagation
+    submitBtn.textContent = 'Aktiverer konto...';
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // 3) Markér nøgle som brugt og giv rolle
+    const { data: markData, error: markError } = await supabase.rpc('mark_activation_key_used', {
+      p_key_code: activationData.key,
+      p_email: activationData.email
+    });
+    
+    if (markError) {
+      console.error('Mark key error:', markError);
+      // Prøv igen efter lidt længere ventetid
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      const { data: retryData, error: retryError } = await supabase.rpc('mark_activation_key_used', {
+        p_key_code: activationData.key,
+        p_email: activationData.email
+      });
+      if (retryError) throw retryError;
+      if (retryData?.error) throw new Error(retryData.error);
+    } else if (markData?.error) {
+      throw new Error(markData.error);
     }
 
-    user = data.user;
-    loadAll();
-  });
+    // 4) Log ind med det samme
+    submitBtn.textContent = 'Logger ind...';
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+      email: activationData.email,
+      password
+    });
+    
+    if (signInError) throw signInError;
 
+    // 5) Success! Check rolle og redirect
+    submitBtn.textContent = 'Success! Omdirigerer...';
+    
+    const { data: roleData } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', signInData.user.id)
+      .single();
+
+    // Show success step
+    $('step2').style.display = 'none';
+    $('step3').style.display = 'block';
+    
+    // Redirect efter 2 sekunder
+    setTimeout(() => {
+      window.location.href = roleData?.role === 'programmer' ? 'master.html' : 'admin.html';
+    }, 2000);
+
+  } catch (error) {
+    console.error('Activation error:', error);
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Opret konto';
+    showMessage('activate-message', error.message || 'Fejl ved aktivering', 'error');
+  }
+});
+
+function goToAdmin() {
+  window.location.href = 'admin.html';
+}
+
+// Check if already logged in
+supabase.auth.getUser().then(({ data }) => {
+  if (data.user) {
+    // Already logged in, redirect based on role
+    supabase.from('user_roles')
+      .select('role')
+      .eq('user_id', data.user.id)
+      .single()
+      .then(({ data: roleData }) => {
+        if (roleData?.role === 'programmer') {
+          window.location.href = 'master.html';
+        } else {
+          window.location.href = 'admin.html';
+        }
+      });
+  }
 });
 </script>
+
 </body>
 </html>
