@@ -288,7 +288,7 @@
     <div class="club-title">
       <div class="club-logo"><img src="./assets/logo.png" alt="logo" onerror="this.style.display='none'"></div>
       <div>
-        <div class="club-name">KOMPAS – Evaluator Backoffice</div>
+        <div class="club-name">KOMPAS — Evaluator Backoffice</div>
         <div class="club-sub">360° evaluering • Projekter • Resultater</div>
       </div>
     </div>
@@ -323,7 +323,7 @@
           <h3 id="formTitle" style="margin-bottom:16px">📂 Opret nyt projekt</h3>
           <div class="grid">
             <label>Projekt-titel
-              <input id="p-title" class="input" placeholder="Fx KOMPAS 360 – 3. bataljon" style="width:100%">
+              <input id="p-title" class="input" placeholder="Fx KOMPAS 360 — 3. bataljon" style="width:100%">
             </label>
 
             <label>Skabelon
@@ -371,15 +371,15 @@
           <h4 style="margin-bottom:12px">🏷️ Evaluerings Labels</h4>
           <div style="margin-bottom:20px">
             <div style="margin-bottom:8px">
-              <label style="display:block;font-size:0.9rem;margin-bottom:4px;color:var(--muted)">Label – Selv</label>
+              <label style="display:block;font-size:0.9rem;margin-bottom:4px;color:var(--muted)">Label — Selv</label>
               <input id="label-self" class="input" value="Vurdering af sig selv" style="width:100%">
             </div>
             <div style="margin-bottom:8px">
-              <label style="display:block;font-size:0.9rem;margin-bottom:4px;color:var(--muted)">Label – Kollega</label>
+              <label style="display:block;font-size:0.9rem;margin-bottom:4px;color:var(--muted)">Label — Kollega</label>
               <input id="label-peer" class="input" value="Vurdering af kollega" style="width:100%">
             </div>
             <div style="margin-bottom:8px">
-              <label style="display:block;font-size:0.9rem;margin-bottom:4px;color:var(--muted)">Label – Fører</label>
+              <label style="display:block;font-size:0.9rem;margin-bottom:4px;color:var(--muted)">Label — Fører</label>
               <input id="label-leader" class="input" value="Fører vurdering" style="width:100%">
             </div>
           </div>
@@ -389,14 +389,8 @@
           <!-- People Management Section -->
           <h4 style="margin-bottom:12px">👥 Navneliste</h4>
           
-          <!-- Instructions for new project -->
-          <div id="peopleInstructions" style="background:#f3f4f6;border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:12px;text-align:center;color:var(--muted)">
-            <p style="margin-bottom:8px">📋 Gem projektet først for at tilføje personer</p>
-            <p style="font-size:0.85rem">Efter projektet er gemt kan du tilføje personer individuelt eller via CSV import</p>
-          </div>
-          
-          <!-- People management controls (hidden for new projects) -->
-          <div id="peopleControls" style="display:none">
+          <!-- People management controls -->
+          <div id="peopleControls">
             <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
               <button id="btnReloadPeople" class="btn small">Genindlæs</button>
               <input type="file" id="csvFile" accept=".csv,.txt,.tsv" style="display:none">
@@ -428,6 +422,7 @@
             </div>
           </div>
 
+        </div>
       </div>
 
       <!-- Projects Table -->
@@ -475,6 +470,9 @@ window.addEventListener('load', function() {
   let user = null;
   let currentEditProject = null; // Track which project is being edited
 
+  // State management for temporary people (before project is saved)
+  let temporaryPeople = [];
+
   const SUPABASE_URL = "https://wsrstyrsuwhcmmlmnbrz.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzcnN0eXJzdXdoY21tbG1uYnJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MTU0NTIsImV4cCI6MjA3MTE5MTQ1Mn0.Rf3Z3bQGjV5CKXKZr6IMOjzPdbhVJCh3SwuvlkpxUD0";
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -505,6 +503,73 @@ window.addEventListener('load', function() {
     window.location.href = 'login.html';
   };
 
+  // Render temporary people list (for new projects)
+  function renderTemporaryPeople() {
+    const tb = $('peopleTbl').querySelector('tbody');
+    tb.innerHTML = '';
+    
+    if (temporaryPeople.length === 0) {
+      tb.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:16px;color:var(--muted);font-style:italic">Tilføj personer til dit nye projekt</td></tr>';
+      return;
+    }
+    
+    temporaryPeople.forEach((person, index) => {
+      const tr = document.createElement('tr');
+      tr.style.borderBottom = '1px solid var(--line)';
+      tr.innerHTML = `
+        <td style="padding:8px">${person.full_name}</td>
+        <td style="padding:8px;color:var(--muted)">${person.employee_no || '—'}</td>
+        <td style="padding:8px;text-align:center">
+          <button class="btn small" onclick="removeTemporaryPerson(${index})" style="background:#dc3545;color:white;border-color:#dc3545;padding:3px 8px;font-size:0.75rem;border-radius:4px">×</button>
+        </td>
+      `;
+      tb.appendChild(tr);
+    });
+  }
+
+  // Add person to temporary list (for new projects)
+  function addToTemporaryList(name, employeeNo) {
+    if (!name.trim()) {
+      alert('Navn påkrævet');
+      return;
+    }
+    
+    temporaryPeople.push({
+      full_name: name.trim(),
+      employee_no: employeeNo.trim() || null
+    });
+    
+    renderTemporaryPeople();
+    $('personName').value = '';
+    $('personNo').value = '';
+  }
+
+  // Remove person from temporary list
+  window.removeTemporaryPerson = (index) => {
+    temporaryPeople.splice(index, 1);
+    renderTemporaryPeople();
+  };
+
+  // Process CSV for temporary list
+  function processCSVForTemporary(csvData) {
+    const validRows = csvData.filter(r => r.full_name?.trim());
+    
+    if (validRows.length === 0) {
+      alert('Ingen gyldige rækker fundet i CSV');
+      return;
+    }
+    
+    validRows.forEach(row => {
+      temporaryPeople.push({
+        full_name: row.full_name.trim(),
+        employee_no: row.employee_no?.trim() || null
+      });
+    });
+    
+    renderTemporaryPeople();
+    alert(`${validRows.length} personer tilføjet fra CSV`);
+  }
+
   // Project form state management
   function showProjectForm(isEdit = false, project = null) {
     $('projectForm').classList.remove('project-form-collapsed');
@@ -512,6 +577,7 @@ window.addEventListener('load', function() {
     
     if (isEdit && project) {
       currentEditProject = project;
+      temporaryPeople = []; // Clear temporary list for edit mode
       $('formTitle').textContent = '✏️ Rediger projekt';
       $('saveProjectBtn').textContent = 'Gem projekt';
       
@@ -530,15 +596,20 @@ window.addEventListener('load', function() {
       $('label-peer').value = labels.peer || 'Vurdering af kollega';
       $('label-leader').value = labels.leader || 'Fører vurdering';
       
-      // Load people for this project
+      // Load people for this project from database
       loadPeople();
     } else {
+      // New project mode
       currentEditProject = null;
+      temporaryPeople = []; // Reset temporary list
       $('formTitle').textContent = '📂 Opret nyt projekt';
       $('saveProjectBtn').textContent = 'Opret projekt';
       
       // Clear form
       clearProjectForm();
+      
+      // Show empty temporary people list
+      renderTemporaryPeople();
     }
   }
 
@@ -546,6 +617,7 @@ window.addEventListener('load', function() {
     $('projectForm').classList.add('project-form-collapsed');
     $('createNewProjectBtn').style.display = 'inline-block';
     currentEditProject = null;
+    temporaryPeople = [];
     clearProjectForm();
   }
 
@@ -560,7 +632,7 @@ window.addEventListener('load', function() {
     $('label-peer').value = 'Vurdering af kollega';
     $('label-leader').value = 'Fører vurdering';
     $('projectStatus').textContent = '';
-    
+   
     // Clear people table
     const tb = $('peopleTbl').querySelector('tbody');
     tb.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:16px;color:var(--muted);font-style:italic">Vælg eller opret et projekt først</td></tr>';
@@ -972,6 +1044,22 @@ window.addEventListener('load', function() {
         const { data, error } = await supabase.from('projects').insert(projectData).select().single();
         if(error) throw error;
         
+        // Save temporary people to database
+        if (temporaryPeople.length > 0) {
+          btn.textContent = 'Gemmer navneliste...';
+          const peoplePayload = temporaryPeople.map(p => ({
+            project_id: data.id,
+            full_name: p.full_name,
+            employee_no: p.employee_no
+          }));
+          
+          const { error: peopleError } = await supabase.from('project_people').insert(peoplePayload);
+          if (peopleError) {
+            console.error('People save error:', peopleError);
+            // Continue anyway, just log the error
+          }
+        }
+        
         // Auto-generate link
         btn.textContent = 'Genererer link...';
         const projectUrl = await createProjectLink(data.id);
@@ -982,6 +1070,9 @@ window.addEventListener('load', function() {
           $('projectStatus').textContent = `✅ Projekt "${title}" oprettet (link fejlede)`;
         }
         $('projectStatus').style.color = 'green';
+        
+        // Clear temporary people after successful save
+        temporaryPeople = [];
         
         // Hide form after successful creation
         setTimeout(() => {
@@ -1013,20 +1104,28 @@ window.addEventListener('load', function() {
   };
 
   $('addPerson').onclick = async ()=>{
-    if (!currentEditProject) return alert('Vælg eller opret et projekt først');
-    if(!$('personName').value.trim()) return alert('Navn påkrævet');
+    const name = $('personName').value.trim();
+    const employeeNo = $('personNo').value.trim();
     
-    const ins = { 
-      project_id: currentEditProject.id, 
-      full_name: $('personName').value.trim(), 
-      employee_no: $('personNo').value.trim() || null 
-    };
-    const { error } = await supabase.from('project_people').insert(ins); 
-    if(error) return alert(error.message);
+    if(!name) return alert('Navn påkrævet');
     
-    $('personName').value = ''; 
-    $('personNo').value = ''; 
-    loadPeople();
+    if (currentEditProject) {
+      // Existing project - save directly to database
+      const ins = { 
+        project_id: currentEditProject.id, 
+        full_name: name, 
+        employee_no: employeeNo || null 
+      };
+      const { error } = await supabase.from('project_people').insert(ins); 
+      if(error) return alert(error.message);
+      
+      $('personName').value = ''; 
+      $('personNo').value = ''; 
+      loadPeople();
+    } else {
+      // New project - add to temporary list
+      addToTemporaryList(name, employeeNo);
+    }
   };
 
   $('btnReloadPeople').onclick = loadPeople;
@@ -1065,22 +1164,28 @@ window.addEventListener('load', function() {
   $('csvFile').addEventListener('change',(e)=>{
     const f=e.target.files[0]; 
     if(!f) return;
-    if (!currentEditProject) return alert('Vælg eller opret et projekt først');
     
     Papa.parse(f,{
       header:true,
       complete:async (res)=>{ 
         const rows=res.data.filter(r=>r.full_name?.trim()); 
         if(rows.length === 0) return alert('Ingen gyldige rækker fundet i CSV');
-        const payload=rows.map(r=>({
-          project_id: currentEditProject.id,
-          full_name:r.full_name.trim(),
-          employee_no:r.employee_no?.trim()||null
-        })); 
-        const { error } = await supabase.from('project_people').insert(payload); 
-        if(error) return alert(error.message); 
-        alert(`${payload.length} personer importeret`);
-        loadPeople(); 
+        
+        if (currentEditProject) {
+          // Existing project - save directly to database
+          const payload=rows.map(r=>({
+            project_id: currentEditProject.id,
+            full_name:r.full_name.trim(),
+            employee_no:r.employee_no?.trim()||null
+          })); 
+          const { error } = await supabase.from('project_people').insert(payload); 
+          if(error) return alert(error.message); 
+          alert(`${payload.length} personer importeret`);
+          loadPeople(); 
+        } else {
+          // New project - add to temporary list
+          processCSVForTemporary(rows);
+        }
       },
       error: (error) => {
         alert('Fejl ved læsning af CSV: ' + error.message);
