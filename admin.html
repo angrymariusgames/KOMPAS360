@@ -389,36 +389,44 @@
           <!-- People Management Section -->
           <h4 style="margin-bottom:12px">👥 Navneliste</h4>
           
-          <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-            <button id="btnReloadPeople" class="btn small">Genindlæs</button>
-            <input type="file" id="csvFile" accept=".csv,.txt,.tsv" style="display:none">
-            <button id="importCsv" class="btn small">Import CSV</button>
+          <!-- Instructions for new project -->
+          <div id="peopleInstructions" style="background:#f3f4f6;border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:12px;text-align:center;color:var(--muted)">
+            <p style="margin-bottom:8px">📋 Gem projektet først for at tilføje personer</p>
+            <p style="font-size:0.85rem">Efter projektet er gemt kan du tilføje personer individuelt eller via CSV import</p>
           </div>
-
-          <div style="margin-bottom:12px">
-            <div style="margin-bottom:6px">
-              <input id="personName" class="input" placeholder="Fulde navn" style="width:100%;margin-bottom:6px">
+          
+          <!-- People management controls (hidden for new projects) -->
+          <div id="peopleControls" style="display:none">
+            <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+              <button id="btnReloadPeople" class="btn small">Genindlæs</button>
+              <input type="file" id="csvFile" accept=".csv,.txt,.tsv" style="display:none">
+              <button id="importCsv" class="btn small">Import CSV</button>
             </div>
-            <div style="display:flex;gap:6px">
-              <input id="personNo" class="input" placeholder="Nr." style="flex:1">
-              <button id="addPerson" class="btn primary small">Tilføj</button>
+
+            <div style="margin-bottom:12px">
+              <div style="margin-bottom:6px">
+                <input id="personName" class="input" placeholder="Fulde navn" style="width:100%;margin-bottom:6px">
+              </div>
+              <div style="display:flex;gap:6px">
+                <input id="personNo" class="input" placeholder="Nr." style="flex:1">
+                <button id="addPerson" class="btn primary small">Tilføj</button>
+              </div>
+            </div>
+
+            <!-- People Table -->
+            <div style="max-height:250px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;background:#fff">
+              <table id="peopleTbl" style="font-size:0.85rem;width:100%">
+                <thead style="background:var(--card);position:sticky;top:0">
+                  <tr>
+                    <th style="padding:8px;border-bottom:1px solid var(--line)">Navn</th>
+                    <th style="padding:8px;width:60px;border-bottom:1px solid var(--line)">Nr.</th>
+                    <th style="padding:8px;width:50px;text-align:center;border-bottom:1px solid var(--line)">Slet</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
             </div>
           </div>
-
-          <!-- People Table -->
-          <div style="max-height:250px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;background:#fff">
-            <table id="peopleTbl" style="font-size:0.85rem;width:100%">
-              <thead style="background:var(--card);position:sticky;top:0">
-                <tr>
-                  <th style="padding:8px;border-bottom:1px solid var(--line)">Navn</th>
-                  <th style="padding:8px;width:60px;border-bottom:1px solid var(--line)">Nr.</th>
-                  <th style="padding:8px;width:50px;text-align:center;border-bottom:1px solid var(--line)">Slet</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
-        </div>
 
       </div>
 
