@@ -865,12 +865,24 @@ window.addEventListener('load', function() {
   }
 
   function showLargeQR(url, title) {
+    console.log('showLargeQR called with URL:', url);
+    
+    // Debug: Check if QRCode is available
+    if (typeof QRCode === 'undefined') {
+      alert('QRCode bibliotek er ikke indlæst. Genindlæs siden og prøv igen.');
+      console.error('QRCode is undefined - library not loaded');
+      return;
+    }
+    
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.innerHTML = `
       <div class="modal-content">
         <h3 style="margin-bottom:16px">${title}</h3>
-        <canvas id="large-qr-canvas" style="display:block;margin:0 auto;"></canvas>
+        <div id="qr-container" style="min-height:400px;display:flex;align-items:center;justify-content:center;">
+          <canvas id="large-qr-canvas"></canvas>
+          <div id="qr-loading" style="display:none;">Genererer QR-kode...</div>
+        </div>
         <div style="margin-top:12px;display:flex;gap:8px;justify-content:center">
           <button class="btn small" id="btnCopyQR">Kopiér QR</button>
           <button class="btn small" id="btnDownloadQR">Download QR</button>
@@ -881,52 +893,104 @@ window.addEventListener('load', function() {
     document.body.appendChild(modal);
 
     const canvas = modal.querySelector('#large-qr-canvas');
+    const loadingDiv = modal.querySelector('#qr-loading');
     
-    // Generate QR code directly on canvas
-    if (typeof QRCode !== 'undefined') {
-      QRCode.toCanvas(canvas, url, { 
-        width: 400, 
-        margin: 2,
-        color: {
-          dark: '#000000',
-          light: '#FFFFFF'
-        }
-      }, (err) => {
-        if (err) {
-          console.error('QR generation failed:', err);
-          canvas.style.display = 'none';
-          const errorMsg = document.createElement('p');
-          errorMsg.textContent = 'QR-kode kunne ikke genereres';
-          errorMsg.style.color = 'var(--error)';
-          canvas.parentNode.insertBefore(errorMsg, canvas);
-        }
-      });
-    } else {
-      console.error('QRCode library not loaded');
-      canvas.style.display = 'none';
-      const errorMsg = document.createElement('p');
-      errorMsg.textContent = 'QR bibliotek ikke indlæst';
-      errorMsg.style.color = 'var(--error)';
-      canvas.parentNode.insertBefore(errorMsg, canvas);
-    }
+    // Show loading
+    canvas.style.display = 'none';
+    loadingDiv.style.display = 'block';
+    
+    // Use setTimeout to ensure DOM is ready
+    setTimeout(() => {
+      try {
+        console.log('Attempting to generate QR code...');
+        QRCode.toCanvas(canvas, url, {
+          width: 400,
+          margin: 2,
+          color: {
+            dark: '#000000',
+            light: '#FFFFFF'
+          },
+          errorCorrectionLevel: 'M'
+        }, function(error) {
+          loadingDiv.style.display = 'none';
+          
+          if (error) {
+            console.error('QR generation error:', error);
+            const errorMsg = document.createElement('p');
+            errorMsg.textContent = 'Fejl ved generering af QR-kode: ' + error.message;
+            errorMsg.style.color = 'red';
+            modal.querySelector('#qr-container').appendChild(errorMsg);
+          } else {
+            console.log('QR code generated successfully');
+            canvas.style.display = 'block';
+          }
+        });
+      } catch (e) {
+        console.error('Exception generating QR:', e);
+        loadingDiv.style.display = 'none';
+        const errorMsg = document.createElement('p');
+        errorMsg.textContent = 'Kritisk fejl: ' + e.message;
+        errorMsg.style.color = 'red';
+        modal.querySelector('#qr-container').appendChild(errorMsg);
+      }
+    }, 100);
 
-    modal.querySelector('#btnCopyQR').onclick = (e) => copyQRCanvas(canvas, e.currentTarget);
+    modal.querySelector('#btnCopyQR').onclick = async (e) => {
+      const btn = e.currentTarget;
+      const originalText = btn.textContent;
+      
+      try {
+        const blob = await new Promise((resolve) => {
+          canvas.toBlob(resolve, 'image/png');
+        });
+        
+        if (navigator.clipboard && window.ClipboardItem) {
+          await navigator.clipboard.write([
+            new window.ClipboardItem({ 'image/png': blob })
+          ]);
+          btn.textContent = '✅ Kopieret!';
+        } else {
+          throw new Error('Clipboard API not available');
+        }
+      } catch (err) {
+        console.warn('Copy failed, downloading instead:', err);
+        // Fallback to download
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = 'qr-kode.png';
+        a.click();
+        URL.revokeObjectURL(blobUrl);
+        btn.textContent = '📥 Downloaded';
+      }
+      
+      setTimeout(() => {
+        btn.textContent = originalText;
+      }, 2000);
+    };
 
     modal.querySelector('#btnDownloadQR').onclick = () => {
       canvas.toBlob((blob) => {
-        const url = URL.createObjectURL(blob);
+        const blobUrl = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = url;
+        a.href = blobUrl;
         a.download = 'qr-kode.png';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      });
+        URL.revokeObjectURL(blobUrl);
+      }, 'image/png');
     };
 
-    modal.onclick = (e) => { if (e.target === modal) document.body.removeChild(modal); };
-    modal.querySelector('.modal-content').onclick = (e) => e.stopPropagation();
+    modal.onclick = (e) => { 
+      if (e.target === modal) {
+        document.body.removeChild(modal);
+      }
+    };
+    
+    modal.querySelector('.modal-content').onclick = (e) => {
+      e.stopPropagation();
+    };
   }
 
   async function createProjectLink(projectId) {
@@ -1414,7 +1478,30 @@ window.showLargeProjectQR = (url, title) => {
     user = data.user;
     loadAll();
   });
-
+// Debug: Check if QRCode is loaded
+  window.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+      if (typeof QRCode === 'undefined') {
+        console.error('QRCode library failed to load!');
+        console.log('Attempting to load QRCode manually...');
+        
+        // Try to load it again
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js';
+        script.onload = () => {
+          console.log('QRCode library loaded successfully (retry)');
+        };
+        script.onerror = () => {
+          console.error('Failed to load QRCode library from CDN');
+          alert('QR-kode biblioteket kunne ikke indlæses. Tjek din internetforbindelse.');
+        };
+        document.head.appendChild(script);
+      } else {
+        console.log('QRCode library is loaded and ready');
+      }
+    }, 1000);
+  });
+  
 });
 </script>
 </body>
