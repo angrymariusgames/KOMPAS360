@@ -219,109 +219,155 @@
       display:block;
     }
     
-    .category-group{
-      margin-bottom:32px;
+    .question-item{
       background:#fff;
       border:1px solid var(--line);
-      border-radius:16px;
-      overflow:hidden;
-    }
-    
-    .category-header{
-      background:linear-gradient(135deg,var(--brand) 0%,#5a67d8 100%);
-      color:#fff;
-      padding:16px 20px;
-      font-weight:700;
-      font-size:1.1rem;
-    }
-    
-    .question-item{
-      padding:20px;
-      border-bottom:1px solid var(--line);
+      border-radius:12px;
+      padding:24px;
+      margin-bottom:16px;
       position:relative;
     }
     
-    .question-item:last-child{
-      border-bottom:none;
+    .question-text{
+      font-size:1rem;
+      margin-bottom:20px;
+      color:var(--ink);
+      font-weight:400;
+      line-height:1.5;
     }
     
-    .question-text{
-      font-size:1.05rem;
-      margin-bottom:16px;
-      color:var(--ink);
-      font-weight:500;
-      line-height:1.5;
+    .question-text .required{
+      color:#dc2626;
+      margin-left:4px;
     }
     
     .scale-container{
       display:flex;
-      gap:12px;
-      flex-wrap:wrap;
       align-items:center;
-    }
-    
-    .scale-option{
-      border:2px solid var(--line);
-      background:#fff;
-      color:var(--ink);
-      padding:12px;
-      border-radius:50%;
-      cursor:pointer;
-      font-weight:700;
-      font-size:1rem;
-      width:48px;
-      height:48px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      transition:.3s;
+      gap:0;
+      justify-content:space-between;
       position:relative;
-      user-select:none;
     }
     
-    .scale-option:hover{
+    .scale-labels{
+      display:flex;
+      justify-content:space-between;
+      width:100%;
+      position:absolute;
+      top:-8px;
+      font-size:0.875rem;
+      color:var(--muted);
+    }
+    
+    .scale-numbers{
+      display:flex;
+      justify-content:space-between;
+      width:320px;
+      margin:0 auto;
+      position:relative;
+    }
+    
+    .scale-number{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:8px;
+    }
+    
+    .scale-radio{
+      appearance:none;
+      width:20px;
+      height:20px;
+      border:2px solid #d1d5db;
+      border-radius:50%;
+      background:#fff;
+      cursor:pointer;
+      transition:all .2s;
+      position:relative;
+    }
+    
+    .scale-radio:hover{
       border-color:var(--brand);
       transform:scale(1.1);
     }
     
-    .scale-option.active{
-      background:var(--brand);
+    .scale-radio:checked{
       border-color:var(--brand);
-      color:#fff;
-      transform:scale(1.15);
-      box-shadow:0 4px 12px rgba(102,126,234,.3);
+      background:var(--brand);
+    }
+    
+    .scale-radio:checked::after{
+      content:'';
+      position:absolute;
+      top:50%;
+      left:50%;
+      transform:translate(-50%, -50%);
+      width:6px;
+      height:6px;
+      background:#fff;
+      border-radius:50%;
+    }
+    
+    .scale-number-label{
+      font-size:0.875rem;
+      font-weight:500;
+      color:var(--ink);
+      user-select:none;
+    }
+    
+    .sg-container{
+      margin-top:16px;
+      display:flex;
+      justify-content:center;
     }
     
     .sg-option{
-      border:2px solid var(--warning);
-      background:#fff;
-      color:var(--warning);
-      padding:8px 16px;
-      border-radius:24px;
+      display:flex;
+      align-items:center;
+      gap:8px;
       cursor:pointer;
-      font-weight:600;
-      font-size:.9rem;
-      transition:.3s;
-      white-space:nowrap;
+      padding:8px 16px;
+      border-radius:8px;
+      transition:.2s;
       user-select:none;
     }
     
     .sg-option:hover{
-      background:var(--warning);
-      color:#fff;
+      background:#f3f4f6;
     }
     
-    .sg-option.active{
-      background:var(--warning);
-      color:#fff;
-      box-shadow:0 4px 12px rgba(237,137,54,.3);
+    .sg-radio{
+      appearance:none;
+      width:16px;
+      height:16px;
+      border:2px solid #d1d5db;
+      border-radius:50%;
+      background:#fff;
+      cursor:pointer;
+      transition:all .2s;
+      position:relative;
     }
     
-    .scale-label{
-      font-size:.85rem;
-      color:var(--muted);
-      margin-left:8px;
-      white-space:nowrap;
+    .sg-radio:checked{
+      border-color:#f59e0b;
+      background:#f59e0b;
+    }
+    
+    .sg-radio:checked::after{
+      content:'';
+      position:absolute;
+      top:50%;
+      left:50%;
+      transform:translate(-50%, -50%);
+      width:4px;
+      height:4px;
+      background:#fff;
+      border-radius:50%;
+    }
+    
+    .sg-label{
+      font-size:0.875rem;
+      color:var(--ink);
     }
 
     /* Validation */
@@ -464,7 +510,7 @@
     }
 
     /* Accessibility improvements */
-    .scale-option:focus, .sg-option:focus{
+    .scale-radio:focus, .sg-radio:focus{
       outline:3px solid rgba(102,126,234,.5);
       outline-offset:2px;
     }
@@ -557,8 +603,8 @@
   <!-- Footer -->
   <div id="formFooter" class="form-footer" style="display:none">
     <div class="scale-legend">
-      <strong>Skala:</strong> 1 = I ringe grad · 2 = I mindre grad · 3 = I nogen grad · 4 = I høj grad · 5 = I meget høj grad<br>
-      <em>"Savner grundlag" registreres som neutral (3)</em>
+      <strong>Evalueringsskala:</strong> 1 = I ringe grad → 5 = I meget høj grad<br>
+      <em>"Savner grundlag" registreres som neutral vurdering</em>
     </div>
     <div class="submit-area">
       <div class="answer-count" id="answerCount">0 af 0 besvaret</div>
@@ -693,74 +739,55 @@ function renderQuestions() {
   const questions = projectContext.questions;
   totalQuestions = questions.length;
   
-  // Group questions by category
-  const categories = {};
-  questions.forEach(q => {
-    if (!categories[q.category]) {
-      categories[q.category] = {
-        name: q.category,
-        domain: q.domain,
-        questions: []
-      };
-    }
-    categories[q.category].questions.push(q);
-  });
+  // Clear container
+  container.innerHTML = '';
   
-  // Render each category
-  Object.values(categories).forEach(category => {
-    const categoryDiv = document.createElement('div');
-    categoryDiv.className = 'category-group';
+  // Render each question individually (Google Analytics style)
+  questions.forEach((question, index) => {
+    const questionDiv = document.createElement('div');
+    questionDiv.className = 'question-item';
+    questionDiv.dataset.questionId = question.id;
     
-    categoryDiv.innerHTML = `
-      <div class="category-header">
-        ${category.name} — ${category.domain}
+    questionDiv.innerHTML = `
+      <div class="question-text">
+        ${question.text}
+        <span class="required">*</span>
       </div>
-    `;
-    
-    category.questions.forEach(question => {
-      const questionDiv = document.createElement('div');
-      questionDiv.className = 'question-item';
-      questionDiv.dataset.questionId = question.id;
-      
-      questionDiv.innerHTML = `
-        <div class="question-text">${question.text}</div>
-        <div class="scale-container">
+      <div class="scale-container">
+        <div class="scale-labels">
+          <span>I ringe grad</span>
+          <span>I meget høj grad</span>
+        </div>
+        <div class="scale-numbers">
           ${[1,2,3,4,5].map(score => `
-            <div class="scale-option" data-score="${score}" role="button" tabindex="0" aria-label="Score ${score}">
-              ${score}
+            <div class="scale-number">
+              <div class="scale-number-label">${score}</div>
+              <input type="radio" name="question_${question.id}" value="${score}" class="scale-radio" data-question-id="${question.id}" data-score="${score}">
             </div>
           `).join('')}
-          <div class="sg-option" data-sg="true" role="button" tabindex="0" aria-label="Savner grundlag">
-            Savner grundlag
-          </div>
-          <div class="scale-label">1=Ringe grad ↔ 5=Meget høj grad</div>
         </div>
-        <div class="error-message">Dette spørgsmål skal besvares</div>
-      `;
-      
-      // Add click handlers
-      questionDiv.querySelectorAll('.scale-option').forEach(option => {
-        option.onclick = () => selectAnswer(question.id, parseInt(option.dataset.score), false, questionDiv);
-        option.onkeydown = (e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            option.click();
-          }
-        };
-      });
-      
-      questionDiv.querySelector('.sg-option').onclick = () => selectAnswer(question.id, 3, true, questionDiv);
-      questionDiv.querySelector('.sg-option').onkeydown = (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          questionDiv.querySelector('.sg-option').click();
+      </div>
+      <div class="sg-container">
+        <label class="sg-option">
+          <input type="radio" name="question_${question.id}" value="sg" class="sg-radio" data-question-id="${question.id}" data-sg="true">
+          <span class="sg-label">Savner grundlag</span>
+        </label>
+      </div>
+      <div class="error-message">Dette spørgsmål skal besvares</div>
+    `;
+    
+    // Add change handlers to radio buttons
+    questionDiv.querySelectorAll('input[type="radio"]').forEach(radio => {
+      radio.onchange = () => {
+        if (radio.dataset.sg === "true") {
+          selectAnswer(question.id, 3, true, questionDiv);
+        } else {
+          selectAnswer(question.id, parseInt(radio.dataset.score), false, questionDiv);
         }
       };
-      
-      categoryDiv.appendChild(questionDiv);
     });
     
-    container.appendChild(categoryDiv);
+    container.appendChild(questionDiv);
   });
   
   // Submit button handler
@@ -771,17 +798,6 @@ function renderQuestions() {
 function selectAnswer(questionId, score, isSG, questionDiv) {
   // Store answer
   answers.set(questionId, { score, sg: isSG });
-  
-  // Update UI
-  questionDiv.querySelectorAll('.scale-option, .sg-option').forEach(opt => {
-    opt.classList.remove('active');
-  });
-  
-  if (isSG) {
-    questionDiv.querySelector('.sg-option').classList.add('active');
-  } else {
-    questionDiv.querySelector(`[data-score="${score}"]`).classList.add('active');
-  }
   
   // Remove error state
   questionDiv.classList.remove('error');
