@@ -8,9 +8,6 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://cdn.jsdelivr.net; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js" 
-          onload="console.log('QRCode library loaded successfully')"
-          onerror="console.error('QRCode library failed to load')"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
 
   <style>
@@ -602,7 +599,7 @@ window.showLargeQR = (url, title) => {
       const protocol = window.location.protocol;
       const hostname = window.location.hostname;
       const port = window.location.port;
-      const pathname = window.location.pathname; // Tilføjet denne linje
+      const pathname = window.location.pathname;
 
       let baseUrl;
       if (hostname === 'localhost' || hostname === '127.0.0.1') {
@@ -610,15 +607,14 @@ window.showLargeQR = (url, title) => {
       } else {
         baseUrl = `${protocol}//${hostname}${port && port !== '80' && port !== '443' ? ':' + port : ''}`;
         
-        // Tilføj repository path for GitHub Pages
         if (hostname.includes('github.io')) {
           const pathParts = pathname.split('/').filter(p => p);
           if (pathParts.length > 0) {
-            baseUrl += '/' + pathParts[0]; // Tilføjer "/KOMPAS360"
+            baseUrl += '/' + pathParts[0];
           }
         }
       }
-
+      
       const url = baseUrl + '/respondent.html?t=' + link.token;
       
       const urlEl = $('projectUrl');
@@ -652,7 +648,7 @@ window.showLargeQR = (url, title) => {
       alert('Fejl ved generering: ' + error.message);
       
       const qrBox = $('qr');
-      showQRFallback(qrBox, 'Fejl ved generering af link', 'Der opstod en fejl');
+      qrBox.innerHTML = '<div style="color:#999;padding:20px;">Fejl ved generering af QR</div>';
     } finally {
       btn.disabled = false;
       btn.textContent = originalText;
