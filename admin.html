@@ -76,7 +76,7 @@
   <!-- HEADER -->
   <div class="header">
     <div class="club-title">
-      <div class="club-logo"><img src="../kompas_logo.png" alt="KOMPAS" onerror="this.style.display='none'"></div>
+      <div class="club-logo"><img src="../assets/logo.pnglogo.png" alt="logo" onerror="this.style.display='none'"></div>
       <div>
         <div class="club-name">KOMPAS – Evaluator Backoffice</div>
         <div class="club-sub">360° evaluering • Projekter • Resultater</div>
@@ -633,7 +633,19 @@ window.showLargeQR = (url, title) => {
       `;
       
       const qrBox = $('qr');
-      generateQRCode(qrBox, url, { width: 220, height: 220 });
+      // Online QR generation - virker altid!
+      qrBox.innerHTML = `
+        <div style="text-align:center;padding:15px;">
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&format=png&margin=10&data=${encodeURIComponent(url)}" 
+              style="border:1px solid #e2e8f0;border-radius:8px;max-width:220px;max-height:220px;" 
+              alt="QR Code for ${url}"
+              onerror="this.parentElement.innerHTML='<div style=&quot;color:#999;padding:20px;&quot;>QR kunne ikke genereres<br><small>${url}</small></div>'" />
+          <div style="margin-top:10px;">
+            <button onclick="copyFullLink('${url}')" class="btn" style="padding:6px 12px;font-size:0.85rem;background:#007bff;color:white;border:none;border-radius:4px;">📋 Kopiér Link</button>
+          </div>
+          <div style="margin-top:5px;color:#666;font-size:0.8rem;">Scan QR eller brug kopiér-knap</div>
+        </div>
+      `;
       
     } catch(error) {
       console.error('Link generation error:', error);
