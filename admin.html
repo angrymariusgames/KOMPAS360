@@ -258,13 +258,14 @@
     .modal{
       position:fixed;
       top:0;left:0;right:0;bottom:0;
-      background:rgba(0,0,0,.8);
+      background:rgba(0,0,0,0.8);
       z-index:1000;
       display:flex;
       align-items:center;
       justify-content:center;
       cursor:pointer;
     }
+
     
     .modal-content{
       background:white;
@@ -751,13 +752,16 @@ window.addEventListener('load', function() {
     }
   }
 
-  function showLargeQR(url, title) {
+   function showLargeQR(url, title) {
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.innerHTML = `
       <div class="modal-content">
         <h3 style="margin-bottom:16px">${title}</h3>
-        <div id="large-qr-container"></div>
+        <canvas id="large-qr-canvas" width="300" height="300" style="display:block;margin:0 auto"></canvas>
+        <div style="margin-top:12px">
+          <button class="btn small" id="btnDownloadQR">Download QR</button>
+        </div>
         <p style="margin-top:16px;color:var(--muted);font-size:0.9rem">
           Klik udenfor for at lukke
         </p>
@@ -767,11 +771,29 @@ window.addEventListener('load', function() {
     document.body.appendChild(modal);
     
     // Generate large QR
-    const container = modal.querySelector('#large-qr-container');
-    if (typeof QRCode !== 'undefined') {
-      QRCode.toCanvas(container, url, { width: 300, height: 300 });
+    const canvas = modal.querySelector('#large-qr-canvas');
+    if (typeof QRCode !== 'undefined' && canvas) {
+      QRCode.toCanvas(canvas, url, { width: 300, height: 300, margin: 1 }, (err) => {
+        if (err) {
+          console.error('QR (stor) fejlede:', err);
+          const parent = canvas.parentElement || modal.querySelector('.modal-content');
+          if (parent) parent.insertAdjacentHTML('beforeend','<p>QR kunne ikke genereres</p>');
+        }
+      });
     } else {
-      container.innerHTML = '<p>QR kunne ikke genereres</p>';
+      const parent = canvas?.parentElement || modal.querySelector('.modal-content');
+      if (parent) parent.insertAdjacentHTML('beforeend','<p>QR lib ikke indlæst</p>');
+    }
+
+    // Download button
+    const btn = modal.querySelector('#btnDownloadQR');
+    if (btn && canvas) {
+      btn.onclick = () => {
+        const a = document.createElement('a');
+        a.href = canvas.toDataURL('image/png');
+        a.download = 'qr.png';
+        a.click();
+      };
     }
     
     // Close on click outside
@@ -784,6 +806,7 @@ window.addEventListener('load', function() {
     // Prevent content click from closing
     modal.querySelector('.modal-content').onclick = (e) => e.stopPropagation();
   }
+
 
   async function createProjectLink(projectId) {
     try {
