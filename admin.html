@@ -11,64 +11,274 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 
-
   <style>
-    /* ---------- Theme (evaluator colors) ---------- */
+    /* Theme */
     *{box-sizing:border-box;margin:0;padding:0}
     :root{
       --bg1:#667eea; --bg2:#764ba2; --ink:#2d3748; --muted:#718096;
-      --card:#f8fafc; --line:#e2e8f0; --brand:#667eea; --radius:16px;
+      --card:#ffffff; --line:#e2e8f0; --brand:#667eea; --radius:20px;
+      --success:#48bb78; --error:#f56565;
     }
-    body{font-family:"Segoe UI",Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,var(--bg1) 0%,var(--bg2) 100%);min-height:100vh;padding:20px;color:var(--ink)}
-    .app{max-width:1400px;margin:0 auto;background:#fff;border-radius:20px;box-shadow:0 20px 40px rgba(0,0,0,.15);overflow:hidden}
+    
+    body{
+      font-family:"Segoe UI",Tahoma,Geneva,Verdana,sans-serif;
+      background:linear-gradient(135deg,var(--bg1) 0%,var(--bg2) 100%);
+      min-height:100vh;
+      padding:20px;
+      color:var(--ink);
+    }
+    
+    .app{
+      max-width:1400px;
+      margin:0 auto;
+      background:#fff;
+      border-radius:20px;
+      box-shadow:0 20px 40px rgba(0,0,0,.15);
+      overflow:hidden;
+    }
 
     /* Header */
-    .header{background:linear-gradient(135deg,#2d3748 0%,#4a5568 100%);color:#fff;padding:20px 24px;display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center;position:sticky;top:0;z-index:30}
+    .header{
+      background:linear-gradient(135deg,#2d3748 0%,#4a5568 100%);
+      color:#fff;
+      padding:20px 24px;
+      display:grid;
+      grid-template-columns:1fr auto;
+      gap:16px;
+      align-items:center;
+      position:sticky;
+      top:0;
+      z-index:30;
+    }
+    
     .club-title{display:flex;align-items:center;gap:14px}
     .club-logo{width:56px;height:56px;border-radius:14px;background:#fff;display:grid;place-items:center}
     .club-logo img{height:38px;object-fit:contain}
     .club-name{font-size:1.6rem;font-weight:800;margin-bottom:2px}
     .club-sub{opacity:.85;font-size:.92rem}
     .header-tools{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
-    .input, .select{border:1px solid var(--line);background:#fff;color:#111;padding:10px 12px;border-radius:10px;font-size:.95rem}
-    .btn{cursor:pointer;font-weight:700;border:1px solid var(--line);background:#fff;color:#111;padding:10px 14px;border-radius:10px}
+    
+    .input, .select{
+      border:1px solid var(--line);
+      background:#fff;
+      color:#111;
+      padding:10px 12px;
+      border-radius:10px;
+      font-size:.95rem;
+      box-sizing:border-box;
+    }
+    .btn{cursor:pointer;font-weight:700;border:1px solid var(--line);background:#fff;color:#111;padding:10px 14px;border-radius:10px;transition:.25s}
     .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
     .btn.ghost{background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.35)}
+    .btn.small{padding:6px 10px;font-size:.85rem}
+    .btn.success{background:var(--success);border-color:var(--success);color:#fff}
 
     /* Tabs */
-    .tabbar{background:var(--card);border-bottom:1px solid var(--line);padding:0 20px;display:flex;gap:0;position:sticky;top:120px;z-index:20}
-    .tabbtn{background:none;border:none;padding:16px 22px;font-size:1.05rem;font-weight:700;color:#64748b;cursor:pointer;border-bottom:3px solid transparent;transition:.25s;white-space:nowrap;position:relative}
+    .tabbar{
+      background:var(--card);
+      border-bottom:1px solid var(--line);
+      padding:0 20px;
+      display:flex;
+      gap:0;
+      position:sticky;
+      top:120px;
+      z-index:20;
+      justify-content:space-between;
+      align-items:center;
+    }
+    
+    .tabbtn{
+      background:none;
+      border:none;
+      padding:16px 22px;
+      font-size:1.05rem;
+      font-weight:700;
+      color:#64748b;
+      cursor:pointer;
+      border-bottom:3px solid transparent;
+      transition:.25s;
+      white-space:nowrap;
+      position:relative;
+    }
+    
     .tabbtn:hover{color:#334155;background:rgba(102,126,234,.06)}
     .tabbtn.active{color:var(--brand);border-bottom-color:var(--brand);background:#fff}
-    .content{padding:20px;min-width:0}
+    
+    .content{padding:20px;max-width:100%}
+    
+    /* Collapsed state */
+    .project-form-collapsed {
+      display: none;
+    }
+    .project-layout{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:20px;
+      margin-bottom:24px;
+    }
+    
+    .project-left{
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      padding:20px;
+      box-sizing:border-box;
+    }
+    
+    .project-right{
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      padding:20px;
+      box-sizing:border-box;
+    }
+    
+    .project-right input,
+    .project-right select,
+    .project-right table{
+      box-sizing:border-box;
+    }
+    
+    .project-left .grid > *{
+      margin-bottom:16px;
+    }
+    
+    .project-left .grid > *:last-child{
+      margin-bottom:0;
+    }
+    
+    .project-left .grid2{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+      margin-bottom:0;
+      width:100%;
+    }
+    
+    .project-left .grid2 input,
+    .project-left .grid2 select{
+      width:100%;
+    }
+    
+    @media(max-width:1000px){
+      .project-layout{
+        grid-template-columns:1fr;
+      }
+    }
     .section{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
     .grid{display:grid;gap:16px}
     .grid2{display:grid;gap:10px;grid-template-columns:1fr 1fr}
+    .grid2 > *{
+      box-sizing:border-box;
+    }
     .row{display:flex;gap:8px;align-items:center}
     .muted{color:var(--muted);font-size:.92rem}
 
     /* Tables */
-    table{width:100%;border-collapse:separate;border-spacing:0}
-    th,td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:.95rem}
+    table{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed}
+    th,td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:.95rem;overflow:hidden}
     thead th{position:sticky;top:0;background:#fff;z-index:2}
+    
+    /* Project table specific widths */
+    .projects-table th:nth-child(1) { width: 30%; } /* Titel */
+    .projects-table th:nth-child(2) { width: 15%; } /* Åbner */
+    .projects-table th:nth-child(3) { width: 15%; } /* Lukker */
+    .projects-table th:nth-child(4) { width: 10%; } /* Link */
+    .projects-table th:nth-child(5) { width: 10%; } /* QR */
+    .projects-table th:nth-child(6) { width: 20%; } /* Handling */
 
-    /* Right rail */
-    .rail{padding:20px;background:var(--card);border-left:1px solid var(--line)}
-    .qrbox{
-      background:#fff;
-      border:1px solid var(--line);
-      border-radius:12px;
+    /* Status indicators */
+    .status-indicator{
       display:flex;
       align-items:center;
       justify-content:center;
-      width:220px;
-      min-height:220px;
-      color:#999;
+      gap:6px;
+      flex-direction:column;
+    }
+    
+    .status-row{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:4px;
+    }
+    
+    .status-icon{
+      font-size:1.1rem;
+      cursor:pointer;
+      padding:3px 6px;
+      border-radius:4px;
+      transition:.2s;
+      display:inline-block;
+      min-width:20px;
+      text-align:center;
+    }
+    
+    .status-icon.success{
+      color:var(--success);
+    }
+    
+    .status-icon.error{
+      color:var(--error);
+    }
+    
+    .status-icon:hover{
+      background:rgba(0,0,0,.05);
+      transform:scale(1.1);
+    }
+    
+    .copy-icon{
       font-size:0.9rem;
+      cursor:pointer;
+      padding:2px 4px;
+      border-radius:3px;
+      transition:.2s;
+      color:var(--brand);
+      opacity:0.7;
+    }
+    
+    .copy-icon:hover{
+      background:rgba(102,126,234,.1);
+      opacity:1;
+      transform:scale(1.1);
     }
 
-    .layout{max-width:100%;overflow:hidden}
-    @media(max-width:1100px){ .layout{display:block} .rail{border-left:0;border-top:1px solid var(--line)} }
+    /* Success animations */
+    @keyframes copied {
+      0% { background: var(--success); transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { background: var(--success); transform: scale(1); }
+    }
+    
+    .copied {
+      animation: copied 0.6s ease;
+    }
+
+    /* Modal for large QR */
+    .modal{
+      position:fixed;
+      top:0;left:0;right:0;bottom:0;
+      background:rgba(0,0,0,.8);
+      z-index:1000;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      cursor:pointer;
+    }
+    
+    .modal-content{
+      background:white;
+      padding:20px;
+      border-radius:12px;
+      text-align:center;
+      max-width:90vw;
+      cursor:default;
+    }
+
+    /* Collapsed state */
+    .project-form-collapsed {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -77,8 +287,6 @@
   <div class="header">
     <div class="club-title">
       <div class="club-logo"><img src="./assets/logo.png" alt="logo" onerror="this.style.display='none'"></div>
-
-</div>
       <div>
         <div class="club-name">KOMPAS – Evaluator Backoffice</div>
         <div class="club-sub">360° evaluering • Projekter • Resultater</div>
@@ -92,161 +300,163 @@
 
   <!-- TABS -->
   <div class="tabbar">
-    <button class="tabbtn active" data-tab="projects">📂 Projekter</button>
-    <button class="tabbtn" data-tab="people">👥 Navneliste</button>
-    <button class="tabbtn" data-tab="results">📈 Resultater</button>
+    <div style="display:flex;align-items:center;flex:1">
+      <button class="tabbtn active" data-tab="projects">📂 Projekter</button>
+      <button class="tabbtn" data-tab="results">📈 Resultater</button>
+    </div>
+    <div style="padding:16px 0">
+      <button id="createNewProjectBtn" class="btn primary">+ Opret nyt projekt</button>
+    </div>
   </div>
 
-  <!-- LAYOUT -->
-  <div class="layout" style="display:grid;grid-template-columns:1fr 300px">
-    <!-- MAIN -->
-    <div class="content">
+  <!-- MAIN CONTENT -->
+  <div class="content">
 
-      <!-- Projekter (default synlig) -->
-      <div id="tab-projects" class="section" style="display:block">
-        <div class="grid">
-          <div class="grid2">
+    <!-- Projekter (default synlig) -->
+    <div id="tab-projects" style="display:block">
+      
+      <!-- Project Creation Layout (initially hidden) -->
+      <div id="projectForm" class="project-layout project-form-collapsed">
+        
+        <!-- LEFT SIDE: Project Creation -->
+        <div class="project-left">
+          <h3 id="formTitle" style="margin-bottom:16px">📂 Opret nyt projekt</h3>
+          <div class="grid">
             <label>Projekt-titel
-              <input id="p-title" class="input" placeholder="Fx KOMPAS 360 – 3. bataljon">
+              <input id="p-title" class="input" placeholder="Fx KOMPAS 360 – 3. bataljon" style="width:100%">
             </label>
+
             <label>Skabelon
-              <select id="p-template" class="select"></select>
+              <select id="p-template" class="select" style="width:100%"></select>
             </label>
-          </div>
 
-          <label>Info-tekst
-            <textarea id="p-info" class="input" rows="3" placeholder="Kort introduktion …"></textarea>
-          </label>
+            <label>Info-tekst
+              <textarea id="p-info" class="input" rows="3" placeholder="Kort introduktion …" style="width:100%"></textarea>
+            </label>
 
-          <div class="grid2">
             <label>Variant
-              <select id="p-lite" class="select">
+              <select id="p-lite" class="select" style="width:100%">
                 <option value="false">FULD (48)</option>
                 <option value="true">LITE (16)</option>
               </select>
             </label>
+
             <label>Anonymitet
-              <select id="p-anon" class="select">
+              <select id="p-anon" class="select" style="width:100%">
                 <option value="true">Anonym (peer/leader kræver min. n)</option>
                 <option value="false">Ikke anonym</option>
               </select>
             </label>
-          </div>
 
-          <div class="grid2">
-            <label>Åbn
-              <input id="p-open" class="input" type="datetime-local">
-            </label>
-            <label>Luk
-              <input id="p-close" class="input" type="datetime-local">
-            </label>
-          </div>
-
-          <div class="grid2">
-            <label>Minimum pr. gruppe (anonym)
-              <input id="p-minn" class="input" value="2">
-            </label>
             <div class="grid2">
-              <label>Label – Selv
-                <input id="label-self" class="input" value="Vurdering af sig selv">
+              <label>Åbn
+                <input id="p-open" class="input" type="datetime-local" style="width:100%">
               </label>
-              <label>Label – Kollega
-                <input id="label-peer" class="input" value="Vurdering af kollega">
+              <label>Luk
+                <input id="p-close" class="input" type="datetime-local" style="width:100%">
               </label>
-              <label>Label – Fører
-                <input id="label-leader" class="input" value="Fører vurdering">
-              </label>
+            </div>
+
+            <div class="row" style="margin-top:20px">
+              <button id="saveProjectBtn" class="btn primary">Opret projekt</button>
+              <span id="projectStatus" class="muted"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT SIDE: Labels & People Management -->
+        <div class="project-right">
+          
+          <!-- Labels Section -->
+          <h4 style="margin-bottom:12px">🏷️ Evaluerings Labels</h4>
+          <div style="margin-bottom:20px">
+            <div style="margin-bottom:8px">
+              <label style="display:block;font-size:0.9rem;margin-bottom:4px;color:var(--muted)">Label – Selv</label>
+              <input id="label-self" class="input" value="Vurdering af sig selv" style="width:100%">
+            </div>
+            <div style="margin-bottom:8px">
+              <label style="display:block;font-size:0.9rem;margin-bottom:4px;color:var(--muted)">Label – Kollega</label>
+              <input id="label-peer" class="input" value="Vurdering af kollega" style="width:100%">
+            </div>
+            <div style="margin-bottom:8px">
+              <label style="display:block;font-size:0.9rem;margin-bottom:4px;color:var(--muted)">Label – Fører</label>
+              <input id="label-leader" class="input" value="Fører vurdering" style="width:100%">
             </div>
           </div>
 
-          <div class="row">
-            <button id="createProject" class="btn primary">Opret projekt</button>
-            <span id="projectStatus" class="muted"></span>
-          </div>
-        </div>
+          <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
 
-        <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
-
-        <h3>🗂 Mine projekter</h3>
-        <div class="section" style="margin-top:8px">
-          <table id="projectsTbl">
-            <thead>
-              <tr>
-                <th>Titel</th>
-                <th>Åbner</th>
-                <th>Lukker</th>
-                <th>Link</th>
-                <th>QR</th>
-                <th style="text-align:right">Handling</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Navneliste -->
-      <div id="tab-people" class="section" style="display:none">
-        <div class="row" style="justify-content:space-between;gap:12px;margin-bottom:8px">
-          <select id="selProject" class="select"></select>
-          <div class="row">
-            <button id="btnReloadPeople" class="btn">Genindlæs</button>
+          <!-- People Management Section -->
+          <h4 style="margin-bottom:12px">👥 Navneliste</h4>
+          
+          <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+            <button id="btnReloadPeople" class="btn small">Genindlæs</button>
             <input type="file" id="csvFile" accept=".csv,.txt,.tsv" style="display:none">
-            <button id="importCsv" class="btn">Importer CSV</button>
+            <button id="importCsv" class="btn small">Import CSV</button>
+          </div>
+
+          <div style="margin-bottom:12px">
+            <div style="margin-bottom:6px">
+              <input id="personName" class="input" placeholder="Fulde navn" style="width:100%;margin-bottom:6px">
+            </div>
+            <div style="display:flex;gap:6px">
+              <input id="personNo" class="input" placeholder="Nr." style="flex:1">
+              <button id="addPerson" class="btn primary small">Tilføj</button>
+            </div>
+          </div>
+
+          <!-- People Table -->
+          <div style="max-height:250px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;background:#fff">
+            <table id="peopleTbl" style="font-size:0.85rem;width:100%">
+              <thead style="background:var(--card);position:sticky;top:0">
+                <tr>
+                  <th style="padding:8px;border-bottom:1px solid var(--line)">Navn</th>
+                  <th style="padding:8px;width:60px;border-bottom:1px solid var(--line)">Nr.</th>
+                  <th style="padding:8px;width:50px;text-align:center;border-bottom:1px solid var(--line)">Slet</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
           </div>
         </div>
 
-        <div class="row" style="margin-bottom:8px">
-          <input id="personName" class="input" placeholder="Fulde navn">
-          <input id="personNo" class="input" placeholder="Medarbejder nr.">
-          <button id="addPerson" class="btn primary">Tilføj</button>
-        </div>
-
-        <div class="section">
-          <table id="peopleTbl">
-            <thead>
-              <tr>
-                <th>Navn</th>
-                <th>Nr.</th>
-                <th style="text-align:right">Slet</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
       </div>
 
-      <!-- Resultater -->
-      <div id="tab-results" class="section" style="display:none">
-        <div class="grid2" style="margin-bottom:8px">
-          <select id="selProject2" class="select"></select>
-          <select id="selTarget" class="select"></select>
-        </div>
-        <div class="row" style="margin-bottom:10px">
-          <button id="btnLoadRadar" class="btn">Vis KOMPAS-hjul</button>
-          <button id="btnPdf" class="btn">Download PDF</button>
-          <button id="btnZip" class="btn">Download alle (ZIP)</button>
-        </div>
-        <div class="section" style="background:#fff">
-          <canvas id="radar" height="360"></canvas>
-        </div>
-        <div id="resultNote" class="muted" style="margin-top:6px"></div>
+      <!-- Projects Table -->
+      <div class="section">
+        <table id="projectsTbl" class="projects-table" style="margin-top:12px">
+          <thead>
+            <tr>
+              <th>Titel</th>
+              <th>Åbner</th>
+              <th>Lukker</th>
+              <th>Link</th>
+              <th>QR</th>
+              <th style="text-align:right">Handling</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
       </div>
-
     </div>
 
-    <!-- RIGHT RAIL: Link & QR -->
-    <aside class="rail">
-      <h3 style="margin-bottom:8px">🔗 Evaluerings Link</h3>
-      <div class="row" style="margin-bottom:8px">
-        <select id="selProject3" class="select" style="flex:1"></select>
-        <button id="btnMakeLink" class="btn">Generér</button>
+    <!-- Resultater -->
+    <div id="tab-results" class="section" style="display:none">
+      <div class="grid2" style="margin-bottom:8px">
+        <select id="selProject2" class="select"></select>
+        <select id="selTarget" class="select"></select>
       </div>
-      <div id="projectUrl" style="margin-bottom:12px"></div>
-      <div id="qr" class="qrbox" style="display:flex;align-items:center;justify-content:center;color:#999;font-size:0.9rem">
-        Vælg projekt og klik "Generér"
+      <div class="row" style="margin-bottom:10px">
+        <button id="btnLoadRadar" class="btn">Vis KOMPAS-hjul</button>
+        <button id="btnPdf" class="btn">Download PDF</button>
+        <button id="btnZip" class="btn">Download alle (ZIP)</button>
       </div>
-    </aside>
+      <div class="section" style="background:#fff">
+        <canvas id="radar" height="360"></canvas>
+      </div>
+      <div id="resultNote" class="muted" style="margin-top:6px"></div>
+    </div>
+
   </div>
 </div>
 
@@ -255,6 +465,7 @@
 window.addEventListener('load', function() {
   let radar = null;
   let user = null;
+  let currentEditProject = null; // Track which project is being edited
 
   const SUPABASE_URL = "https://wsrstyrsuwhcmmlmnbrz.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzcnN0eXJzdXdoY21tbG1uYnJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MTU0NTIsImV4cCI6MjA3MTE5MTQ1Mn0.Rf3Z3bQGjV5CKXKZr6IMOjzPdbhVJCh3SwuvlkpxUD0";
@@ -269,7 +480,7 @@ window.addEventListener('load', function() {
       btn.classList.add('active');
 
       // skjul alle sektioner
-      ['projects','people','results'].forEach(name=>{
+      ['projects','results'].forEach(name=>{
         const panel = $('tab-'+name);
         if(panel) panel.style.display = 'none';
       });
@@ -286,10 +497,232 @@ window.addEventListener('load', function() {
     window.location.href = 'login.html';
   };
 
+  // Project form state management
+  function showProjectForm(isEdit = false, project = null) {
+    $('projectForm').classList.remove('project-form-collapsed');
+    $('createNewProjectBtn').style.display = 'none';
+    
+    if (isEdit && project) {
+      currentEditProject = project;
+      $('formTitle').textContent = '✏️ Rediger projekt';
+      $('saveProjectBtn').textContent = 'Gem projekt';
+      
+      // Load project data into form
+      $('p-title').value = project.title || '';
+      $('p-template').value = project.template_id || '';
+      $('p-info').value = project.info_text || '';
+      $('p-lite').value = project.is_lite ? 'true' : 'false';
+      $('p-anon').value = project.is_anonymous ? 'true' : 'false';
+      $('p-open').value = project.open_at ? new Date(project.open_at).toISOString().slice(0,16) : '';
+      $('p-close').value = project.close_at ? new Date(project.close_at).toISOString().slice(0,16) : '';
+      
+      // Load labels
+      const labels = project.settings?.labels || {};
+      $('label-self').value = labels.self || 'Vurdering af sig selv';
+      $('label-peer').value = labels.peer || 'Vurdering af kollega';
+      $('label-leader').value = labels.leader || 'Fører vurdering';
+      
+      // Load people for this project
+      loadPeople();
+    } else {
+      currentEditProject = null;
+      $('formTitle').textContent = '📂 Opret nyt projekt';
+      $('saveProjectBtn').textContent = 'Opret projekt';
+      
+      // Clear form
+      clearProjectForm();
+    }
+  }
+
+  function hideProjectForm() {
+    $('projectForm').classList.add('project-form-collapsed');
+    $('createNewProjectBtn').style.display = 'inline-block';
+    currentEditProject = null;
+    clearProjectForm();
+  }
+
+  function clearProjectForm() {
+    $('p-title').value = '';
+    $('p-info').value = '';
+    $('p-open').value = '';
+    $('p-close').value = '';
+    $('p-lite').value = 'false';
+    $('p-anon').value = 'true';
+    $('label-self').value = 'Vurdering af sig selv';
+    $('label-peer').value = 'Vurdering af kollega';
+    $('label-leader').value = 'Fører vurdering';
+    $('projectStatus').textContent = '';
+    
+    // Clear people table
+    const tb = $('peopleTbl').querySelector('tbody');
+    tb.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:16px;color:var(--muted);font-style:italic">Vælg eller opret et projekt først</td></tr>';
+  }
+
+  // Event listeners for form state
+  $('createNewProjectBtn').onclick = () => showProjectForm(false);
+
+  // Utility functions
+  function generateProjectUrl(token) {
+    const protocol = window.location.protocol;
+    const hostname = window.location.hostname;
+    const port = window.location.port;
+    const pathname = window.location.pathname;
+
+    let baseUrl;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      baseUrl = `${protocol}//${hostname}${port ? ':' + port : ''}`;
+    } else {
+      baseUrl = `${protocol}//${hostname}${port && port !== '80' && port !== '443' ? ':' + port : ''}`;
+      
+      if (hostname.includes('github.io')) {
+        const pathParts = pathname.split('/').filter(p => p);
+        if (pathParts.length > 0) {
+          baseUrl += '/' + pathParts[0];
+        }
+      }
+    }
+    
+    return baseUrl + '/respondent.html?t=' + token;
+  }
+
+  function copyToClipboard(text, element, type = 'link') {
+    const originalText = element.textContent;
+    const originalTitle = element.title;
+    
+    navigator.clipboard.writeText(text).then(() => {
+      element.classList.add('copied');
+      element.textContent = '✅';
+      element.title = type === 'qr' ? 'QR kopieret!' : 'Link kopieret!';
+      element.style.transform = 'scale(1.2)';
+      
+      setTimeout(() => {
+        element.textContent = originalText;
+        element.title = originalTitle;
+        element.classList.remove('copied');
+        element.style.transform = '';
+      }, 1500);
+    }).catch(() => {
+      // Fallback
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.opacity = '0';
+      document.body.appendChild(textArea);
+      textArea.select();
+      
+      try {
+        document.execCommand('copy');
+        element.textContent = '✅';
+        element.title = type === 'qr' ? 'QR kopieret!' : 'Link kopieret!';
+        element.style.transform = 'scale(1.2)';
+        
+        setTimeout(() => {
+          element.textContent = originalText;
+          element.title = originalTitle;
+          element.style.transform = '';
+        }, 1500);
+      } catch (err) {
+        alert('Kopiér dette link manuelt:\n\n' + text);
+      }
+      
+      document.body.removeChild(textArea);
+    });
+  }
+
+  function copyQRAsImage(canvas, icon) {
+    const originalText = icon.textContent;
+    const originalTitle = icon.title;
+    
+    try {
+      canvas.toBlob((blob) => {
+        const item = new ClipboardItem({ 'image/png': blob });
+        navigator.clipboard.write([item]).then(() => {
+          icon.classList.add('copied');
+          icon.textContent = '✅';
+          icon.title = 'QR billede kopieret!';
+          icon.style.transform = 'scale(1.2)';
+          
+          setTimeout(() => {
+            icon.textContent = originalText;
+            icon.title = originalTitle;
+            icon.classList.remove('copied');
+            icon.style.transform = '';
+          }, 1500);
+        }).catch(() => {
+          // Fallback - copy as data URL
+          const dataUrl = canvas.toDataURL();
+          copyToClipboard(dataUrl, icon, 'qr');
+        });
+      });
+    } catch (err) {
+      // Fallback - copy as data URL
+      const dataUrl = canvas.toDataURL();
+      copyToClipboard(dataUrl, icon, 'qr');
+    }
+  }
+
+  function showLargeQR(url, title) {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `
+      <div class="modal-content">
+        <h3 style="margin-bottom:16px">${title}</h3>
+        <div id="large-qr-container"></div>
+        <p style="margin-top:16px;color:var(--muted);font-size:0.9rem">
+          Klik udenfor for at lukke
+        </p>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Generate large QR
+    const container = modal.querySelector('#large-qr-container');
+    if (typeof QRCode !== 'undefined') {
+      QRCode.toCanvas(container, url, { width: 300, height: 300 });
+    } else {
+      container.innerHTML = '<p>QR kunne ikke genereres</p>';
+    }
+    
+    // Close on click outside
+    modal.onclick = (e) => {
+      if (e.target === modal) {
+        document.body.removeChild(modal);
+      }
+    };
+    
+    // Prevent content click from closing
+    modal.querySelector('.modal-content').onclick = (e) => e.stopPropagation();
+  }
+
+  async function createProjectLink(projectId) {
+    try {
+      // Check if link already exists
+      let { data: link } = await supabase.from('project_link').select().eq('project_id', projectId).maybeSingle();
+      
+      if (!link) {
+        // Create new link
+        const token = crypto.randomUUID().replaceAll('-', '');
+        const { data, error } = await supabase.from('project_link').insert({
+          project_id: projectId,
+          token
+        }).select().single();
+        
+        if (error) throw error;
+        link = data;
+      }
+      
+      return generateProjectUrl(link.token);
+    } catch (error) {
+      console.error('Error creating project link:', error);
+      return null;
+    }
+  }
+
   async function loadAll(){ 
     await loadTemplates(); 
     await loadProjects(); 
-    await loadProjectsInto(['selProject','selProject2','selProject3']); 
+    await loadProjectsInto(['selProject2']); 
   }
   
   // Templates (læs-only for evaluatorer)
@@ -313,7 +746,7 @@ window.addEventListener('load', function() {
       const o = document.createElement('option'); 
       o.value = t.id; 
       o.textContent = `${t.name} v${t.version}`;
-      if(t.description) o.title = t.description; // Tooltip
+      if(t.description) o.title = t.description;
       sel.appendChild(o); 
     });
     
@@ -325,111 +758,147 @@ window.addEventListener('load', function() {
 
   // Projects (kun egne projekter)
   async function loadProjects(){
-  const { data } = await supabase.from('projects').select().order('created_at',{ascending:false}).limit(1000);
-  const tb = $('projectsTbl').querySelector('tbody'); 
-  tb.innerHTML='';
-  (data||[]).forEach(p=>{
-    const tr=document.createElement('tr');
-    const hasLink = p.link_url ? '✅' : '—';
-    tr.innerHTML = `
-      <td><strong>${p.title}</strong><br><span class="muted">${p.info_text || ''}</span></td>
-      <td>${p.open_at ? new Date(p.open_at).toLocaleString('da-DK') : 'Ikke sat'}</td>
-      <td>${p.close_at ? new Date(p.close_at).toLocaleString('da-DK') : 'Ikke sat'}</td>
-      <td>${hasLink}</td>
-      <td>
-        <canvas id="mini-qr-${p.id}" width="50" height="50" style="cursor:pointer" title="Klik for stort QR"></canvas>
-      </td>
-      <td style="text-align:right">
-        <button class="btn" onclick="deleteProject('${p.id}', '${p.title.replace(/'/g, '\\\'')}')" style="background:#dc3545;color:white;border-color:#dc3545">Slet</button>
-      </td>`;
-    tb.appendChild(tr);
+    const { data } = await supabase.from('projects').select().order('created_at',{ascending:false}).limit(1000);
+    const tb = $('projectsTbl').querySelector('tbody'); 
+    tb.innerHTML='';
     
-    // Generate mini QR if link exists - using setTimeout to ensure DOM is ready
-    if(p.link_url) {
-      setTimeout(() => {
-        const miniCanvas = document.getElementById(`mini-qr-${p.id}`);
-        if(miniCanvas && typeof QRCode !== 'undefined') {
-          QRCode.toCanvas(miniCanvas, p.link_url, {width: 50, height: 50, margin: 1}, (error) => {
-            if(error) {
-              miniCanvas.style.display = 'none';
-            } else {
-              miniCanvas.onclick = () => showLargeQR(p.link_url, p.title);
-            }
-          });
-        }
-      }, 100);
+    for (const p of (data||[])) {
+      const tr = document.createElement('tr');
+      
+      // Get existing link
+      const { data: linkData } = await supabase.from('project_link').select().eq('project_id', p.id).maybeSingle();
+      const hasLink = !!linkData;
+      const projectUrl = hasLink ? generateProjectUrl(linkData.token) : null;
+      
+      // Generate mini QR canvas
+      const qrCanvasId = `qr-${p.id}`;
+      
+      tr.innerHTML = `
+        <td>
+          <strong>${p.title}</strong><br>
+          <span class="muted">${p.info_text || ''}</span>
+        </td>
+        <td>${p.open_at ? new Date(p.open_at).toLocaleString('da-DK') : 'Ikke sat'}</td>
+        <td>${p.close_at ? new Date(p.close_at).toLocaleString('da-DK') : 'Ikke sat'}</td>
+        <td>
+          <div class="status-indicator">
+            <div class="status-row">
+              ${hasLink ? `
+                <span class="status-icon success" title="Link findes">✓</span>
+                <span class="copy-icon" onclick="copyProjectLink('${projectUrl}', this)" title="Kopiér link">📋</span>
+              ` : `
+                <span class="status-icon error" title="Intet link">✗</span>
+              `}
+            </div>
+          </div>
+        </td>
+        <td>
+          <div class="status-indicator">
+            <div class="status-row">
+              ${hasLink ? `
+                <span class="status-icon success" onclick="showLargeProjectQR('${projectUrl}', '${p.title.replace(/'/g, '\\\'')}')" title="Vis stort QR">✓</span>
+                <span class="copy-icon" onclick="copyQRFromIcon('${qrCanvasId}', this)" title="Kopiér QR">📋</span>
+                <canvas id="${qrCanvasId}" style="display:none"></canvas>
+              ` : `
+                <span class="status-icon error" title="Ingen QR">✗</span>
+              `}
+            </div>
+          </div>
+        </td>
+        <td style="text-align:right">
+          <button class="btn small" onclick="editProject('${p.id}')" style="background:var(--brand);color:white;border-color:var(--brand);margin-right:8px">Rediger</button>
+          <button class="btn small" onclick="deleteProject('${p.id}', '${p.title.replace(/'/g, '\\\'')}')" style="background:#dc3545;color:white;border-color:#dc3545">Slet</button>
+        </td>
+      `;
+      
+      tb.appendChild(tr);
+      
+      // Generate mini QR if link exists (hidden canvas for copying)
+      if (hasLink) {
+        setTimeout(() => {
+          const canvas = document.getElementById(qrCanvasId);
+          if (canvas && typeof QRCode !== 'undefined') {
+            QRCode.toCanvas(canvas, projectUrl, { width: 24, height: 24, margin: 1 }, (error) => {
+              if (error) {
+                console.error('QR generation failed:', error);
+                // Update QR status to error
+                const statusDiv = canvas.parentElement;
+                if (statusDiv) {
+                  statusDiv.innerHTML = '<span class="status-icon error" title="QR fejlede">✗</span>';
+                }
+              }
+            });
+          }
+        }, 100);
+      }
     }
-  });
-}
-
-// Global function for project deletion
-window.deleteProject = async (projectId, projectTitle) => {
-  if(!confirm(`Er du sikker på du vil slette projektet "${projectTitle}"?\n\nDette vil også slette:\n• Alle personer tilknyttet projektet\n• Alle besvarelser\n• Project links\n\nDenne handling kan ikke fortrydes!`)) {
-    return;
   }
-  
-  try {
-    // Delete project (cascade will handle related data)
-    const { error } = await supabase.from('projects').delete().eq('id', projectId);
-    if(error) throw error;
-    
-    alert(`✅ Projekt "${projectTitle}" er slettet`);
-    
-    // Reload data
-    await Promise.all([
-      loadProjects(),
-      loadProjectsInto(['selProject','selProject2','selProject3'])
-    ]);
-    
-  } catch(error) {
-    alert(`❌ Fejl ved sletning: ${error.message}`);
-  }
-};
 
-// Function to show large QR code in popup
-window.showLargeQR = (url, title) => {
-  const popup = document.createElement('div');
-  popup.style.cssText = `
-    position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
-    background: rgba(0,0,0,0.8); z-index: 1000; 
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer;
-  `;
-  
-  const content = document.createElement('div');
-  content.style.cssText = `
-    background: white; padding: 20px; border-radius: 10px; 
-    text-align: center; max-width: 90vw;
-  `;
-  
-  content.innerHTML = `
-    <h3 style="margin-bottom: 10px">${title}</h3>
-    <div id="large-qr"></div>
-    <p style="margin-top: 10px; font-size: 0.9rem; color: #666">Klik udenfor for at lukke</p>
-  `;
-  
-  popup.appendChild(content);
-  document.body.appendChild(popup);
-  
-  // Generate large QR
-  QRCode.toCanvas(document.getElementById('large-qr'), url, {width: 300, height: 300});
-  
-  // Close on click outside
-  popup.onclick = (e) => {
-    if(e.target === popup) {
-      document.body.removeChild(popup);
+  // Global functions for table actions
+  window.copyProjectLink = (url, element) => {
+    copyToClipboard(url, element, 'link');
+  };
+
+  window.copyQRImage = (canvasId, icon) => {
+    const canvas = document.getElementById(canvasId);
+    if (canvas) {
+      copyQRAsImage(canvas, icon);
     }
   };
-  
-  // Prevent content click from closing
-  content.onclick = (e) => e.stopPropagation();
-};
+
+  window.copyQRFromIcon = (canvasId, copyIcon) => {
+    const canvas = document.getElementById(canvasId);
+    if (canvas && copyIcon) {
+      copyQRAsImage(canvas, copyIcon);
+    }
+  };
+
+  window.showLargeProjectQR = (url, title) => {
+    showLargeQR(url, title);
+  };
+
+  window.editProject = async (projectId) => {
+    try {
+      const { data: project, error } = await supabase.from('projects').select('*').eq('id', projectId).single();
+      if (error) throw error;
+      
+      showProjectForm(true, project);
+    } catch (error) {
+      alert(`⚠ Fejl ved indlæsning af projekt: ${error.message}`);
+    }
+  };
+
+  window.deleteProject = async (projectId, projectTitle) => {
+    if(!confirm(`Er du sikker på du vil slette projektet "${projectTitle}"?\n\nDette vil også slette:\n• Alle personer tilknyttet projektet\n• Alle besvarelser\n• Project links\n\nDenne handling kan ikke fortrydes!`)) {
+      return;
+    }
+    
+    try {
+      const { error } = await supabase.from('projects').delete().eq('id', projectId);
+      if(error) throw error;
+      
+      alert(`✅ Projekt "${projectTitle}" er slettet`);
+      
+      await Promise.all([
+        loadProjects(),
+        loadProjectsInto(['selProject2'])
+      ]);
+      
+      // If we were editing this project, hide the form
+      if (currentEditProject && currentEditProject.id === projectId) {
+        hideProjectForm();
+      }
+      
+    } catch(error) {
+      alert(`⚠ Fejl ved sletning: ${error.message}`);
+    }
+  };
 
   async function loadProjectsInto(ids){
     const { data } = await supabase.from('projects').select('id,title').order('title');
     ids.forEach(id=>{ 
       const s=$(id); 
-      s.innerHTML=''; 
+      s.innerHTML='<option value="">-- Vælg projekt --</option>'; 
       (data||[]).forEach(p=>{ 
         const o=document.createElement('option'); 
         o.value=p.id; 
@@ -439,19 +908,17 @@ window.showLargeQR = (url, title) => {
     });
   }
 
-  $('createProject').onclick = async ()=>{
-    // Validation
+  $('saveProjectBtn').onclick = async ()=>{
     const title = $('p-title').value.trim();
     const templateId = $('p-template').value;
     
     if(!title) return alert('Projekt titel er påkrævet');
     if(!templateId) return alert('Vælg en skabelon');
     
-    // UI feedback
-    const btn = $('createProject');
+    const btn = $('saveProjectBtn');
     const originalText = btn.textContent;
     btn.disabled = true;
-    btn.textContent = 'Opretter...';
+    btn.textContent = currentEditProject ? 'Gemmer...' : 'Opretter...';
     $('projectStatus').textContent = '';
     
     try {
@@ -462,7 +929,7 @@ window.showLargeQR = (url, title) => {
           peer: $('label-peer').value || 'Vurdering af kollega', 
           leader: $('label-leader').value || 'Fører vurdering'
         },
-        min_group_n: parseInt($('p-minn').value || '2', 10)
+        min_group_n: 2 // Fast værdi
       };
       
       const projectData = { 
@@ -477,31 +944,51 @@ window.showLargeQR = (url, title) => {
         settings 
       };
       
-      const { data, error } = await supabase.from('projects').insert(projectData).select().single();
-      if(error) throw error;
-      
-      // Success feedback
-      $('projectStatus').textContent = `✅ Projekt "${title}" oprettet!`;
-      $('projectStatus').style.color = 'green';
-      
-      // Clear form
-      $('p-title').value = '';
-      $('p-info').value = '';
+      if (currentEditProject) {
+        // Update existing project
+        btn.textContent = 'Opdaterer projekt...';
+        const { data, error } = await supabase.from('projects').update(projectData).eq('id', currentEditProject.id).select().single();
+        if(error) throw error;
+        
+        $('projectStatus').textContent = `✅ Projekt "${title}" er opdateret!`;
+        $('projectStatus').style.color = 'green';
+        
+        // Hide form after successful update
+        setTimeout(() => {
+          hideProjectForm();
+        }, 1500);
+        
+      } else {
+        // Create new project
+        btn.textContent = 'Opretter projekt...';
+        const { data, error } = await supabase.from('projects').insert(projectData).select().single();
+        if(error) throw error;
+        
+        // Auto-generate link
+        btn.textContent = 'Genererer link...';
+        const projectUrl = await createProjectLink(data.id);
+        
+        if (projectUrl) {
+          $('projectStatus').textContent = `✅ Projekt "${title}" oprettet med link!`;
+        } else {
+          $('projectStatus').textContent = `✅ Projekt "${title}" oprettet (link fejlede)`;
+        }
+        $('projectStatus').style.color = 'green';
+        
+        // Hide form after successful creation
+        setTimeout(() => {
+          hideProjectForm();
+        }, 1500);
+      }
       
       // Reload data
       await Promise.all([
         loadProjects(),
-        loadProjectsInto(['selProject','selProject2','selProject3'])
+        loadProjectsInto(['selProject2'])
       ]);
       
-      // Auto-select new project in dropdowns
-      ['selProject','selProject2','selProject3'].forEach(id => {
-        const sel = $(id);
-        if(sel) sel.value = data.id;
-      });
-      
     } catch(error) {
-      $('projectStatus').textContent = `❌ Fejl: ${error.message}`;
+      $('projectStatus').textContent = `⚠ Fejl: ${error.message}`;
       $('projectStatus').style.color = 'red';
     } finally {
       btn.disabled = false;
@@ -509,7 +996,7 @@ window.showLargeQR = (url, title) => {
     }
   };
 
-  // Global function for delete person
+  // People management
   window.deletePerson = async (personId) => {
     if(!confirm('Slet denne person?')) return;
     const { error } = await supabase.from('project_people').delete().eq('id', personId);
@@ -518,12 +1005,11 @@ window.showLargeQR = (url, title) => {
   };
 
   $('addPerson').onclick = async ()=>{
-    const pid = $('selProject').value; 
-    if(!pid) return alert('Vælg et projekt først');
+    if (!currentEditProject) return alert('Vælg eller opret et projekt først');
     if(!$('personName').value.trim()) return alert('Navn påkrævet');
     
     const ins = { 
-      project_id: pid, 
+      project_id: currentEditProject.id, 
       full_name: $('personName').value.trim(), 
       employee_no: $('personNo').value.trim() || null 
     };
@@ -538,14 +1024,31 @@ window.showLargeQR = (url, title) => {
   $('btnReloadPeople').onclick = loadPeople;
   
   async function loadPeople(){
-    const pid=$('selProject').value; 
-    if(!pid) return;
-    const { data } = await supabase.from('project_people').select().eq('project_id',pid).order('full_name');
     const tb=$('peopleTbl').querySelector('tbody'); 
+    
+    if(!currentEditProject) {
+      tb.innerHTML='<tr><td colspan="3" style="text-align:center;padding:16px;color:var(--muted);font-style:italic">Vælg eller opret et projekt først</td></tr>';
+      return;
+    }
+    
+    const { data } = await supabase.from('project_people').select().eq('project_id', currentEditProject.id).order('full_name');
     tb.innerHTML='';
-    (data||[]).forEach(p=>{ 
+    
+    if(!data || data.length === 0) {
+      tb.innerHTML='<tr><td colspan="3" style="text-align:center;padding:16px;color:var(--muted);font-style:italic">Ingen personer tilføjet endnu</td></tr>';
+      return;
+    }
+    
+    data.forEach(p=>{ 
       const tr=document.createElement('tr'); 
-      tr.innerHTML=`<td>${p.full_name}</td><td>${p.employee_no||''}</td><td style="text-align:right"><button class="btn" onclick="deletePerson('${p.id}')">Slet</button></td>`; 
+      tr.style.borderBottom = '1px solid var(--line)';
+      tr.innerHTML=`
+        <td style="padding:8px">${p.full_name}</td>
+        <td style="padding:8px;color:var(--muted)">${p.employee_no||'—'}</td>
+        <td style="padding:8px;text-align:center">
+          <button class="btn small" onclick="deletePerson('${p.id}')" style="background:#dc3545;color:white;border-color:#dc3545;padding:3px 8px;font-size:0.75rem;border-radius:4px">×</button>
+        </td>
+      `; 
       tb.appendChild(tr); 
     });
   }
@@ -554,15 +1057,15 @@ window.showLargeQR = (url, title) => {
   $('csvFile').addEventListener('change',(e)=>{
     const f=e.target.files[0]; 
     if(!f) return;
+    if (!currentEditProject) return alert('Vælg eller opret et projekt først');
+    
     Papa.parse(f,{
       header:true,
       complete:async (res)=>{ 
-        const pid=$('selProject').value;
-        if(!pid) return alert('Vælg et projekt først');
         const rows=res.data.filter(r=>r.full_name?.trim()); 
         if(rows.length === 0) return alert('Ingen gyldige rækker fundet i CSV');
         const payload=rows.map(r=>({
-          project_id:pid,
+          project_id: currentEditProject.id,
           full_name:r.full_name.trim(),
           employee_no:r.employee_no?.trim()||null
         })); 
@@ -577,215 +1080,7 @@ window.showLargeQR = (url, title) => {
     });
   });
 
-  $('btnMakeLink').onclick = async ()=>{
-    const pid = $('selProject3').value;
-    if(!pid) return alert('Vælg et projekt først');
-    
-    const btn = $('btnMakeLink');
-    const originalText = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = 'Genererer...';
-    
-    try {
-      let { data: link } = await supabase.from('project_link').select().eq('project_id', pid).maybeSingle();
-      
-      if(!link) { 
-        const token = crypto.randomUUID().replaceAll('-', ''); 
-        const { data, error } = await supabase.from('project_link').insert({
-          project_id: pid,
-          token
-        }).select().single(); 
-        
-        if(error) throw error;
-        link = data; 
-      }
-      
-      // Intelligent URL building
-      const protocol = window.location.protocol;
-      const hostname = window.location.hostname;
-      const port = window.location.port;
-      const pathname = window.location.pathname;
-
-      let baseUrl;
-      if (hostname === 'localhost' || hostname === '127.0.0.1') {
-        baseUrl = `${protocol}//${hostname}${port ? ':' + port : ''}`;
-      } else {
-        baseUrl = `${protocol}//${hostname}${port && port !== '80' && port !== '443' ? ':' + port : ''}`;
-        
-        if (hostname.includes('github.io')) {
-          const pathParts = pathname.split('/').filter(p => p);
-          if (pathParts.length > 0) {
-            baseUrl += '/' + pathParts[0];
-          }
-        }
-      }
-      
-      const url = baseUrl + '/respondent.html?t=' + link.token;
-      
-      const urlEl = $('projectUrl');
-      urlEl.innerHTML = `
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-          <strong>Evaluerings-link:</strong>
-          <button onclick="copyFullLink('${url}')" class="btn" style="padding:4px 8px;font-size:0.8rem;">📋 Kopiér</button>
-        </div>
-        <div style="word-break:break-all;background:#f8fafc;padding:8px;border-radius:4px;font-family:monospace;font-size:0.85rem;border:1px solid #e2e8f0;">
-          ${url}
-        </div>
-      `;
-      
-            const qrBox = $('qr');
-            // Lokal QR-generation (canvas) – ingen eksterne billeder => ingen CSP-blokering
-            generateSimpleQR(url);
-            const urlEl2 = document.createElement('div');
-            urlEl2.style.marginTop = '10px';
-            urlEl2.innerHTML = `<button onclick="copyFullLink('${url}')" class="btn" style="padding:6px 12px;font-size:0.85rem;">📋 Kopiér Link</button>`;
-            qrBox.appendChild(urlEl2);
-
-      
-    } catch(error) {
-      console.error('Link generation error:', error);
-      alert('Fejl ved generering: ' + error.message);
-      
-      const qrBox = $('qr');
-      qrBox.innerHTML = '<div style="color:#999;padding:20px;">Fejl ved generering af QR</div>';
-    } finally {
-      btn.disabled = false;
-      btn.textContent = originalText;
-    }
-  };
-
-  window.copyFullLink = function(url) {
-    copyToClipboard(url, { textContent: '📋 Kopiér', style: {} });
-  };
-
-  // Simple copy function
-  function copyLink(url, button) {
-    navigator.clipboard.writeText(url).then(() => {
-      const original = button.textContent;
-      button.textContent = '✅ Kopieret';
-      button.style.background = '#48bb78';
-      button.style.color = 'white';
-      
-      setTimeout(() => {
-        button.textContent = original;
-        button.style.background = '';
-        button.style.color = '';
-      }, 2000);
-    }).catch(() => {
-      // Fallback
-      const textArea = document.createElement('textarea');
-      textArea.value = url;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      alert('Link kopieret til udklipsholder!');
-    });
-  }
-
-  // Forbedret QR-generation funktion
-function generateQRCode(container, url, options = {}) {
-  const defaultOptions = {
-    width: 220,
-    height: 220,
-    margin: 2,
-    color: { dark: '#2d3748', light: '#ffffff' },
-    ...options
-  };
-
-  container.innerHTML = '';
-  
-  const wrapper = document.createElement('div');
-  wrapper.style.cssText = 'text-align:center;padding:10px;';
-  container.appendChild(wrapper);
-
-  if (typeof QRCode === 'undefined') {
-    showQRFallback(wrapper, url, 'QRCode bibliotek ikke indlæst');
-    return;
-  }
-
-  try {
-    wrapper.innerHTML = '<div style="color:#999;padding:20px;font-size:0.9rem;">📱 Genererer QR...</div>';
-    
-    const canvas = document.createElement('canvas');
-    wrapper.innerHTML = '';
-    wrapper.appendChild(canvas);
-    
-    QRCode.toCanvas(canvas, url, defaultOptions, (error) => {
-      if (error) {
-        console.error('QR generation failed:', error);
-        showQRFallback(wrapper, url, 'QR kunne ikke genereres');
-      } else {
-        console.log('QR generated successfully for:', url);
-        addCopyButton(wrapper, url);
-      }
-    });
-    
-  } catch (error) {
-    console.error('QR library error:', error);
-    showQRFallback(wrapper, url, 'QR bibliotek fejl');
-  }
-}
-
-function showQRFallback(container, url, reason) {
-  container.innerHTML = `
-    <div style="border:2px dashed #ccc;padding:15px;border-radius:8px;background:#f9f9f9;max-width:200px;margin:0 auto;">
-      <div style="color:#666;margin-bottom:8px;font-size:0.8rem;">⚠️ ${reason}</div>
-      <div style="font-weight:bold;margin-bottom:8px;font-size:0.9rem;">Manuel link:</div>
-      <div style="background:white;padding:6px;border-radius:4px;word-break:break-all;font-family:monospace;font-size:0.75rem;border:1px solid #ddd;line-height:1.2;">
-        ${url}
-      </div>
-    </div>
-  `;
-  addCopyButton(container, url);
-}
-
-function addCopyButton(container, url) {
-  const copyBtn = document.createElement('button');
-  copyBtn.textContent = '📋 Kopiér Link';
-  copyBtn.style.cssText = 'margin-top:8px;padding:6px 12px;background:#007bff;color:white;border:none;border-radius:4px;cursor:pointer;font-size:0.85rem;';
-  
-  copyBtn.onclick = () => copyToClipboard(url, copyBtn);
-  container.appendChild(copyBtn);
-}
-
-function copyToClipboard(text, button) {
-  const originalText = button.textContent;
-  
-  navigator.clipboard.writeText(text).then(() => {
-    button.textContent = '✅ Kopieret!';
-    button.style.background = '#28a745';
-    setTimeout(() => {
-      button.textContent = originalText;
-      button.style.background = '#007bff';
-    }, 2000);
-  }).catch(() => {
-    const textArea = document.createElement('textarea');
-    textArea.value = text;
-    textArea.style.position = 'fixed';
-    textArea.style.opacity = '0';
-    document.body.appendChild(textArea);
-    textArea.select();
-    try {
-      document.execCommand('copy');
-      button.textContent = '✅ Kopieret!';
-      button.style.background = '#28a745';
-      setTimeout(() => {
-        button.textContent = originalText;
-        button.style.background = '#007bff';
-      }, 2000);
-    } catch (err) {
-      alert('Kopiér dette link manuelt:\n\n' + text);
-    }
-    document.body.removeChild(textArea);
-  });
-}
-
-function generateSimpleQR(url) {
-  const qrBox = document.getElementById('qr');
-  generateQRCode(qrBox, url, { width: 180, height: 180 });
-}
-
+  // Results
   $('selProject2').onchange = async ()=>{
     const pid=$('selProject2').value; 
     const { data } = await supabase.from('project_people').select().eq('project_id',pid).order('full_name');
@@ -854,7 +1149,6 @@ function generateSimpleQR(url) {
       .single();
 
     if(roleData?.role === 'programmer'){
-      // Master-bruger skal ind på master.html
       window.location.href = 'master.html';
       return;
     }
