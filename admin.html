@@ -602,14 +602,23 @@ window.showLargeQR = (url, title) => {
       const protocol = window.location.protocol;
       const hostname = window.location.hostname;
       const port = window.location.port;
-      
+      const pathname = window.location.pathname; // Tilføjet denne linje
+
       let baseUrl;
       if (hostname === 'localhost' || hostname === '127.0.0.1') {
         baseUrl = `${protocol}//${hostname}${port ? ':' + port : ''}`;
       } else {
         baseUrl = `${protocol}//${hostname}${port && port !== '80' && port !== '443' ? ':' + port : ''}`;
+        
+        // Tilføj repository path for GitHub Pages
+        if (hostname.includes('github.io')) {
+          const pathParts = pathname.split('/').filter(p => p);
+          if (pathParts.length > 0) {
+            baseUrl += '/' + pathParts[0]; // Tilføjer "/KOMPAS360"
+          }
+        }
       }
-      
+
       const url = baseUrl + '/respondent.html?t=' + link.token;
       
       const urlEl = $('projectUrl');
