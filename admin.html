@@ -738,21 +738,21 @@ window.addEventListener('load', function() {
       }, 1500);
     };
 
-    // Generér et HØJopløst offscreen-canvas, så indsætning i Word/Mail bliver skarp
+    // Generér et offscreen-canvas i høj opløsning
     const off = document.createElement('canvas');
     try {
       await new Promise((resolve, reject) => {
         QRCode.toCanvas(off, url, { width: 512, margin: 2 }, (err) => err ? reject(err) : resolve());
       });
 
-      // Skriv som rigtigt PNG-billede til udklipsholderen
       const blob = await new Promise((resolve, reject) => {
         off.toBlob((b) => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/png');
       });
+
       await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
       feedback(true);
     } catch (e) {
-      // Fallback: download PNG (så brugeren kan indsætte som billede)
+      // Fallback: download som PNG hvis clipboard-API fejler
       try {
         const dataUrl = await new Promise((resolve, reject) => {
           QRCode.toDataURL(url, { width: 512, margin: 2 }, (err, d) => err ? reject(err) : resolve(d));
@@ -762,19 +762,17 @@ window.addEventListener('load', function() {
         a.download = 'qr.png';
         a.click();
         feedback(false);
-      } catch (_) {
+      } catch {
         alert('Kunne ikke kopiere eller generere QR-billede.');
       }
     }
   }
 
-  // Ny signatur: vi får direkte URL i stedet for canvas-id
   window.copyQRFromIcon = (url, icon) => {
     copyQRPNG(url, icon);
   };
 
-
-   function showLargeQR(url, title) {
+  function showLargeQR(url, title) {
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.innerHTML = `
@@ -785,16 +783,13 @@ window.addEventListener('load', function() {
           <button class="btn small" id="btnCopyQR">Kopiér QR</button>
           <button class="btn small" id="btnDownloadQR">Download QR</button>
         </div>
-        <p style="margin-top:16px;color:var(--muted);font-size:0.9rem">
-          Klik udenfor for at lukke
-        </p>
+        <p style="margin-top:16px;color:var(--muted);font-size:0.9rem">Klik udenfor for at lukke</p>
       </div>
     `;
     document.body.appendChild(modal);
 
     const img = modal.querySelector('#large-qr-img');
 
-    // Generér som data-URL (robust i alle browsere)
     if (typeof QRCode !== 'undefined') {
       QRCode.toDataURL(url, { width: 600, margin: 2 }, (err, dataUrl) => {
         if (err) {
@@ -808,10 +803,8 @@ window.addEventListener('load', function() {
       img.alt = 'QR lib ikke indlæst';
     }
 
-    // Kopiér som rigtig PNG
     modal.querySelector('#btnCopyQR').onclick = (e) => copyQRPNG(url, e.currentTarget);
 
-    // Download PNG
     modal.querySelector('#btnDownloadQR').onclick = () => {
       const a = document.createElement('a');
       a.href = img.src;
@@ -822,8 +815,6 @@ window.addEventListener('load', function() {
     modal.onclick = (e) => { if (e.target === modal) document.body.removeChild(modal); };
     modal.querySelector('.modal-content').onclick = (e) => e.stopPropagation();
   }
-
-
 
   async function createProjectLink(projectId) {
     try {
@@ -927,11 +918,11 @@ window.addEventListener('load', function() {
             <div class="status-row">
               ${hasLink ? `
                 <span class="status-icon success" onclick="showLargeProjectQR('${projectUrl}', '${p.title.replace(/'/g, '\\\'')}')" title="Vis stort QR">✓</span>
-                <span class="copy-icon" onclick="copyQRFromIcon('${qrCanvasId}', this)" title="Kopiér QR">📋</span>
-                <canvas id="${qrCanvasId}" style="display:none"></canvas>
+                <span class="copy-icon" onclick="copyQRFromIcon('${projectUrl}', this)" title="Kopiér QR">📋</span>
               ` : `
                 <span class="status-icon error" title="Ingen QR">✗</span>
               `}
+
             </div>
           </div>
         </td>
