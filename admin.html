@@ -9,6 +9,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+
 
   <style>
     /* ---------- Theme (evaluator colors) ---------- */
@@ -630,20 +632,14 @@ window.showLargeQR = (url, title) => {
         </div>
       `;
       
-      const qrBox = $('qr');
-      // Online QR generation - virker altid!
-      qrBox.innerHTML = `
-        <div style="text-align:center;padding:15px;">
-          <img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&format=png&margin=10&data=${encodeURIComponent(url)}" 
-              style="border:1px solid #e2e8f0;border-radius:8px;max-width:220px;max-height:220px;" 
-              alt="QR Code for ${url}"
-              onerror="this.parentElement.innerHTML='<div style=&quot;color:#999;padding:20px;&quot;>QR kunne ikke genereres<br><small>${url}</small></div>'" />
-          <div style="margin-top:10px;">
-            <button onclick="copyFullLink('${url}')" class="btn" style="padding:6px 12px;font-size:0.85rem;background:#007bff;color:white;border:none;border-radius:4px;">📋 Kopiér Link</button>
-          </div>
-          <div style="margin-top:5px;color:#666;font-size:0.8rem;">Scan QR eller brug kopiér-knap</div>
-        </div>
-      `;
+            const qrBox = $('qr');
+            // Lokal QR-generation (canvas) – ingen eksterne billeder => ingen CSP-blokering
+            generateSimpleQR(url);
+            const urlEl2 = document.createElement('div');
+            urlEl2.style.marginTop = '10px';
+            urlEl2.innerHTML = `<button onclick="copyFullLink('${url}')" class="btn" style="padding:6px 12px;font-size:0.85rem;">📋 Kopiér Link</button>`;
+            qrBox.appendChild(urlEl2);
+
       
     } catch(error) {
       console.error('Link generation error:', error);
