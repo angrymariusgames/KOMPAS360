@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>KOMPAS • Evaluator Backoffice</title>
   <link rel="icon" href="data:," />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co wss://*.supabase.co">
+
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
@@ -107,10 +108,6 @@
     
     .content{padding:20px;max-width:100%}
     
-    /* Collapsed state */
-    .project-form-collapsed {
-      display: none;
-    }
     .project-layout{
       display:grid;
       grid-template-columns:1fr 1fr;
@@ -774,11 +771,6 @@ window.addEventListener('load', function() {
     }
   }
 
-
-  window.copyQRFromIcon = (url, icon) => {
-    copyQRPNG(url, icon);
-  };
-
   function showLargeQR(url, title) {
     const modal = document.createElement('div');
     modal.className = 'modal';
@@ -944,47 +936,24 @@ window.addEventListener('load', function() {
       
       tb.appendChild(tr);
       
-      // Generate mini QR if link exists (hidden canvas for copying)
-      if (hasLink) {
-        setTimeout(() => {
-          const canvas = document.getElementById(qrCanvasId);
-          if (canvas && typeof QRCode !== 'undefined') {
-            QRCode.toCanvas(canvas, projectUrl, { width: 24, height: 24, margin: 1 }, (error) => {
-              if (error) {
-                console.error('QR generation failed:', error);
-                // Update QR status to error
-                const statusDiv = canvas.parentElement;
-                if (statusDiv) {
-                  statusDiv.innerHTML = '<span class="status-icon error" title="QR fejlede">✗</span>';
-                }
-              }
-            });
-          }
-        }, 100);
-      }
+      // (fjernet) – mini-canvas bruges ikke længere
+
     }
   }
 
   // Global functions for table actions
-  window.copyProjectLink = (url, element) => {
-    copyToClipboard(url, element, 'link');
-  };
+window.copyProjectLink = (url, element) => {
+  copyToClipboard(url, element, 'link');
+};
 
-  window.copyQRImage = (canvasId, icon) => {
-    const canvas = document.getElementById(canvasId);
-    if (canvas) {
-      copyQRAsImage(canvas, icon);
-    }
-  };
+window.copyQRFromIcon = (url, icon) => {
+  copyQRPNG(url, icon);
+};
 
-  window.copyQRFromIcon = (url, icon) => {
-    copyQRPNG(url, icon);
-  };
+window.showLargeProjectQR = (url, title) => {
+  showLargeQR(url, title);
+};
 
-
-  window.showLargeProjectQR = (url, title) => {
-    showLargeQR(url, title);
-  };
 
   window.editProject = async (projectId) => {
     try {
