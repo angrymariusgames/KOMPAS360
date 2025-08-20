@@ -203,14 +203,18 @@
     
     .status-icon{
       font-size:1.1rem;
-      cursor:pointer;
+      cursor:default;            /* ikke klikbar */
       padding:3px 6px;
       border-radius:4px;
       transition:.2s;
       display:inline-block;
       min-width:20px;
       text-align:center;
+      pointer-events:none;       /* slug klik helt, så den ikke trigger noget ved siden af */
     }
+
+    /* ingen :hover på status-icon – kun copy-ikon må “shine” */
+
     
     .status-icon.success{
       color:var(--success);
@@ -219,12 +223,7 @@
     .status-icon.error{
       color:var(--error);
     }
-    
-    .status-icon:hover{
-      background:rgba(0,0,0,.05);
-      transform:scale(1.1);
-    }
-    
+        
     .copy-icon{
       font-size:0.9rem;
       cursor:pointer;
@@ -736,25 +735,28 @@ window.addEventListener('load', function() {
     };
 
     try {
-      // Render en frisk, skarp QR som 512×512 på et offscreen-canvas
       const off = document.createElement('canvas');
       await new Promise((resolve, reject) => {
         if (typeof QRCode === 'undefined') return reject(new Error('QRCode lib mangler'));
         QRCode.toCanvas(off, url, { width: 512, margin: 2 }, (err) => err ? reject(err) : resolve());
       });
 
-      if (!('ClipboardItem' in window) || !navigator.clipboard?.write) {
+      if (!('ClipboardItem' in window) || !navigator.clipboard?.write || !window.isSecureContext) {
         throw new Error('Clipboard image API ikke tilgængelig');
       }
 
       const blob = await new Promise((resolve, reject) => {
-        off.toBlob((b) => b ? resolve(b) : reject(new Error('toBlob mislykkedes')), 'image/png');
+        if (off.toBlob) {
+          off.toBlob((b) => b ? resolve(b) : reject(new Error('toBlob mislykkedes')), 'image/png');
+        } else {
+          try { resolve(dataURLToBlob(off.toDataURL('image/png'))); }
+          catch(e){ reject(e); }
+        }
       });
 
       await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
       feedback(true);
     } catch (e) {
-      // Robust fallback: gem PNG, så brugeren kan indsætte billedet
       try {
         const dataUrl = await new Promise((resolve, reject) => {
           if (typeof QRCode === 'undefined') return reject(new Error('QRCode lib mangler'));
@@ -763,11 +765,23 @@ window.addEventListener('load', function() {
         const a = document.createElement('a');
         a.href = dataUrl;
         a.download = 'qr.png';
+        document.body.appendChild(a);
         a.click();
+        document.body.removeChild(a);
         feedback(false);
       } catch {
         alert('Kunne ikke kopiere eller generere QR-billede.');
       }
+    }
+
+    function dataURLToBlob(dataURL) {
+      const [header, data] = dataURL.split(',');
+      const mime = header.match(/:(.*?);/)[1] || 'image/png';
+      const bin = atob(data);
+      const len = bin.length;
+      const u8 = new Uint8Array(len);
+      for (let i = 0; i < len; i++) u8[i] = bin.charCodeAt(i);
+      return new Blob([u8], { type: mime });
     }
   }
 
@@ -796,7 +810,7 @@ window.addEventListener('load', function() {
           img.alt = 'QR kunne ikke genereres';
           return;
         }
-        img.src = dataUrl; // kræver img-src data: i CSP
+        img.src = dataUrl;
       });
     } else {
       img.alt = 'QR lib ikke indlæst';
@@ -808,12 +822,15 @@ window.addEventListener('load', function() {
       const a = document.createElement('a');
       a.href = img.src;
       a.download = 'qr.png';
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
     };
 
     modal.onclick = (e) => { if (e.target === modal) document.body.removeChild(modal); };
     modal.querySelector('.modal-content').onclick = (e) => e.stopPropagation();
   }
+
 
 
   async function createProjectLink(projectId) {
@@ -928,6 +945,7 @@ window.addEventListener('load', function() {
             </div>
           </div>
         </td>
+
 
         <td style="text-align:right">
           <button class="btn small" onclick="editProject('${p.id}')" style="background:var(--brand);color:white;border-color:var(--brand);margin-right:8px">Rediger</button>
