@@ -11,7 +11,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 
 
 
@@ -737,27 +737,31 @@ window.addEventListener('load', function() {
     };
 
     try {
-      // Create canvas and generate QR
-      const canvas = document.createElement('canvas');
+      // Create temporary div for QR generation
+      const tempDiv = document.createElement('div');
+      tempDiv.style.position = 'fixed';
+      tempDiv.style.left = '-9999px';
+      document.body.appendChild(tempDiv);
       
-      await new Promise((resolve, reject) => {
-        if (typeof QRCode === 'undefined') {
-          reject(new Error('QRCode library not loaded'));
-          return;
-        }
-        
-        QRCode.toCanvas(canvas, url, { 
-          width: 512, 
-          margin: 2,
-          color: {
-            dark: '#000000',
-            light: '#FFFFFF'
-          }
-        }, (err) => {
-          if (err) reject(err);
-          else resolve();
-        });
+      // Generate QR code
+      const qrCode = new QRCode(tempDiv, {
+        text: url,
+        width: 512,
+        height: 512,
+        colorDark: "#000000",
+        colorLight: "#FFFFFF",
+        correctLevel: QRCode.CorrectLevel.M
       });
+      
+      // Wait for QR to be generated
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Get the canvas from the generated QR code
+      const canvas = tempDiv.querySelector('canvas');
+      
+      if (!canvas) {
+        throw new Error('Failed to generate QR code');
+      }
 
       // Try to copy to clipboard
       if ('ClipboardItem' in window && navigator.clipboard?.write && window.isSecureContext) {
@@ -777,42 +781,14 @@ window.addEventListener('load', function() {
         throw new Error('Clipboard API not available');
       }
       
-    } catch (error) {
-      console.warn('Copy failed, falling back to download:', error);
+      // Clean up
+      document.body.removeChild(tempDiv);
       
-      // Fallback: download the image
-      try {
-        const canvas = document.createElement('canvas');
-        
-        await new Promise((resolve, reject) => {
-          QRCode.toCanvas(canvas, url, { 
-            width: 512, 
-            margin: 2,
-            color: {
-              dark: '#000000',
-              light: '#FFFFFF'
-            }
-          }, (err) => {
-            if (err) reject(err);
-            else resolve();
-          });
-        });
-        
-        canvas.toBlob((blob) => {
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = 'qr-kode.png';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-          feedback(false);
-        });
-      } catch (finalError) {
-        console.error('Failed to generate QR code:', finalError);
-        alert('Kunne ikke generere QR-kode. Tjek om siden er indlæst korrekt.');
-      }
+    } catch (error) {
+      console.warn('Copy failed, falling back to showing large QR:', error);
+      
+      // Fallback: show large QR modal instead
+      showLargeQR(url, 'QR Kode');
     }
   }
 
@@ -867,19 +843,13 @@ window.addEventListener('load', function() {
   }
 
   function showLargeQR(url, title) {
-    if (typeof QRCode === 'undefined') {
-      alert('QR bibliotek ikke indlæst');
-      return;
-    }
-
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.innerHTML = `
       <div class="modal-content">
         <h3 style="margin-bottom:16px">${title}</h3>
-        <div id="qr-container" style="min-height:400px;display:flex;align-items:center;justify-content:center;">
-          <canvas id="large-qr-canvas"></canvas>
-          <div id="qr-loading" style="display:none;">Genererer QR-kode...</div>
+        <div id="qr-container" style="min-height:400px;display:flex;align-items:center;justify-content:center;background:#fff;">
+          <div id="qr-code-div"></div>
         </div>
         <div style="margin-top:12px;display:flex;gap:8px;justify-content:center">
           <button class="btn small" id="btnCopyQR">Kopiér QR</button>
@@ -890,47 +860,54 @@ window.addEventListener('load', function() {
     `;
     document.body.appendChild(modal);
 
-    const canvas = modal.querySelector('#large-qr-canvas');
-    const loadingDiv = modal.querySelector('#qr-loading');
+    const qrDiv = modal.querySelector('#qr-code-div');
+    
+    // Generate QR code using qrcodejs
+    const qrCode = new QRCode(qrDiv, {
+      text: url,
+      width: 400,
+      height: 400,
+      colorDark: "#000000",
+      colorLight: "#FFFFFF",
+      correctLevel: QRCode.CorrectLevel.M
+    });
 
-    canvas.style.display = 'none';
-    loadingDiv.style.display = 'block';
-
+    // Wait for QR to be generated, then get canvas
     setTimeout(() => {
-      QRCode.toCanvas(canvas, url, {
-        width: 400,
-        margin: 2,
-        color: { dark: '#000000', light: '#FFFFFF' },
-        errorCorrectionLevel: 'M'
-      }, (error) => {
-        loadingDiv.style.display = 'none';
-        if (error) {
-          const errorMsg = document.createElement('p');
-          errorMsg.textContent = 'Fejl ved generering af QR-kode: ' + error.message;
-          errorMsg.style.color = 'red';
-          modal.querySelector('#qr-container').appendChild(errorMsg);
-        } else {
-          canvas.style.display = 'block';
+      const canvas = qrDiv.querySelector('canvas');
+      
+      modal.querySelector('#btnCopyQR').onclick = async (e) => {
+        const btn = e.currentTarget;
+        const originalText = btn.textContent;
+        try {
+          if (navigator.clipboard && window.ClipboardItem && window.isSecureContext) {
+            const blob = await new Promise((resolve, reject) => {
+              canvas.toBlob((b) => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/png');
+            });
+            await navigator.clipboard.write([ new window.ClipboardItem({ 'image/png': blob }) ]);
+            btn.textContent = '✅ Kopieret!';
+          } else {
+            throw new Error('Clipboard API not available');
+          }
+        } catch {
+          canvas.toBlob((b) => {
+            const blobUrl = URL.createObjectURL(b);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = 'qr-kode.png';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(blobUrl);
+            btn.textContent = '📥 Downloadet';
+          }, 'image/png');
         }
-      });
-    }, 100);
+        setTimeout(() => { btn.textContent = originalText; }, 2000);
+      };
 
-    modal.querySelector('#btnCopyQR').onclick = async (e) => {
-      const btn = e.currentTarget;
-      const originalText = btn.textContent;
-      try {
-        if (navigator.clipboard && window.ClipboardItem && window.isSecureContext) {
-          const blob = await new Promise((resolve, reject) => {
-            canvas.toBlob((b) => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/png');
-          });
-          await navigator.clipboard.write([ new window.ClipboardItem({ 'image/png': blob }) ]);
-          btn.textContent = '✅ Kopieret!';
-        } else {
-          throw new Error('Clipboard API not available');
-        }
-      } catch {
-        canvas.toBlob((b) => {
-          const blobUrl = URL.createObjectURL(b);
+      modal.querySelector('#btnDownloadQR').onclick = () => {
+        canvas.toBlob((blob) => {
+          const blobUrl = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = blobUrl;
           a.download = 'qr-kode.png';
@@ -938,24 +915,9 @@ window.addEventListener('load', function() {
           a.click();
           document.body.removeChild(a);
           URL.revokeObjectURL(blobUrl);
-          btn.textContent = '📥 Downloadet';
         }, 'image/png');
-      }
-      setTimeout(() => { btn.textContent = originalText; }, 2000);
-    };
-
-    modal.querySelector('#btnDownloadQR').onclick = () => {
-      canvas.toBlob((blob) => {
-        const blobUrl = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = 'qr-kode.png';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(blobUrl);
-      }, 'image/png');
-    };
+      };
+    }, 100);
 
     modal.onclick = (e) => { if (e.target === modal) document.body.removeChild(modal); };
     modal.querySelector('.modal-content').onclick = (e) => e.stopPropagation();
