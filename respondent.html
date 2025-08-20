@@ -651,7 +651,13 @@ async function loadProjectContext() {
     
     const { data, error } = await supabase.rpc('get_project_context', { p_token: token });
     
-    console.log('Context response:', { data, error });
+    // DETAILED DEBUG LOGGING
+    console.log('Raw Supabase response:', { data, error });
+    console.log('Data type:', typeof data);
+    console.log('Data keys:', data ? Object.keys(data) : 'no data');
+    console.log('Questions field:', data?.questions);
+    console.log('Questions length:', data?.questions?.length);
+    console.log('First question:', data?.questions?.[0]);
     
     if (error) {
       console.error('Supabase error:', error);
@@ -664,18 +670,20 @@ async function loadProjectContext() {
     
     projectContext = data;
     console.log('Project context loaded:', projectContext);
+    console.log('Questions in context:', projectContext.questions);
     
-    console.log('Questions check:', {
-        hasQuestions: !!projectContext.questions,
-        questionCount: projectContext.questions ? projectContext.questions.length : 0,
-        firstQuestion: projectContext.questions ? projectContext.questions[0] : null
-        });
-
-        if (!projectContext.questions || projectContext.questions.length === 0) {
-        console.error('No questions found. Full context:', projectContext);
-        throw new Error('Ingen spørgsmål fundet i evalueringen');
-        }
+    // Debug check
+    if (projectContext.debug) {
+      console.log('Debug info from backend:', projectContext.debug);
+    }
     
+    if (!projectContext.questions || projectContext.questions.length === 0) {
+      console.error('No questions found. Full context:', projectContext);
+      console.error('Expected questions but got:', projectContext.questions);
+      throw new Error('Ingen spørgsmål fundet i evalueringen');
+    }
+    
+    console.log('✅ Questions found, proceeding to renderSetup');
     renderSetup();
     
   } catch (error) {
