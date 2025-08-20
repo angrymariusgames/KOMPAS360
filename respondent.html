@@ -649,7 +649,7 @@ async function loadProjectContext() {
   try {
     console.log('Loading context with token:', token);
     
-    const { data, error } = await supabase.rpc('get_project_context', { p_token: token });
+    const { data, error } = await supabase.rpc('get_project_context_public', { p_token: token });
     
     // DETAILED DEBUG LOGGING
     console.log('Raw Supabase response:', { data, error });
