@@ -665,9 +665,16 @@ async function loadProjectContext() {
     projectContext = data;
     console.log('Project context loaded:', projectContext);
     
-    if (!projectContext.questions || projectContext.questions.length === 0) {
-      throw new Error('Ingen spørgsmål fundet i evalueringen');
-    }
+    console.log('Questions check:', {
+        hasQuestions: !!projectContext.questions,
+        questionCount: projectContext.questions ? projectContext.questions.length : 0,
+        firstQuestion: projectContext.questions ? projectContext.questions[0] : null
+        });
+
+        if (!projectContext.questions || projectContext.questions.length === 0) {
+        console.error('No questions found. Full context:', projectContext);
+        throw new Error('Ingen spørgsmål fundet i evalueringen');
+        }
     
     renderSetup();
     
