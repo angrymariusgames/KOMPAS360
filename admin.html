@@ -1012,6 +1012,10 @@ window.addEventListener('load', function() {
         min_group_n: 2 // Fast værdi
       };
       
+      // Explicit handling of datetime fields - only set if actually filled
+      const openAtValue = $('p-open').value.trim();
+      const closeAtValue = $('p-close').value.trim();
+      
       const projectData = { 
         template_id: templateId,
         owner: u.id, 
@@ -1019,8 +1023,8 @@ window.addEventListener('load', function() {
         info_text: $('p-info').value.trim() || null,
         is_lite: $('p-lite').value === 'true', 
         is_anonymous: $('p-anon').value === 'true', 
-        open_at: $('p-open').value || null, 
-        close_at: $('p-close').value || null, 
+        open_at: openAtValue ? openAtValue : null, 
+        close_at: closeAtValue ? closeAtValue : null, 
         settings 
       };
       
