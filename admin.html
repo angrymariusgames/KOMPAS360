@@ -11,7 +11,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
 
   <style>
     /* Theme */
@@ -1478,29 +1478,7 @@ window.showLargeProjectQR = (url, title) => {
     user = data.user;
     loadAll();
   });
-// Debug: Check if QRCode is loaded
-  window.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => {
-      if (typeof QRCode === 'undefined') {
-        console.error('QRCode library failed to load!');
-        console.log('Attempting to load QRCode manually...');
-        
-        // Try to load it again
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js';
-        script.onload = () => {
-          console.log('QRCode library loaded successfully (retry)');
-        };
-        script.onerror = () => {
-          console.error('Failed to load QRCode library from CDN');
-          alert('QR-kode biblioteket kunne ikke indlæses. Tjek din internetforbindelse.');
-        };
-        document.head.appendChild(script);
-      } else {
-        console.log('QRCode library is loaded and ready');
-      }
-    }, 1000);
-  });
+
   
 });
 </script>
