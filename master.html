@@ -8,7 +8,6 @@
  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://cdn.jsdelivr.net; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
 
   <style>
@@ -54,7 +53,6 @@
 
     /* Right rail */
     .rail{padding:20px;background:var(--card);border-left:1px solid var(--line)}
-    .qrbox{background:#fff;border:1px dashed var(--line);border-radius:12px;display:grid;place-items:center;width:220px;height:220px}
 
     @media(max-width:1100px){ .layout{display:block} .rail{border-left:0;border-top:1px solid var(--line)} }
 
@@ -322,18 +320,7 @@
     </div>
     </div>
 
-    <!-- RIGHT RAIL: Link & QR -->
-    <aside class="rail">
-        <h3 style="margin-bottom:8px">🔗 Evaluerings Link</h3>
-        <div class="row" style="margin-bottom:8px">
-            <select id="selProject3" class="select" style="flex:1"></select>
-            <button id="btnMakeLink" class="btn">Generér</button>
-        </div>
-        <div id="projectUrl" style="margin-bottom:12px"></div>
-        <div id="qr" class="qrbox" style="display:flex;align-items:center;justify-content:center;color:#999;font-size:0.9rem">
-            Vælg projekt og klik "Generér"
-        </div>
-        </aside>
+    
   </div>
 
 <script>
@@ -414,7 +401,7 @@ window.addEventListener('load', function() {
   async function loadAll(){ 
     await loadTemplates(); 
     await loadProjects(); 
-    await loadProjectsInto(['selProject','selProject2','selProject3']); 
+    await loadProjectsInto(['selProject','selProject2']); 
     await loadUsers();
   }
 
@@ -704,7 +691,7 @@ $('generateKey').onclick = async ()=>{
     if(error) return alert(error.message); 
     $('projectStatus').textContent='Projekt oprettet'; 
     loadProjects(); 
-    loadProjectsInto(['selProject','selProject2','selProject3']);
+    loadProjectsInto(['selProject','selProject2']);
   };
 
   // People management
@@ -773,23 +760,7 @@ $('generateKey').onclick = async ()=>{
     });
     });
 
-  // QR Link generation
-  $('btnMakeLink').onclick = async ()=>{
-    const pid=$('selProject3').value;
-    let { data:link } = await supabase.from('project_link').select().eq('project_id',pid).maybeSingle();
-    if(!link){ 
-      const token=crypto.randomUUID().replaceAll('-',''); 
-      const { data, error } = await supabase.from('project_link').insert({project_id:pid,token}).select().single(); 
-      if(error) return alert(error.message); 
-      link=data; 
-    }
-    const url = location.origin + '/web/respondent.html?t=' + link.token; 
-    $('projectUrl').textContent=url; 
-    const box=$('qr'); 
-    $('qr').innerHTML=''; 
-    QRCode.toCanvas(box,url,{width:220});
-  };
-
+  
   // Results (same as admin.html)
   $('selProject2').onchange = async ()=>{
     const pid=$('selProject2').value; 
