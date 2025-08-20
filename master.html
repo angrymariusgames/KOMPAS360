@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>KOMPAS • Master Backoffice</title>
   <link rel="icon" href="data:," />
- <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://cdn.jsdelivr.net; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://cdn.jsdelivr.net; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
@@ -29,32 +29,97 @@
     .club-sub{opacity:.85;font-size:.92rem}
     .header-tools{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
     .input, .select{border:1px solid var(--line);background:#fff;color:#111;padding:10px 12px;border-radius:10px;font-size:.95rem}
-    .btn{cursor:pointer;font-weight:700;border:1px solid var(--line);background:#fff;color:#111;padding:10px 14px;border-radius:10px}
+    .btn{cursor:pointer;font-weight:700;border:1px solid var(--line);background:#fff;color:#111;padding:10px 14px;border-radius:10px;transition:.25s}
     .btn.primary{background:var(--master-bg1);border-color:var(--master-bg1);color:#fff}
     .btn.ghost{background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.35)}
+    .btn.small{padding:6px 10px;font-size:.85rem}
 
     /* Tabs */
     .tabbar{background:var(--card);border-bottom:1px solid var(--line);padding:0 20px;display:flex;gap:0;position:sticky;top:120px;z-index:20}
     .tabbtn{background:none;border:none;padding:16px 22px;font-size:1.05rem;font-weight:700;color:#64748b;cursor:pointer;border-bottom:3px solid transparent;transition:.25s;white-space:nowrap;position:relative}
     .tabbtn:hover{color:#334155;background:rgba(229,62,62,.06)}
     .tabbtn.active{color:var(--master-bg1);border-bottom-color:var(--master-bg1);background:#fff}
-    .content{padding:20px}
-    .section{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+    .content{padding:20px;max-width:100%}
+    .section{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin-bottom:20px}
     .grid{display:grid;gap:16px}
     .grid2{display:grid;gap:10px;grid-template-columns:1fr 1fr}
     .row{display:flex;gap:8px;align-items:center}
     .muted{color:var(--muted);font-size:.92rem}
 
     /* Tables */
-    table{width:100%;border-collapse:separate;border-spacing:0}
-    th,td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:.95rem}
-    thead th{position:sticky;top:0;background:#fff;z-index:2}
+    table{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed}
+    th,td{padding:12px;border-bottom:1px solid var(--line);text-align:left;font-size:.95rem;overflow:hidden;text-overflow:ellipsis}
+    thead th{position:sticky;top:0;background:#fff;z-index:2;font-weight:700}
 
     /* Template editor */
     .template-editor{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-top:10px}
     .domain-section{border-left:4px solid var(--master-bg1);padding-left:12px;margin:10px 0}
     .category-item{background:var(--card);padding:10px;margin:5px 0;border-radius:8px}
     .question-item{background:#fff;border:1px solid var(--line);padding:8px;margin:4px 0;border-radius:6px}
+
+    /* Project table specific widths */
+    .projects-table th:nth-child(1) { width: 25%; } /* Titel */
+    .projects-table th:nth-child(2) { width: 20%; } /* Ejer */
+    .projects-table th:nth-child(3) { width: 15%; } /* Åbner */
+    .projects-table th:nth-child(4) { width: 15%; } /* Lukker */
+    .projects-table th:nth-child(5) { width: 10%; } /* Personer */
+    .projects-table th:nth-child(6) { width: 10%; } /* Svar */
+    .projects-table th:nth-child(7) { width: 5%; } /* Link */
+
+    /* Status indicators */
+    .status-badge{
+      display:inline-block;
+      padding:4px 8px;
+      border-radius:12px;
+      font-size:.8rem;
+      font-weight:600;
+      text-transform:uppercase;
+      letter-spacing:.5px;
+    }
+    
+    .status-open{background:#c6f6d5;color:#22543d}
+    .status-closed{background:#fed7d7;color:#9b2c2c}
+    .status-draft{background:#e6fffa;color:#234e52}
+
+    /* Users table */
+    .users-table th:nth-child(1) { width: 35%; } /* Email */
+    .users-table th:nth-child(2) { width: 15%; } /* Rolle */
+    .users-table th:nth-child(3) { width: 20%; } /* Oprettet */
+    .users-table th:nth-child(4) { width: 30%; } /* Handling */
+
+    /* Key generation result */
+    .key-result{
+      background:#e6fffa;
+      border:1px solid #81e6d9;
+      border-radius:var(--radius);
+      padding:20px;
+      margin:16px 0;
+      display:none;
+    }
+    
+    .key-result h4{
+      color:#234e52;
+      margin-bottom:12px;
+    }
+    
+    .key-code{
+      font-family:monospace;
+      font-size:1.4rem;
+      font-weight:bold;
+      background:#fff;
+      padding:8px 12px;
+      border-radius:8px;
+      display:inline-block;
+      margin:8px 0;
+      border:2px solid #81e6d9;
+    }
+
+    /* Responsive */
+    @media(max-width:1100px){
+      .grid2{grid-template-columns:1fr}
+      table{font-size:.85rem}
+      th,td{padding:8px}
+    }
   </style>
 </head>
 <body>
@@ -62,153 +127,165 @@
   <!-- HEADER -->
   <div class="header">
     <div class="club-title">
-      <div class="club-logo"><img src="../kompas_logo.png" alt="KOMPAS" onerror="this.style.display='none'"></div>
+      <div class="club-logo"><img src="./assets/logo.png" alt="KOMPAS" onerror="this.style.display='none'"></div>
       <div>
         <div class="club-name">KOMPAS — Master Backoffice</div>
-        <div class="club-sub">Skabeloner • Projekter • Full Admin</div>
+        <div class="club-sub">Skabeloner • Projekter • Brugeradministration</div>
       </div>
     </div>
 
     <div class="header-tools" id="authArea">
-        <span id="userEmail" class="muted"></span>
-        <button id="logoutBtn" class="btn ghost">Log ud</button>
+      <span id="userEmail" class="muted"></span>
+      <button id="logoutBtn" class="btn ghost">Log ud</button>
     </div>
   </div>
 
-  <!-- TABS - FJERNET people og results tabs -->
+  <!-- TABS -->
   <div class="tabbar">
     <button class="tabbtn active" data-tab="templates">🧩 Skabeloner</button>
     <button class="tabbtn" data-tab="projects">📁 Projekter</button>
     <button class="tabbtn" data-tab="users">👤 Brugere</button>
   </div>
 
-  <!-- LAYOUT -->
-  <div class="layout" style="display:grid;grid-template-columns:1fr 300px">
-    <!-- MAIN -->
-    <div class="content">
+  <!-- CONTENT -->
+  <div class="content">
 
-      <!-- Skabeloner (default synlig) -->
-      <div id="tab-templates" class="section" style="display:block">
-        <h3>🧩 Skabelon Administration</h3>
-        <div class="row" style="margin:16px 0">
-          <input id="tmplName" class="input" placeholder="Navn på skabelon">
-          <input id="tmplDesc" class="input" placeholder="Beskrivelse">
-          <button id="createTemplate" class="btn primary">Opret skabelon</button>
-        </div>
-
-        <h4 style="margin-top:24px">Eksisterende skabeloner</h4>
-        <ul id="tmplList" style="list-style:none;display:grid;gap:8px;margin-top:8px"></ul>
+    <!-- Skabeloner (default synlig) -->
+    <div id="tab-templates" class="section" style="display:block">
+      <h3>🧩 Skabelon Administration</h3>
+      <div class="row" style="margin:16px 0">
+        <input id="tmplName" class="input" placeholder="Navn på skabelon">
+        <input id="tmplDesc" class="input" placeholder="Beskrivelse">
+        <button id="createTemplate" class="btn primary">Opret skabelon</button>
       </div>
 
-      <!-- Projekter - KUN MONITORING -->
-      <div id="tab-projects" class="section" style="display:none">
-        <h3>📁 Projektoversigt</h3>
-        <p class="muted" style="margin-bottom:20px">Overvåg alle projekter i systemet. Evaluerere kan oprette projekter via deres admin-panel.</p>
-        
-        <div class="section" style="margin-top:8px">
-          <table id="projectsTbl">
-            <thead>
-              <tr>
-                <th>Titel</th>
-                <th>Ejer</th>
-                <th>Åbner</th>
-                <th>Lukker</th>
-                <th>Link</th>
-                <th style="text-align:right">Handling</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
+
+
+      <div id="templateEditor" class="template-editor" style="display:none">
+        <h4 id="editorTitle">Rediger skabelon</h4>
+        <div id="templateContent"></div>
+        <div class="row" style="margin-top:16px">
+          <button id="saveTemplate" class="btn primary">Gem ændringer</button>
+          <button id="cancelTemplate" class="btn">Annuller</button>
         </div>
       </div>
 
-     
+      <h4 style="margin-top:24px">Eksisterende skabeloner</h4>
+      <ul id="tmplList" style="list-style:none;display:grid;gap:8px;margin-top:8px"></ul>
+    </div>
+
+    <!-- Projekter (kun monitoring) -->
+    <div id="tab-projects" class="section" style="display:none">
+      <h3>📁 Projektoversigt</h3>
+      <p class="muted" style="margin-bottom:20px">Overvåg alle projekter i systemet. Evaluerere kan oprette projekter via deres admin-panel.</p>
+      
+      <div class="section">
+        <table id="projectsTbl" class="projects-table">
+          <thead>
+            <tr>
+              <th>Titel</th>
+              <th>Ejer</th>
+              <th>Åbner</th>
+              <th>Lukker</th>
+              <th>Personer</th>
+              <th>Svar</th>
+              <th>Link</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- Brugere -->
     <div id="tab-users" class="section" style="display:none">
-    <h3>🔑 Generer aktiveringsnøgle</h3>
-    <div class="row" style="margin:16px 0">
+      <h3>🔑 Generer aktiveringsnøgle</h3>
+      <div class="row" style="margin:16px 0">
         <input id="keyEmail" class="input" placeholder="Email til evaluator" type="email">
         <input id="keyNotes" class="input" placeholder="Valgfri note">
         <button id="generateKey" class="btn primary">Generer nøgle</button>
-    </div>
-    
-    <div id="keyResult" class="section" style="display:none;background:#e6fffa;border-color:#81e6d9">
-        <h4 style="color:#234e52">Aktiveringsnøgle genereret!</h4>
+      </div>
+      
+      <div id="keyResult" class="key-result">
+        <h4>Aktiveringsnøgle genereret!</h4>
         <div style="margin-top:12px">
-        <p><strong>Nøgle:</strong> <span id="generatedKey" style="font-family:monospace;font-size:1.2rem;font-weight:bold"></span></p>
-        <p><strong>Email:</strong> <span id="generatedEmail"></span></p>
+          <p><strong>Nøgle:</strong></p>
+          <div class="key-code" id="generatedKey"></div>
+          <p><strong>Email:</strong> <span id="generatedEmail"></span></p>
         </div>
         <p class="muted" style="margin-top:12px">Send denne nøgle til brugeren sammen med login-linket.</p>
-    </div>
+      </div>
 
-    <hr style="border:0;border-top:1px solid var(--line);margin:24px 0">
+      <hr style="border:0;border-top:1px solid var(--line);margin:24px 0">
 
-    <h3>📋 Aktiveringsnøgler</h3>
-    <div class="section" style="margin-top:8px">
+      <h3>📋 Aktiveringsnøgler</h3>
+      <div class="section">
         <table id="keysTbl">
-        <thead>
+          <thead>
             <tr>
-            <th>Nøgle</th>
-            <th>Email</th>
-            <th>Status</th>
-            <th>Oprettet</th>
-            <th>Brugt</th>
-            <th>Note</th>
+              <th>Nøgle</th>
+              <th>Email</th>
+              <th>Status</th>
+              <th>Oprettet</th>
+              <th>Brugt</th>
+              <th>Note</th>
             </tr>
-        </thead>
-        <tbody></tbody>
+          </thead>
+          <tbody></tbody>
         </table>
-    </div>
+      </div>
 
-    <hr style="border:0;border-top:1px solid var(--line);margin:24px 0">
-    
-    <h3>👤 Eksisterende brugere</h3>
-    <div class="row" style="margin:16px 0">
-        <input id="userEmail" class="input" placeholder="Email adresse">
+      <hr style="border:0;border-top:1px solid var(--line);margin:24px 0">
+      
+      <h3>👤 Eksisterende brugere</h3>
+      <div class="row" style="margin:16px 0">
+        <input id="userEmailInput" class="input" placeholder="Email adresse">
         <select id="userRole" class="select">
-        <option value="evaluator">Evaluator (kun projekter)</option>
-        <option value="programmer">Programmør (fuld adgang)</option>
+          <option value="evaluator">Evaluator (kun projekter)</option>
+          <option value="programmer">Programmør (fuld adgang)</option>
         </select>
         <button id="addUser" class="btn primary">Tilføj rolle direkte</button>
-    </div>
+      </div>
 
-    <div class="section">
-        <table id="usersTbl">
-        <thead>
+      <div class="section">
+        <table id="usersTbl" class="users-table">
+          <thead>
             <tr>
-            <th>Email</th>
-            <th>Rolle</th>
-            <th>Oprettet</th>
-            <th style="text-align:right">Handling</th>
+              <th>Email</th>
+              <th>Rolle</th>
+              <th>Oprettet</th>
+              <th style="text-align:right">Handling</th>
             </tr>
-        </thead>
-        <tbody></tbody>
+          </thead>
+          <tbody></tbody>
         </table>
-    </div>
+      </div>
     </div>
 
-    
   </div>
+</div>
 
 <script>
 window.addEventListener('load', function() {
   let user = null;
+  let currentTemplate = null;
 
   const SUPABASE_URL = "https://wsrstyrsuwhcmmlmnbrz.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzcnN0eXJzdXdoY21tbG1uYnJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MTU0NTIsImV4cCI6MjA3MTE5MTQ1Mn0.Rf3Z3bQGjV5CKXKZr6IMOjzPdbhVJCh3SwuvlkpxUD0";
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  const $ = (id)=>document.getElementById(id);
+  const $ = (id) => document.getElementById(id);
   
-  // Tabs - FJERNET people og results
-  document.querySelectorAll('.tabbtn').forEach(btn=>{
-    btn.onclick = ()=>{
-      document.querySelectorAll('.tabbtn').forEach(x=>x.classList.remove('active'));
+  // Tabs switching
+  document.querySelectorAll('.tabbtn').forEach(btn => {
+    btn.onclick = () => {
+      // Remove active from all tabs
+      document.querySelectorAll('.tabbtn').forEach(x => x.classList.remove('active'));
       btn.classList.add('active');
 
       // Hide all sections
-      ['templates','projects','users'].forEach(name=>{
-        const panel = $('tab-'+name);
+      ['templates', 'projects', 'users'].forEach(name => {
+        const panel = $('tab-' + name);
         if(panel) panel.style.display = 'none';
       });
 
@@ -218,77 +295,105 @@ window.addEventListener('load', function() {
     };
   });
 
-  // Auth gate: kun 'programmer' må blive på master.html
-  $('logoutBtn').onclick = async ()=>{ 
+  // Auth and logout
+  $('logoutBtn').onclick = async () => { 
     await supabase.auth.signOut(); 
     window.location.href = 'login.html';
   };
 
-  async function guard(){
+  // Auth guard - only 'programmer' role allowed
+  async function guard() {
     const { data: u } = await supabase.auth.getUser();
     if(!u?.user){ 
-        window.location.href = 'login.html'; 
-        return;
+      window.location.href = 'login.html'; 
+      return;
     }
+    
     const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', u.user.id)
-        .single();
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', u.user.id)
+      .single();
 
     if(roleData?.role !== 'programmer'){
-        // Logget ind men ikke master => send til admin
-        window.location.href = 'admin.html';
-        return;
+      // Logged in but not master => send to admin
+      window.location.href = 'admin.html';
+      return;
     }
 
     user = u.user;
-    const emailEl = document.getElementById('userEmail');
+    const emailEl = $('userEmail');
     if(emailEl) emailEl.textContent = user.email || '';
     await loadAll();
   }
 
-  // Kør gate ved load
+  // Run auth guard on load
   guard();
 
-  async function loadAll(){ 
+  async function loadAll() { 
     await loadTemplates(); 
     await loadProjects(); 
     await loadUsers();
   }
 
-  // Templates - ÆNDRET til direkte rediger/slet knapper
-  async function loadTemplates(){
-    const { data } = await supabase.from('templates').select().order('created_at',{ascending:false});
+  // === TEMPLATES ===
+  async function loadTemplates() {
+    const { data } = await supabase.from('templates').select().order('created_at', {ascending: false});
     
-    // List med rediger/slet knapper
+    // List display with edit/delete buttons
     const ul = $('tmplList'); 
-    ul.innerHTML=''; 
-    (data||[]).forEach(t=>{ 
-      const li=document.createElement('li'); 
-      li.className='section'; 
+    ul.innerHTML = ''; 
+    (data || []).forEach(t => { 
+      const li = document.createElement('li'); 
+      li.className = 'section'; 
       li.style.display = 'flex';
       li.style.justifyContent = 'space-between';
       li.style.alignItems = 'center';
-      li.innerHTML=`
+      li.innerHTML = `
         <div>
           <strong>${t.name}</strong> v${t.version}<br>
-          <span class="muted">${t.description||''}</span>
+          <span class="muted">${t.description || ''}</span>
         </div>
         <div class="row">
-          <button class="btn" onclick="editTemplate('${t.id}')" style="background:var(--brand);color:white;border-color:var(--brand)">Rediger</button>
-          <button class="btn" onclick="deleteTemplate('${t.id}', '${t.name.replace(/'/g, '\\\'')}')" style="background:#dc3545;color:white;border-color:#dc3545">Slet</button>
+          <button class="btn small" onclick="editTemplate('${t.id}')" style="background:var(--brand);color:white;border-color:var(--brand)">Rediger</button>
+          <button class="btn small" onclick="deleteTemplate('${t.id}', '${t.name.replace(/'/g, '\\\'')}')" style="background:#dc3545;color:white;border-color:#dc3545">Slet</button>
         </div>
       `; 
       ul.appendChild(li); 
     });
   }
 
-  // Template actions
-  window.editTemplate = (id) => {
-    alert('Template redigering kommer snart! ID: ' + id);
+  // Template creation
+  $('createTemplate').onclick = async () => {
+    const name = $('tmplName').value.trim();
+    const desc = $('tmplDesc').value.trim();
+    if(!name) return alert('Navn påkrævet');
+    
+    const { data, error } = await supabase.from('templates').insert({
+      name, description: desc, version: 1
+    }).select().single();
+    
+    if(error) return alert(error.message);
+    
+    $('tmplName').value = '';
+    $('tmplDesc').value = '';
+    loadTemplates();
+    alert('Skabelon oprettet!');
   };
 
+  // Template editor - direct edit mode
+  window.editTemplate = async (templateId) => {
+    // Load full template structure
+    const { data: template } = await supabase.from('templates').select('*').eq('id', templateId).single();
+    const { data: domains } = await supabase.from('domains').select('*').eq('template_id', templateId).order('sort_order');
+    const { data: categories } = await supabase.from('categories').select('*,domain_id').order('sort_order');
+    const { data: questions } = await supabase.from('questions').select('*,category_id').order('sort_order');
+    
+    currentTemplate = { template, domains, categories, questions };
+    renderTemplateEditor();
+  };
+
+  // Delete template
   window.deleteTemplate = async (templateId, templateName) => {
     if(!confirm(`Er du sikker på du vil slette skabelonen "${templateName}"?\n\nDenne handling kan ikke fortrydes!`)) return;
     
@@ -299,109 +404,456 @@ window.addEventListener('load', function() {
       alert(`Skabelon "${templateName}" er slettet`);
       loadTemplates();
       
+      // If we were editing this template, hide the editor
+      if (currentTemplate && currentTemplate.template.id === templateId) {
+        $('templateEditor').style.display = 'none';
+        currentTemplate = null;
+      }
+      
     } catch(error) {
       alert('Fejl ved sletning: ' + error.message);
     }
   };
 
-  $('createTemplate').onclick = async ()=>{
-    const name = $('tmplName').value;
-    const desc = $('tmplDesc').value;
-    if(!name) return alert('Navn påkrævet');
+  function renderTemplateEditor() {
+    const editor = $('templateEditor');
+    const content = $('templateContent');
+    editor.style.display = 'block';
+    content.innerHTML = '';
     
-    const { data, error } = await supabase.from('templates').insert({
-      name, description: desc, version: 1
-    }).select().single();
+    if(!currentTemplate) return;
     
-    if(error) return alert(error.message);
-    $('tmplName').value = '';
-    $('tmplDesc').value = '';
-    loadTemplates();
+    // Update editor title
+    $('editorTitle').textContent = `Rediger skabelon: ${currentTemplate.template.name}`;
+    
+    // Template basic info
+    const templateBasic = document.createElement('div');
+    templateBasic.className = 'section';
+    templateBasic.style.marginBottom = '20px';
+    templateBasic.innerHTML = `
+      <h4>Grundlæggende information</h4>
+      <div class="grid2" style="margin-top:12px">
+        <label>Skabelon navn
+          <input type="text" id="edit-template-name" class="input" value="${currentTemplate.template.name || ''}">
+        </label>
+        <label>Beskrivelse
+          <input type="text" id="edit-template-desc" class="input" value="${currentTemplate.template.description || ''}">
+        </label>
+      </div>
+    `;
+    content.appendChild(templateBasic);
+    
+    // Domains and their content
+    currentTemplate.domains.forEach((domain, domainIndex) => {
+      const domainDiv = document.createElement('div');
+      domainDiv.className = 'domain-section';
+      domainDiv.innerHTML = `
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+          <input type="text" class="input" value="${domain.name}" onchange="updateDomainName(${domainIndex}, this.value)" style="flex:1">
+          <button class="btn small" onclick="deleteDomain(${domainIndex})" style="background:#dc3545;color:white;border-color:#dc3545">Slet domæne</button>
+        </div>
+      `;
+      
+      const domainCats = currentTemplate.categories.filter(c => c.domain_id === domain.id);
+      domainCats.forEach((category, catIndex) => {
+        const catDiv = document.createElement('div');
+        catDiv.className = 'category-item';
+        catDiv.innerHTML = `
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <input type="text" class="input" value="${category.name}" onchange="updateCategoryName('${category.id}', this.value)" style="flex:1">
+            <button class="btn small" onclick="deleteCategory('${category.id}')" style="background:#dc3545;color:white;border-color:#dc3545;font-size:0.7rem">Slet</button>
+          </div>
+        `;
+        
+        const questionsContainer = document.createElement('div');
+        questionsContainer.style.marginLeft = '16px';
+        
+        const catQuestions = currentTemplate.questions.filter(q => q.category_id === category.id);
+        catQuestions.forEach((question) => {
+          const qDiv = document.createElement('div');
+          qDiv.className = 'question-item';
+          qDiv.innerHTML = `
+            <div style="margin-bottom:8px">
+              <textarea class="input" onchange="updateQuestionText('${question.id}', this.value)" style="width:100%;min-height:60px;resize:vertical">${question.text}</textarea>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+                <label style="display:flex;align-items:center;gap:4px;font-size:0.85rem">
+                  <input type="checkbox" ${question.is_lite ? 'checked' : ''} onchange="updateQuestionLite('${question.id}', this.checked)">
+                  LITE version
+                </label>
+                <div style="flex:1"></div>
+                <button class="btn small" onclick="deleteQuestion('${question.id}')" style="background:#dc3545;color:white;border-color:#dc3545;font-size:0.7rem">Slet spørgsmål</button>
+              </div>
+            </div>
+          `;
+          questionsContainer.appendChild(qDiv);
+        });
+        
+        // Add question button
+        const addQBtn = document.createElement('button');
+        addQBtn.className = 'btn small';
+        addQBtn.textContent = '+ Tilføj spørgsmål';
+        addQBtn.style.marginTop = '8px';
+        addQBtn.onclick = () => addQuestion(category.id);
+        questionsContainer.appendChild(addQBtn);
+        
+        catDiv.appendChild(questionsContainer);
+        domainDiv.appendChild(catDiv);
+      });
+      
+      // Add category button
+      const addCatBtn = document.createElement('button');
+      addCatBtn.className = 'btn small';
+      addCatBtn.textContent = '+ Tilføj kategori';
+      addCatBtn.style.marginTop = '12px';
+      addCatBtn.onclick = () => addCategory(domain.id);
+      domainDiv.appendChild(addCatBtn);
+      
+      content.appendChild(domainDiv);
+    });
+    
+    // Add domain button
+    const addDomainBtn = document.createElement('button');
+    addDomainBtn.className = 'btn';
+    addDomainBtn.textContent = '+ Tilføj domæne';
+    addDomainBtn.style.marginTop = '20px';
+    addDomainBtn.onclick = addDomain;
+    content.appendChild(addDomainBtn);
+  }
+
+  // Template save handler - now updates existing template
+  $('saveTemplate').onclick = async () => {
+    if(!currentTemplate) return alert('Ingen template indlæst');
+    
+    try {
+      // Get updated basic info
+      const newName = $('edit-template-name').value.trim();
+      const newDesc = $('edit-template-desc').value.trim();
+      
+      if(!newName) return alert('Template navn påkrævet');
+      
+      // Update existing template
+      const { error: templateError } = await supabase
+        .from('templates')
+        .update({
+          name: newName,
+          description: newDesc
+        })
+        .eq('id', currentTemplate.template.id);
+      
+      if (templateError) throw templateError;
+      
+      // Delete existing domains, categories, and questions for this template
+      const { error: deleteError } = await supabase
+        .from('domains')
+        .delete()
+        .eq('template_id', currentTemplate.template.id);
+      
+      if (deleteError) throw deleteError;
+      
+      // Save updated domains
+      for (let i = 0; i < currentTemplate.domains.length; i++) {
+        const domain = currentTemplate.domains[i];
+        const { data: newDomain, error: domainError } = await supabase
+          .from('domains')
+          .insert({
+            template_id: currentTemplate.template.id,
+            name: domain.name,
+            sort_order: i + 1
+          })
+          .select()
+          .single();
+        
+        if (domainError) throw domainError;
+        
+        // Save categories for this domain
+        const domainCategories = currentTemplate.categories.filter(c => c.domain_id === domain.id);
+        for (let j = 0; j < domainCategories.length; j++) {
+          const category = domainCategories[j];
+          const { data: newCategory, error: categoryError } = await supabase
+            .from('categories')
+            .insert({
+              domain_id: newDomain.id,
+              name: category.name,
+              sort_order: j + 1
+            })
+            .select()
+            .single();
+          
+          if (categoryError) throw categoryError;
+          
+          // Save questions for this category
+          const categoryQuestions = currentTemplate.questions.filter(q => q.category_id === category.id);
+          for (let k = 0; k < categoryQuestions.length; k++) {
+            const question = categoryQuestions[k];
+            const { error: questionError } = await supabase
+              .from('questions')
+              .insert({
+                category_id: newCategory.id,
+                text: question.text,
+                is_lite: question.is_lite,
+                sort_order: k + 1
+              });
+            
+            if (questionError) throw questionError;
+          }
+        }
+      }
+      
+      alert(`Skabelon "${newName}" er opdateret`);
+      loadTemplates();
+      
+      // Hide editor
+      $('templateEditor').style.display = 'none';
+      currentTemplate = null;
+      
+    } catch (error) {
+      alert('Fejl ved gem: ' + error.message);
+    }
   };
 
-  // Projects (show all projects for master with owner info) - KUN MONITORING
-  async function loadProjects(){
+  // Template editing functions
+  window.updateDomainName = (domainIndex, newName) => {
+    if(currentTemplate && currentTemplate.domains[domainIndex]) {
+      currentTemplate.domains[domainIndex].name = newName;
+    }
+  };
+
+  window.updateCategoryName = (categoryId, newName) => {
+    if(currentTemplate) {
+      const category = currentTemplate.categories.find(c => c.id === categoryId);
+      if(category) category.name = newName;
+    }
+  };
+
+  window.updateQuestionText = (questionId, newText) => {
+    if(currentTemplate) {
+      const question = currentTemplate.questions.find(q => q.id === questionId);
+      if(question) question.text = newText;
+    }
+  };
+
+  window.updateQuestionLite = (questionId, isLite) => {
+    if(currentTemplate) {
+      const question = currentTemplate.questions.find(q => q.id === questionId);
+      if(question) question.is_lite = isLite;
+    }
+  };
+
+  window.deleteDomain = (domainIndex) => {
+    if(!confirm('Slet dette domæne og alt indhold?')) return;
+    
+    if(currentTemplate && currentTemplate.domains[domainIndex]) {
+      const domainId = currentTemplate.domains[domainIndex].id;
+      
+      // Remove domain
+      currentTemplate.domains.splice(domainIndex, 1);
+      
+      // Remove categories in this domain
+      currentTemplate.categories = currentTemplate.categories.filter(c => c.domain_id !== domainId);
+      
+      // Remove questions in categories that belonged to this domain
+      const categoryIds = currentTemplate.categories.filter(c => c.domain_id === domainId).map(c => c.id);
+      currentTemplate.questions = currentTemplate.questions.filter(q => !categoryIds.includes(q.category_id));
+      
+      renderTemplateEditor();
+    }
+  };
+
+  window.deleteCategory = (categoryId) => {
+    if(!confirm('Slet denne kategori og alle spørgsmål?')) return;
+    
+    if(currentTemplate) {
+      // Remove category
+      currentTemplate.categories = currentTemplate.categories.filter(c => c.id !== categoryId);
+      
+      // Remove questions in this category
+      currentTemplate.questions = currentTemplate.questions.filter(q => q.category_id !== categoryId);
+      
+      renderTemplateEditor();
+    }
+  };
+
+  window.deleteQuestion = (questionId) => {
+    if(!confirm('Slet dette spørgsmål?')) return;
+    
+    if(currentTemplate) {
+      currentTemplate.questions = currentTemplate.questions.filter(q => q.id !== questionId);
+      renderTemplateEditor();
+    }
+  };
+
+  window.addQuestion = (categoryId) => {
+    const text = prompt('Indtast spørgsmålstekst:');
+    if(!text || !text.trim()) return;
+    
+    const newQuestion = {
+      id: 'temp_' + Date.now(),
+      category_id: categoryId,
+      text: text.trim(),
+      is_lite: false,
+      sort_order: currentTemplate.questions.filter(q => q.category_id === categoryId).length + 1
+    };
+    
+    currentTemplate.questions.push(newQuestion);
+    renderTemplateEditor();
+  };
+
+  window.addCategory = (domainId) => {
+    const name = prompt('Indtast kategorinavn:');
+    if(!name || !name.trim()) return;
+    
+    const newCategory = {
+      id: 'temp_' + Date.now(),
+      domain_id: domainId,
+      name: name.trim(),
+      sort_order: currentTemplate.categories.filter(c => c.domain_id === domainId).length + 1
+    };
+    
+    currentTemplate.categories.push(newCategory);
+    renderTemplateEditor();
+  };
+
+  window.addDomain = () => {
+    const name = prompt('Indtast domænenavn:');
+    if(!name || !name.trim()) return;
+    
+    const newDomain = {
+      id: 'temp_' + Date.now(),
+      template_id: currentTemplate.template.id,
+      name: name.trim(),
+      sort_order: currentTemplate.domains.length + 1
+    };
+    
+    currentTemplate.domains.push(newDomain);
+    renderTemplateEditor();
+  };
+
+  // Cancel template editing
+  $('cancelTemplate').onclick = () => {
+    if(confirm('Annuller redigering? Alle ændringer går tabt.')) {
+      $('templateEditor').style.display = 'none';
+      currentTemplate = null;
+    }
+  };
+
+  // === PROJECTS (monitoring only) ===
+  async function loadProjects() {
     const { data } = await supabase.from('v_all_projects_with_owners').select('*').limit(1000);
     const tb = $('projectsTbl').querySelector('tbody'); 
-    tb.innerHTML='';
-    (data||[]).forEach(p=>{
-        const tr=document.createElement('tr');
-        tr.innerHTML = `
-        <td><strong>${p.title}</strong><br><span class="muted">${p.info_text || ''}</span></td>
-        <td>${p.owner_email || 'N/A'}<br><span class="muted">${p.owner_role || 'ingen rolle'}</span></td>
-        <td>${p.open_at ? new Date(p.open_at).toLocaleString('da-DK') : 'Ikke sat'}</td>
-        <td>${p.close_at ? new Date(p.close_at).toLocaleString('da-DK') : 'Ikke sat'}</td>
-        <td>${p.link_url ? '✅' : '—'}</td>
-        <td style="text-align:right">
-            <span class="muted">Kun monitoring</span>
-        </td>`;
-        tb.appendChild(tr);
+    tb.innerHTML = '';
+    
+    (data || []).forEach(p => {
+      const tr = document.createElement('tr');
+      
+      // Determine status
+      const now = new Date();
+      const openAt = p.open_at ? new Date(p.open_at) : null;
+      const closeAt = p.close_at ? new Date(p.close_at) : null;
+      
+      let statusBadge = '<span class="status-badge status-draft">Kladde</span>';
+      if(openAt && closeAt) {
+        if(now < openAt) {
+          statusBadge = '<span class="status-badge status-draft">Ikke åbnet</span>';
+        } else if(now > closeAt) {
+          statusBadge = '<span class="status-badge status-closed">Lukket</span>';
+        } else {
+          statusBadge = '<span class="status-badge status-open">Åben</span>';
+        }
+      }
+      
+      tr.innerHTML = `
+        <td>
+          <strong>${p.title}</strong><br>
+          <span class="muted">${p.info_text || ''}</span><br>
+          ${statusBadge}
+        </td>
+        <td>
+          ${p.owner_email || 'N/A'}<br>
+          <span class="muted">${p.owner_role || 'ingen rolle'}</span>
+        </td>
+        <td>${openAt ? openAt.toLocaleDateString('da-DK') : 'Ikke sat'}</td>
+        <td>${closeAt ? closeAt.toLocaleDateString('da-DK') : 'Ikke sat'}</td>
+        <td style="text-align:center">${p.people_count || 0}</td>
+        <td style="text-align:center">${p.responses_count || 0}</td>
+        <td style="text-align:center">${p.link_url ? '✅' : '—'}</td>
+      `;
+      tb.appendChild(tr);
     });
   }
 
-  // Users management
-  async function loadUsers(){
-  // Load activation keys
-  const { data: keys } = await supabase.from('v_activation_keys').select('*').order('created_at',{ascending:false});
-  const ktb = $('keysTbl').querySelector('tbody'); 
-  ktb.innerHTML='';
-  (keys||[]).forEach(k=>{
-    const tr=document.createElement('tr');
-    const status = k.used ? `<span style="color:var(--success)">Brugt</span>` : `<span style="color:var(--brand)">Aktiv</span>`;
-    const usedInfo = k.used ? `${new Date(k.used_at).toLocaleDateString()}<br><span class="muted">${k.used_by_email}</span>` : '-';
-    tr.innerHTML = `
-      <td style="font-family:monospace;font-weight:bold">${k.key_code}</td>
-      <td>${k.email}</td>
-      <td>${status}</td>
-      <td>${new Date(k.created_at).toLocaleDateString()}</td>
-      <td>${usedInfo}</td>
-      <td>${k.notes || '-'}</td>
-    `;
-    ktb.appendChild(tr);
-  });
+  // === USERS ===
+  async function loadUsers() {
+    // Load activation keys
+    const { data: keys } = await supabase.from('v_activation_keys').select('*').order('created_at', {ascending: false});
+    const ktb = $('keysTbl').querySelector('tbody'); 
+    ktb.innerHTML = '';
+    
+    (keys || []).forEach(k => {
+      const tr = document.createElement('tr');
+      const status = k.used ? `<span style="color:var(--success)">Brugt</span>` : `<span style="color:var(--brand)">Aktiv</span>`;
+      const usedInfo = k.used ? `${new Date(k.used_at).toLocaleDateString()}<br><span class="muted">${k.used_by_email}</span>` : '-';
+      
+      tr.innerHTML = `
+        <td style="font-family:monospace;font-weight:bold">${k.key_code}</td>
+        <td>${k.email}</td>
+        <td>${status}</td>
+        <td>${new Date(k.created_at).toLocaleDateString()}</td>
+        <td>${usedInfo}</td>
+        <td>${k.notes || '-'}</td>
+      `;
+      ktb.appendChild(tr);
+    });
 
-  // Load existing users
-  const { data } = await supabase.from('v_users_with_roles').select('*').order('created_at',{ascending:false});
-  const tb = $('usersTbl').querySelector('tbody'); 
-  tb.innerHTML='';
-  (data||[]).forEach(u=>{
-    const tr=document.createElement('tr');
-    tr.innerHTML = `<td>${u.email || 'N/A'}</td><td>${u.role || 'Ingen rolle'}</td><td>${new Date(u.created_at).toLocaleDateString()}</td><td style="text-align:right"><button class="btn" onclick="removeUserRole('${u.email}')">Fjern rolle</button></td>`;
-    tb.appendChild(tr);
-  });
-}
+    // Load existing users
+    const { data } = await supabase.from('v_users_with_roles').select('*').order('created_at', {ascending: false});
+    const tb = $('usersTbl').querySelector('tbody'); 
+    tb.innerHTML = '';
+    
+    (data || []).forEach(u => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${u.email || 'N/A'}</td>
+        <td>${u.role || 'Ingen rolle'}</td>
+        <td>${new Date(u.created_at).toLocaleDateString()}</td>
+        <td style="text-align:right">
+          <button class="btn small" onclick="removeUserRole('${u.email}')" style="background:#dc3545;color:white;border-color:#dc3545">Fjern rolle</button>
+        </td>
+      `;
+      tb.appendChild(tr);
+    });
+  }
 
-// Generate activation key
-$('generateKey').onclick = async ()=>{
-  const email = $('keyEmail').value;
-  const notes = $('keyNotes').value;
-  if(!email) return alert('Email påkrævet');
-  
-  const { data, error } = await supabase.rpc('generate_activation_key', {
-    p_email: email,
-    p_notes: notes || null
-  });
-  
-  if(error) return alert(error.message);
-  if(data.error) return alert(data.error);
-  
-  // Show result
-  $('generatedKey').textContent = data.key_code;
-  $('generatedEmail').textContent = data.email;
-  $('keyResult').style.display = 'block';
-  
-  // Clear inputs
-  $('keyEmail').value = '';
-  $('keyNotes').value = '';
-  
-  // Reload keys table
-  loadUsers();
-  
-  // Hide result after 30 seconds
-  setTimeout(() => {
-    $('keyResult').style.display = 'none';
-  }, 30000);
-};
+  // Generate activation key
+  $('generateKey').onclick = async () => {
+    const email = $('keyEmail').value.trim();
+    const notes = $('keyNotes').value.trim();
+    if(!email) return alert('Email påkrævet');
+    
+    const { data, error } = await supabase.rpc('generate_activation_key', {
+      p_email: email,
+      p_notes: notes || null
+    });
+    
+    if(error) return alert(error.message);
+    if(data.error) return alert(data.error);
+    
+    // Show result
+    $('generatedKey').textContent = data.key_code;
+    $('generatedEmail').textContent = data.email;
+    $('keyResult').style.display = 'block';
+    
+    // Clear inputs
+    $('keyEmail').value = '';
+    $('keyNotes').value = '';
+    
+    // Reload keys table
+    loadUsers();
+    
+    // Hide result after 30 seconds
+    setTimeout(() => {
+      $('keyResult').style.display = 'none';
+    }, 30000);
+  };
 
   // Global function for remove user role
   window.removeUserRole = async (email) => {
@@ -419,8 +871,8 @@ $('generateKey').onclick = async ()=>{
   };
 
   // Add user role directly
-  $('addUser').onclick = async ()=>{
-    const email = $('userEmail').value.trim();
+  $('addUser').onclick = async () => {
+    const email = $('userEmailInput').value.trim();
     const role = $('userRole').value;
     if(!email) return alert('Email påkrævet');
     
@@ -433,7 +885,7 @@ $('generateKey').onclick = async ()=>{
     if(data.error) return alert(data.error);
     
     alert(data.message);
-    $('userEmail').value = '';
+    $('userEmailInput').value = '';
     loadUsers();
   };
 
