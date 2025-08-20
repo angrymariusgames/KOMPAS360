@@ -1,0 +1,705 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KOMPAS • Login</title>
+  <link rel="icon" href="data:," />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <style>
+    /* Theme */
+    *{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg1:#667eea; --bg2:#764ba2; --ink:#2d3748; --muted:#718096;
+      --card:#ffffff; --line:#e2e8f0; --brand:#667eea; --radius:20px;
+      --success:#48bb78; --error:#f56565;
+    }
+    
+    body{
+      font-family:"Segoe UI",Tahoma,Geneva,Verdana,sans-serif;
+      background:linear-gradient(135deg,var(--bg1) 0%,var(--bg2) 100%);
+      min-height:100vh;
+      display:grid;
+      place-items:center;
+      padding:20px;
+      color:var(--ink);
+    }
+    
+    .container{
+      width:100%;
+      max-width:480px;
+      background:var(--card);
+      border-radius:var(--radius);
+      box-shadow:0 20px 40px rgba(0,0,0,.15);
+      overflow:hidden;
+    }
+    
+    .header{
+      background:linear-gradient(135deg,#2d3748 0%,#4a5568 100%);
+      color:#fff;
+      padding:32px;
+      text-align:center;
+    }
+    
+    .logo{
+      width:80px;
+      height:80px;
+      margin:0 auto 16px;
+      background:white;
+      border-radius:20px;
+      display:grid;
+      place-items:center;
+    }
+    
+    .logo img{
+      max-width:65px;
+      max-height:65px;
+      width:auto;
+      height:auto;
+      object-fit:contain;
+    }
+    
+    .title{
+      font-size:1.8rem;
+      font-weight:800;
+      margin-bottom:8px;
+    }
+    
+    .subtitle{
+      opacity:.9;
+      font-size:.95rem;
+    }
+    
+    .tabs{
+      display:flex;
+      background:#f7fafc;
+      border-bottom:1px solid var(--line);
+    }
+    
+    .tab{
+      flex:1;
+      padding:16px;
+      background:none;
+      border:none;
+      font-size:1rem;
+      font-weight:600;
+      color:#64748b;
+      cursor:pointer;
+      transition:.25s;
+      border-bottom:3px solid transparent;
+    }
+    
+    .tab.active{
+      color:var(--brand);
+      background:#fff;
+      border-bottom-color:var(--brand);
+    }
+    
+    .content{
+      padding:32px;
+    }
+    
+    .panel{
+      display:none;
+    }
+    
+    .panel.active{
+      display:block;
+    }
+    
+    .form-group{
+      margin-bottom:20px;
+    }
+    
+    label{
+      display:block;
+      font-weight:600;
+      margin-bottom:8px;
+      color:#4a5568;
+      font-size:.95rem;
+    }
+    
+    .input{
+      width:100%;
+      padding:12px 16px;
+      border:1px solid var(--line);
+      border-radius:10px;
+      font-size:1rem;
+      transition:.25s;
+      background:#fff;
+    }
+    
+    .input:focus{
+      outline:none;
+      border-color:var(--brand);
+      box-shadow:0 0 0 3px rgba(102,126,234,.1);
+    }
+    
+    .input.error{
+      border-color:var(--error);
+    }
+    
+    .btn{
+      width:100%;
+      padding:14px;
+      border:none;
+      border-radius:10px;
+      font-size:1rem;
+      font-weight:700;
+      cursor:pointer;
+      transition:.25s;
+      text-transform:uppercase;
+      letter-spacing:.5px;
+    }
+    
+    .btn.primary{
+      background:var(--brand);
+      color:#fff;
+    }
+    
+    .btn.primary:hover{
+      background:#5a67d8;
+      transform:translateY(-1px);
+      box-shadow:0 4px 12px rgba(102,126,234,.3);
+    }
+    
+    .btn:disabled{
+      opacity:.5;
+      cursor:not-allowed;
+      transform:none!important;
+    }
+    
+    .message{
+      padding:12px 16px;
+      border-radius:10px;
+      margin-bottom:20px;
+      font-size:.92rem;
+      animation:slideIn .3s ease;
+    }
+    
+    .message.error{
+      background:#fed7d7;
+      color:#9b2c2c;
+      border:1px solid #fc8181;
+    }
+    
+    .message.success{
+      background:#c6f6d5;
+      color:#22543d;
+      border:1px solid #68d391;
+    }
+    
+    .message.info{
+      background:#e6fffa;
+      color:#234e52;
+      border:1px solid #81e6d9;
+    }
+    
+    @keyframes slideIn{
+      from{opacity:0;transform:translateY(-10px)}
+      to{opacity:1;transform:translateY(0)}
+    }
+    
+    .divider{
+      text-align:center;
+      margin:24px 0;
+      position:relative;
+    }
+    
+    .divider::before{
+      content:'';
+      position:absolute;
+      top:50%;
+      left:0;
+      right:0;
+      height:1px;
+      background:var(--line);
+    }
+    
+    .divider span{
+      background:#fff;
+      padding:0 16px;
+      position:relative;
+      color:var(--muted);
+      font-size:.9rem;
+    }
+    
+    .help-text{
+      color:var(--muted);
+      font-size:.9rem;
+      margin-top:8px;
+    }
+    
+    .step-indicator{
+      display:flex;
+      justify-content:center;
+      gap:8px;
+      margin-bottom:24px;
+    }
+    
+    .step{
+      width:12px;
+      height:12px;
+      border-radius:50%;
+      background:var(--line);
+      transition:.3s;
+    }
+    
+    .step.active{
+      background:var(--brand);
+      transform:scale(1.2);
+    }
+    
+    .step.completed{
+      background:var(--success);
+    }
+    
+    .password-requirements{
+      background:#f7fafc;
+      border:1px solid var(--line);
+      border-radius:8px;
+      padding:12px;
+      margin-top:8px;
+      font-size:.85rem;
+    }
+    
+    .requirement{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      margin:4px 0;
+      color:var(--muted);
+      transition:.2s;
+    }
+    
+    .requirement.met{
+      color:var(--success);
+    }
+    
+    .requirement::before{
+      content:'○';
+      font-weight:bold;
+    }
+    
+    .requirement.met::before{
+      content:'✓';
+    }
+    
+    .link{
+      color:var(--brand);
+      text-decoration:none;
+      font-weight:600;
+      cursor:pointer;
+    }
+    
+    .link:hover{
+      text-decoration:underline;
+    }
+    
+    .footer{
+      padding:20px 32px;
+      background:#f7fafc;
+      border-top:1px solid var(--line);
+      text-align:center;
+      color:var(--muted);
+      font-size:.9rem;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <div class="logo">
+      <!-- Læg dit logo fx i ./assets/dit_logo.png -->
+      <img src="./assets/logo.png" alt="logo" onerror="this.style.display='none'">
+    </div>
+    <div class="title">KOMPAS 360</div>
+    <div class="subtitle">Evaluering & Feedback System</div>
+  </div>
+  
+  <div class="tabs">
+    <button class="tab active" data-tab="login">Log ind</button>
+    <button class="tab" data-tab="activate">Aktivér konto</button>
+  </div>
+  
+  <div class="content">
+    <!-- Login Panel -->
+    <div id="login-panel" class="panel active">
+      <div id="login-message"></div>
+      
+      <form id="login-form">
+        <div class="form-group">
+          <label for="login-email">Email</label>
+          <input type="email" id="login-email" class="input" required placeholder="din@email.dk">
+        </div>
+        
+        <div class="form-group">
+          <label for="login-password">Adgangskode</label>
+          <input type="password" id="login-password" class="input" required placeholder="••••••••">
+        </div>
+        
+        <button type="submit" class="btn primary">Log ind</button>
+      </form>
+      
+      <div class="divider">
+        <span>Ny bruger?</span>
+      </div>
+      
+      <p class="help-text" style="text-align:center">
+        Har du modtaget en aktiveringsnøgle? 
+        <a class="link" onclick="switchTab('activate')">Aktivér din konto her</a>
+      </p>
+    </div>
+    
+    <!-- Activation Panel -->
+    <div id="activate-panel" class="panel">
+      <div id="activate-message"></div>
+      
+      <!-- Step 1: Enter key and email -->
+      <div id="step1" class="activation-step">
+        <div class="step-indicator">
+          <div class="step active"></div>
+          <div class="step"></div>
+          <div class="step"></div>
+        </div>
+        
+        <h3 style="margin-bottom:20px">Indtast aktiveringsnøgle</h3>
+        
+        <form id="activate-form-step1">
+          <div class="form-group">
+            <label for="activation-key">Aktiveringsnøgle</label>
+            <input type="text" id="activation-key" class="input" required 
+                   placeholder="F.eks. ABC123" maxlength="6" style="text-transform:uppercase">
+            <p class="help-text">Indtast den 6-cifrede kode du har modtaget</p>
+          </div>
+          
+          <div class="form-group">
+            <label for="activation-email">Email</label>
+            <input type="email" id="activation-email" class="input" required 
+                   placeholder="din@email.dk">
+            <p class="help-text">Brug samme email som nøglen er sendt til</p>
+          </div>
+          
+          <button type="submit" class="btn primary">Fortsæt</button>
+        </form>
+      </div>
+      
+      <!-- Step 2: Create password -->
+      <div id="step2" class="activation-step" style="display:none">
+        <div class="step-indicator">
+          <div class="step completed"></div>
+          <div class="step active"></div>
+          <div class="step"></div>
+        </div>
+        
+        <h3 style="margin-bottom:20px">Opret adgangskode</h3>
+        
+        <form id="activate-form-step2">
+          <div class="form-group">
+            <label for="new-password">Ny adgangskode</label>
+            <input type="password" id="new-password" class="input" required 
+                   placeholder="••••••••" minlength="8">
+            
+            <div class="password-requirements">
+              <div class="requirement" data-req="length">Mindst 8 tegn</div>
+              <div class="requirement" data-req="upper">Mindst ét stort bogstav</div>
+              <div class="requirement" data-req="lower">Mindst ét lille bogstav</div>
+              <div class="requirement" data-req="number">Mindst ét tal</div>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="confirm-password">Gentag adgangskode</label>
+            <input type="password" id="confirm-password" class="input" required 
+                   placeholder="••••••••">
+            <p class="help-text" id="password-match" style="display:none"></p>
+          </div>
+          
+          <button type="submit" class="btn primary" disabled>Opret konto</button>
+        </form>
+      </div>
+      
+      <!-- Step 3: Success -->
+      <div id="step3" class="activation-step" style="display:none">
+        <div class="step-indicator">
+          <div class="step completed"></div>
+          <div class="step completed"></div>
+          <div class="step completed"></div>
+        </div>
+        
+        <div class="message success">
+          <h3 style="margin-bottom:8px">Konto aktiveret!</h3>
+          <p>Din konto er nu oprettet og klar til brug.</p>
+        </div>
+        
+        <p style="text-align:center;margin:24px 0">
+          Du bliver automatisk sendt til admin-panelet...
+        </p>
+        
+        <button class="btn primary" onclick="goToAdmin()">Gå til admin panel</button>
+      </div>
+      
+      <div class="divider" id="activate-divider">
+        <span>Allerede aktiveret?</span>
+      </div>
+      
+      <p class="help-text" style="text-align:center" id="activate-footer">
+        <a class="link" onclick="switchTab('login')">Log ind her</a>
+      </p>
+    </div>
+  </div>
+  
+  <div class="footer">
+    KOMPAS 360 • Evaluering & Feedback System
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://wsrstyrsuwhcmmlmnbrz.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzcnN0eXJzdXdoY21tbG1uYnJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MTU0NTIsImV4cCI6MjA3MTE5MTQ1Mn0.Rf3Z3bQGjV5CKXKZr6IMOjzPdbhVJCh3SwuvlkpxUD0";
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const $ = (id) => document.getElementById(id);
+let activationData = {};
+
+// Tab switching
+function switchTab(tabName) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  
+  document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+  $(`${tabName}-panel`).classList.add('active');
+}
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+});
+
+// Message display
+function showMessage(elementId, message, type = 'error') {
+  const el = $(elementId);
+  el.className = `message ${type}`;
+  el.innerHTML = message;
+  el.style.display = 'block';
+  
+  if (type === 'success') {
+    setTimeout(() => { el.style.display = 'none'; }, 5000);
+  }
+}
+
+// Login form
+$('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  
+  const email = $('login-email').value;
+  const password = $('login-password').value;
+  
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+    
+    if (error) throw error;
+    
+    // Check user role
+    const { data: roleData } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', data.user.id)
+      .single();
+    
+    if (roleData?.role === 'programmer') {
+      window.location.href = 'master.html';
+    } else {
+      window.location.href = 'admin.html';
+    }
+  } catch (error) {
+    showMessage('login-message', error.message || 'Login fejlede', 'error');
+  }
+});
+
+// Activation Step 1
+$('activate-form-step1').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  
+  const key = $('activation-key').value.trim().toUpperCase();
+  const email = $('activation-email').value.trim().toLowerCase();
+  
+  try {
+    // Validate key
+    const { data, error } = await supabase.rpc('activate_account_with_key', {
+      p_key_code: key,
+      p_email: email,
+      p_password: 'temp' // Vi validerer kun nøglen først
+    });
+    
+    if (error) throw error;
+    if (data.error) throw new Error(data.error);
+    
+    // Store for next step
+    activationData = { key, email };
+    
+    // Move to step 2
+    $('step1').style.display = 'none';
+    $('step2').style.display = 'block';
+    $('activate-divider').style.display = 'none';
+    $('activate-footer').style.display = 'none';
+    
+  } catch (error) {
+    showMessage('activate-message', error.message || 'Ugyldig nøgle eller email', 'error');
+  }
+});
+
+// Password validation
+$('new-password').addEventListener('input', validatePassword);
+$('confirm-password').addEventListener('input', validatePassword);
+
+function validatePassword() {
+  const password = $('new-password').value;
+  const confirm = $('confirm-password').value;
+  const submitBtn = $('activate-form-step2').querySelector('button[type="submit"]');
+  
+  // Check requirements
+  const requirements = {
+    length: password.length >= 8,
+    upper: /[A-Z]/.test(password),
+    lower: /[a-z]/.test(password),
+    number: /[0-9]/.test(password)
+  };
+  
+  // Update UI
+  Object.keys(requirements).forEach(req => {
+    const el = document.querySelector(`[data-req="${req}"]`);
+    if (requirements[req]) {
+      el.classList.add('met');
+    } else {
+      el.classList.remove('met');
+    }
+  });
+  
+  // Check if passwords match
+  const matchEl = $('password-match');
+  if (confirm.length > 0) {
+    if (password === confirm) {
+      matchEl.textContent = '✓ Adgangskoderne matcher';
+      matchEl.style.color = 'var(--success)';
+      matchEl.style.display = 'block';
+    } else {
+      matchEl.textContent = '✗ Adgangskoderne matcher ikke';
+      matchEl.style.color = 'var(--error)';
+      matchEl.style.display = 'block';
+    }
+  } else {
+    matchEl.style.display = 'none';
+  }
+  
+  // Enable/disable submit button
+  const allRequirementsMet = Object.values(requirements).every(v => v);
+  const passwordsMatch = password === confirm && confirm.length > 0;
+  
+  submitBtn.disabled = !(allRequirementsMet && passwordsMatch);
+}
+
+// Activation Step 2 - SIMPEL version når email confirmation er slået FRA
+$('activate-form-step2').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const password = $('new-password').value;
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Opretter konto...';
+
+  try {
+    // 1) Opret bruger (ingen email confirmation nødvendig)
+    const { error: signUpError } = await supabase.auth.signUp({
+      email: activationData.email,
+      password
+    });
+    if (signUpError) throw signUpError;
+
+    // 2) Vent kort tid for database propagation
+    submitBtn.textContent = 'Aktiverer konto...';
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // 3) Markér nøgle som brugt og giv rolle
+    const { data: markData, error: markError } = await supabase.rpc('mark_activation_key_used', {
+      p_key_code: activationData.key,
+      p_email: activationData.email
+    });
+    
+    if (markError) {
+      console.error('Mark key error:', markError);
+      // Prøv igen efter lidt længere ventetid
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      const { data: retryData, error: retryError } = await supabase.rpc('mark_activation_key_used', {
+        p_key_code: activationData.key,
+        p_email: activationData.email
+      });
+      if (retryError) throw retryError;
+      if (retryData?.error) throw new Error(retryData.error);
+    } else if (markData?.error) {
+      throw new Error(markData.error);
+    }
+
+    // 4) Log ind med det samme
+    submitBtn.textContent = 'Logger ind...';
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+      email: activationData.email,
+      password
+    });
+    
+    if (signInError) throw signInError;
+
+    // 5) Success! Check rolle og redirect
+    submitBtn.textContent = 'Success! Omdirigerer...';
+    
+    const { data: roleData } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', signInData.user.id)
+      .single();
+
+    // Show success step
+    $('step2').style.display = 'none';
+    $('step3').style.display = 'block';
+    
+    // Redirect efter 2 sekunder
+    setTimeout(() => {
+      window.location.href = roleData?.role === 'programmer' ? 'master.html' : 'admin.html';
+    }, 2000);
+
+  } catch (error) {
+    console.error('Activation error:', error);
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Opret konto';
+    showMessage('activate-message', error.message || 'Fejl ved aktivering', 'error');
+  }
+});
+
+function goToAdmin() {
+  window.location.href = 'admin.html';
+}
+
+// Check if already logged in
+supabase.auth.getUser().then(({ data }) => {
+  if (data.user) {
+    // Already logged in, redirect based on role
+    supabase.from('user_roles')
+      .select('role')
+      .eq('user_id', data.user.id)
+      .single()
+      .then(({ data: roleData }) => {
+        if (roleData?.role === 'programmer') {
+          window.location.href = 'master.html';
+        } else {
+          window.location.href = 'admin.html';
+        }
+      });
+  }
+});
+</script>
+
+</body>
+</html>

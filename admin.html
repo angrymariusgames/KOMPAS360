@@ -1,0 +1,853 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KOMPAS • Evaluator Backoffice</title>
+  <link rel="icon" href="data:," />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://cdn.jsdelivr.net; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js" 
+          onload="console.log('QRCode library loaded successfully')"
+          onerror="console.error('QRCode library failed to load')"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
+
+  <style>
+    /* ---------- Theme (evaluator colors) ---------- */
+    *{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg1:#667eea; --bg2:#764ba2; --ink:#2d3748; --muted:#718096;
+      --card:#f8fafc; --line:#e2e8f0; --brand:#667eea; --radius:16px;
+    }
+    body{font-family:"Segoe UI",Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,var(--bg1) 0%,var(--bg2) 100%);min-height:100vh;padding:20px;color:var(--ink)}
+    .app{max-width:1400px;margin:0 auto;background:#fff;border-radius:20px;box-shadow:0 20px 40px rgba(0,0,0,.15);overflow:hidden}
+
+    /* Header */
+    .header{background:linear-gradient(135deg,#2d3748 0%,#4a5568 100%);color:#fff;padding:20px 24px;display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center;position:sticky;top:0;z-index:30}
+    .club-title{display:flex;align-items:center;gap:14px}
+    .club-logo{width:56px;height:56px;border-radius:14px;background:#fff;display:grid;place-items:center}
+    .club-logo img{height:38px;object-fit:contain}
+    .club-name{font-size:1.6rem;font-weight:800;margin-bottom:2px}
+    .club-sub{opacity:.85;font-size:.92rem}
+    .header-tools{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+    .input, .select{border:1px solid var(--line);background:#fff;color:#111;padding:10px 12px;border-radius:10px;font-size:.95rem}
+    .btn{cursor:pointer;font-weight:700;border:1px solid var(--line);background:#fff;color:#111;padding:10px 14px;border-radius:10px}
+    .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+    .btn.ghost{background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.35)}
+
+    /* Tabs */
+    .tabbar{background:var(--card);border-bottom:1px solid var(--line);padding:0 20px;display:flex;gap:0;position:sticky;top:120px;z-index:20}
+    .tabbtn{background:none;border:none;padding:16px 22px;font-size:1.05rem;font-weight:700;color:#64748b;cursor:pointer;border-bottom:3px solid transparent;transition:.25s;white-space:nowrap;position:relative}
+    .tabbtn:hover{color:#334155;background:rgba(102,126,234,.06)}
+    .tabbtn.active{color:var(--brand);border-bottom-color:var(--brand);background:#fff}
+    .content{padding:20px}
+    .section{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+    .grid{display:grid;gap:16px}
+    .grid2{display:grid;gap:10px;grid-template-columns:1fr 1fr}
+    .row{display:flex;gap:8px;align-items:center}
+    .muted{color:var(--muted);font-size:.92rem}
+
+    /* Tables */
+    table{width:100%;border-collapse:separate;border-spacing:0}
+    th,td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:.95rem}
+    thead th{position:sticky;top:0;background:#fff;z-index:2}
+
+    /* Right rail */
+    .rail{padding:20px;background:var(--card);border-left:1px solid var(--line)}
+    .qrbox{
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:12px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      width:220px;
+      min-height:220px;
+      color:#999;
+      font-size:0.9rem;
+    }
+
+    @media(max-width:1100px){ .layout{display:block} .rail{border-left:0;border-top:1px solid var(--line)} }
+  </style>
+</head>
+<body>
+<div class="app">
+  <!-- HEADER -->
+  <div class="header">
+    <div class="club-title">
+      <div class="club-logo"><img src="../kompas_logo.png" alt="KOMPAS" onerror="this.style.display='none'"></div>
+      <div>
+        <div class="club-name">KOMPAS – Evaluator Backoffice</div>
+        <div class="club-sub">360° evaluering • Projekter • Resultater</div>
+      </div>
+    </div>
+
+    <div class="header-tools" id="authArea">
+      <button id="logoutBtn" class="btn ghost">Log ud</button>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabbar">
+    <button class="tabbtn active" data-tab="projects">📂 Projekter</button>
+    <button class="tabbtn" data-tab="people">👥 Navneliste</button>
+    <button class="tabbtn" data-tab="results">📈 Resultater</button>
+  </div>
+
+  <!-- LAYOUT -->
+  <div class="layout" style="display:grid;grid-template-columns:1fr 300px">
+    <!-- MAIN -->
+    <div class="content">
+
+      <!-- Projekter (default synlig) -->
+      <div id="tab-projects" class="section" style="display:block">
+        <div class="grid">
+          <div class="grid2">
+            <label>Projekt-titel
+              <input id="p-title" class="input" placeholder="Fx KOMPAS 360 – 3. bataljon">
+            </label>
+            <label>Skabelon
+              <select id="p-template" class="select"></select>
+            </label>
+          </div>
+
+          <label>Info-tekst
+            <textarea id="p-info" class="input" rows="3" placeholder="Kort introduktion …"></textarea>
+          </label>
+
+          <div class="grid2">
+            <label>Variant
+              <select id="p-lite" class="select">
+                <option value="false">FULD (48)</option>
+                <option value="true">LITE (16)</option>
+              </select>
+            </label>
+            <label>Anonymitet
+              <select id="p-anon" class="select">
+                <option value="true">Anonym (peer/leader kræver min. n)</option>
+                <option value="false">Ikke anonym</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="grid2">
+            <label>Åbn
+              <input id="p-open" class="input" type="datetime-local">
+            </label>
+            <label>Luk
+              <input id="p-close" class="input" type="datetime-local">
+            </label>
+          </div>
+
+          <div class="grid2">
+            <label>Minimum pr. gruppe (anonym)
+              <input id="p-minn" class="input" value="2">
+            </label>
+            <div class="grid2">
+              <label>Label – Selv
+                <input id="label-self" class="input" value="Vurdering af sig selv">
+              </label>
+              <label>Label – Kollega
+                <input id="label-peer" class="input" value="Vurdering af kollega">
+              </label>
+              <label>Label – Fører
+                <input id="label-leader" class="input" value="Fører vurdering">
+              </label>
+            </div>
+          </div>
+
+          <div class="row">
+            <button id="createProject" class="btn primary">Opret projekt</button>
+            <span id="projectStatus" class="muted"></span>
+          </div>
+        </div>
+
+        <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
+
+        <h3>🗂 Mine projekter</h3>
+        <div class="section" style="margin-top:8px">
+          <table id="projectsTbl">
+            <thead>
+              <tr>
+                <th>Titel</th>
+                <th>Åbner</th>
+                <th>Lukker</th>
+                <th>Link</th>
+                <th>QR</th>
+                <th style="text-align:right">Handling</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Navneliste -->
+      <div id="tab-people" class="section" style="display:none">
+        <div class="row" style="justify-content:space-between;gap:12px;margin-bottom:8px">
+          <select id="selProject" class="select"></select>
+          <div class="row">
+            <button id="btnReloadPeople" class="btn">Genindlæs</button>
+            <input type="file" id="csvFile" accept=".csv,.txt,.tsv" style="display:none">
+            <button id="importCsv" class="btn">Importer CSV</button>
+          </div>
+        </div>
+
+        <div class="row" style="margin-bottom:8px">
+          <input id="personName" class="input" placeholder="Fulde navn">
+          <input id="personNo" class="input" placeholder="Medarbejder nr.">
+          <button id="addPerson" class="btn primary">Tilføj</button>
+        </div>
+
+        <div class="section">
+          <table id="peopleTbl">
+            <thead>
+              <tr>
+                <th>Navn</th>
+                <th>Nr.</th>
+                <th style="text-align:right">Slet</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Resultater -->
+      <div id="tab-results" class="section" style="display:none">
+        <div class="grid2" style="margin-bottom:8px">
+          <select id="selProject2" class="select"></select>
+          <select id="selTarget" class="select"></select>
+        </div>
+        <div class="row" style="margin-bottom:10px">
+          <button id="btnLoadRadar" class="btn">Vis KOMPAS-hjul</button>
+          <button id="btnPdf" class="btn">Download PDF</button>
+          <button id="btnZip" class="btn">Download alle (ZIP)</button>
+        </div>
+        <div class="section" style="background:#fff">
+          <canvas id="radar" height="360"></canvas>
+        </div>
+        <div id="resultNote" class="muted" style="margin-top:6px"></div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT RAIL: Link & QR -->
+    <aside class="rail">
+      <h3 style="margin-bottom:8px">🔗 Evaluerings Link</h3>
+      <div class="row" style="margin-bottom:8px">
+        <select id="selProject3" class="select" style="flex:1"></select>
+        <button id="btnMakeLink" class="btn">Generér</button>
+      </div>
+      <div id="projectUrl" style="margin-bottom:12px"></div>
+      <div id="qr" class="qrbox" style="display:flex;align-items:center;justify-content:center;color:#999;font-size:0.9rem">
+        Vælg projekt og klik "Generér"
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+// Vent til hele siden er indlæst
+window.addEventListener('load', function() {
+  let radar = null;
+  let user = null;
+
+  const SUPABASE_URL = "https://wsrstyrsuwhcmmlmnbrz.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzcnN0eXJzdXdoY21tbG1uYnJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MTU0NTIsImV4cCI6MjA3MTE5MTQ1Mn0.Rf3Z3bQGjV5CKXKZr6IMOjzPdbhVJCh3SwuvlkpxUD0";
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const $ = (id)=>document.getElementById(id);
+  
+  // Tabs: skift aktiv fane
+  document.querySelectorAll('.tabbtn').forEach(btn=>{
+    btn.onclick = ()=>{
+      document.querySelectorAll('.tabbtn').forEach(x=>x.classList.remove('active'));
+      btn.classList.add('active');
+
+      // skjul alle sektioner
+      ['projects','people','results'].forEach(name=>{
+        const panel = $('tab-'+name);
+        if(panel) panel.style.display = 'none';
+      });
+
+      // vis valgt sektion
+      const target = $('tab-' + btn.dataset.tab);
+      if(target) target.style.display = 'block';
+    };
+  });
+
+  // Logout
+  $('logoutBtn').onclick = async ()=>{ 
+    await supabase.auth.signOut(); 
+    window.location.href = 'login.html';
+  };
+
+  async function loadAll(){ 
+    await loadTemplates(); 
+    await loadProjects(); 
+    await loadProjectsInto(['selProject','selProject2','selProject3']); 
+  }
+  
+  // Templates (læs-only for evaluatorer)
+  async function loadTemplates(){
+    const { data, error } = await supabase.from('templates').select().order('created_at',{ascending:false});
+    
+    if(error) {
+      console.error('Template load error:', error);
+      return;
+    }
+    
+    const sel = $('p-template'); 
+    sel.innerHTML = '<option value="">-- Vælg skabelon --</option>'; 
+    
+    if(!data || data.length === 0) {
+      sel.innerHTML = '<option value="">Ingen skabeloner tilgængelige</option>';
+      return;
+    }
+    
+    data.forEach(t => { 
+      const o = document.createElement('option'); 
+      o.value = t.id; 
+      o.textContent = `${t.name} v${t.version}`;
+      if(t.description) o.title = t.description; // Tooltip
+      sel.appendChild(o); 
+    });
+    
+    // Auto-select first template if only one
+    if(data.length === 1) {
+      sel.value = data[0].id;
+    }
+  }
+
+  // Projects (kun egne projekter)
+  async function loadProjects(){
+  const { data } = await supabase.from('projects').select().order('created_at',{ascending:false}).limit(1000);
+  const tb = $('projectsTbl').querySelector('tbody'); 
+  tb.innerHTML='';
+  (data||[]).forEach(p=>{
+    const tr=document.createElement('tr');
+    const hasLink = p.link_url ? '✅' : '—';
+    tr.innerHTML = `
+      <td><strong>${p.title}</strong><br><span class="muted">${p.info_text || ''}</span></td>
+      <td>${p.open_at ? new Date(p.open_at).toLocaleString('da-DK') : 'Ikke sat'}</td>
+      <td>${p.close_at ? new Date(p.close_at).toLocaleString('da-DK') : 'Ikke sat'}</td>
+      <td>${hasLink}</td>
+      <td>
+        <canvas id="mini-qr-${p.id}" width="50" height="50" style="cursor:pointer" title="Klik for stort QR"></canvas>
+      </td>
+      <td style="text-align:right">
+        <button class="btn" onclick="deleteProject('${p.id}', '${p.title.replace(/'/g, '\\\'')}')" style="background:#dc3545;color:white;border-color:#dc3545">Slet</button>
+      </td>`;
+    tb.appendChild(tr);
+    
+    // Generate mini QR if link exists - using setTimeout to ensure DOM is ready
+    if(p.link_url) {
+      setTimeout(() => {
+        const miniCanvas = document.getElementById(`mini-qr-${p.id}`);
+        if(miniCanvas && typeof QRCode !== 'undefined') {
+          QRCode.toCanvas(miniCanvas, p.link_url, {width: 50, height: 50, margin: 1}, (error) => {
+            if(error) {
+              miniCanvas.style.display = 'none';
+            } else {
+              miniCanvas.onclick = () => showLargeQR(p.link_url, p.title);
+            }
+          });
+        }
+      }, 100);
+    }
+  });
+}
+
+// Global function for project deletion
+window.deleteProject = async (projectId, projectTitle) => {
+  if(!confirm(`Er du sikker på du vil slette projektet "${projectTitle}"?\n\nDette vil også slette:\n• Alle personer tilknyttet projektet\n• Alle besvarelser\n• Project links\n\nDenne handling kan ikke fortrydes!`)) {
+    return;
+  }
+  
+  try {
+    // Delete project (cascade will handle related data)
+    const { error } = await supabase.from('projects').delete().eq('id', projectId);
+    if(error) throw error;
+    
+    alert(`✅ Projekt "${projectTitle}" er slettet`);
+    
+    // Reload data
+    await Promise.all([
+      loadProjects(),
+      loadProjectsInto(['selProject','selProject2','selProject3'])
+    ]);
+    
+  } catch(error) {
+    alert(`❌ Fejl ved sletning: ${error.message}`);
+  }
+};
+
+// Function to show large QR code in popup
+window.showLargeQR = (url, title) => {
+  const popup = document.createElement('div');
+  popup.style.cssText = `
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
+    background: rgba(0,0,0,0.8); z-index: 1000; 
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  `;
+  
+  const content = document.createElement('div');
+  content.style.cssText = `
+    background: white; padding: 20px; border-radius: 10px; 
+    text-align: center; max-width: 90vw;
+  `;
+  
+  content.innerHTML = `
+    <h3 style="margin-bottom: 10px">${title}</h3>
+    <div id="large-qr"></div>
+    <p style="margin-top: 10px; font-size: 0.9rem; color: #666">Klik udenfor for at lukke</p>
+  `;
+  
+  popup.appendChild(content);
+  document.body.appendChild(popup);
+  
+  // Generate large QR
+  QRCode.toCanvas(document.getElementById('large-qr'), url, {width: 300, height: 300});
+  
+  // Close on click outside
+  popup.onclick = (e) => {
+    if(e.target === popup) {
+      document.body.removeChild(popup);
+    }
+  };
+  
+  // Prevent content click from closing
+  content.onclick = (e) => e.stopPropagation();
+};
+
+  async function loadProjectsInto(ids){
+    const { data } = await supabase.from('projects').select('id,title').order('title');
+    ids.forEach(id=>{ 
+      const s=$(id); 
+      s.innerHTML=''; 
+      (data||[]).forEach(p=>{ 
+        const o=document.createElement('option'); 
+        o.value=p.id; 
+        o.textContent=p.title; 
+        s.appendChild(o); 
+      }); 
+    });
+  }
+
+  $('createProject').onclick = async ()=>{
+    // Validation
+    const title = $('p-title').value.trim();
+    const templateId = $('p-template').value;
+    
+    if(!title) return alert('Projekt titel er påkrævet');
+    if(!templateId) return alert('Vælg en skabelon');
+    
+    // UI feedback
+    const btn = $('createProject');
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Opretter...';
+    $('projectStatus').textContent = '';
+    
+    try {
+      const u = (await supabase.auth.getUser()).data.user;
+      const settings = {
+        labels: {
+          self: $('label-self').value || 'Vurdering af sig selv',
+          peer: $('label-peer').value || 'Vurdering af kollega', 
+          leader: $('label-leader').value || 'Fører vurdering'
+        },
+        min_group_n: parseInt($('p-minn').value || '2', 10)
+      };
+      
+      const projectData = { 
+        template_id: templateId,
+        owner: u.id, 
+        title: title,
+        info_text: $('p-info').value.trim() || null,
+        is_lite: $('p-lite').value === 'true', 
+        is_anonymous: $('p-anon').value === 'true', 
+        open_at: $('p-open').value || null, 
+        close_at: $('p-close').value || null, 
+        settings 
+      };
+      
+      const { data, error } = await supabase.from('projects').insert(projectData).select().single();
+      if(error) throw error;
+      
+      // Success feedback
+      $('projectStatus').textContent = `✅ Projekt "${title}" oprettet!`;
+      $('projectStatus').style.color = 'green';
+      
+      // Clear form
+      $('p-title').value = '';
+      $('p-info').value = '';
+      
+      // Reload data
+      await Promise.all([
+        loadProjects(),
+        loadProjectsInto(['selProject','selProject2','selProject3'])
+      ]);
+      
+      // Auto-select new project in dropdowns
+      ['selProject','selProject2','selProject3'].forEach(id => {
+        const sel = $(id);
+        if(sel) sel.value = data.id;
+      });
+      
+    } catch(error) {
+      $('projectStatus').textContent = `❌ Fejl: ${error.message}`;
+      $('projectStatus').style.color = 'red';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
+  };
+
+  // Global function for delete person
+  window.deletePerson = async (personId) => {
+    if(!confirm('Slet denne person?')) return;
+    const { error } = await supabase.from('project_people').delete().eq('id', personId);
+    if(error) return alert(error.message);
+    loadPeople();
+  };
+
+  $('addPerson').onclick = async ()=>{
+    const pid = $('selProject').value; 
+    if(!pid) return alert('Vælg et projekt først');
+    if(!$('personName').value.trim()) return alert('Navn påkrævet');
+    
+    const ins = { 
+      project_id: pid, 
+      full_name: $('personName').value.trim(), 
+      employee_no: $('personNo').value.trim() || null 
+    };
+    const { error } = await supabase.from('project_people').insert(ins); 
+    if(error) return alert(error.message);
+    
+    $('personName').value = ''; 
+    $('personNo').value = ''; 
+    loadPeople();
+  };
+
+  $('btnReloadPeople').onclick = loadPeople;
+  
+  async function loadPeople(){
+    const pid=$('selProject').value; 
+    if(!pid) return;
+    const { data } = await supabase.from('project_people').select().eq('project_id',pid).order('full_name');
+    const tb=$('peopleTbl').querySelector('tbody'); 
+    tb.innerHTML='';
+    (data||[]).forEach(p=>{ 
+      const tr=document.createElement('tr'); 
+      tr.innerHTML=`<td>${p.full_name}</td><td>${p.employee_no||''}</td><td style="text-align:right"><button class="btn" onclick="deletePerson('${p.id}')">Slet</button></td>`; 
+      tb.appendChild(tr); 
+    });
+  }
+
+  $('importCsv').onclick=()=>{ $('csvFile').click(); };
+  $('csvFile').addEventListener('change',(e)=>{
+    const f=e.target.files[0]; 
+    if(!f) return;
+    Papa.parse(f,{
+      header:true,
+      complete:async (res)=>{ 
+        const pid=$('selProject').value;
+        if(!pid) return alert('Vælg et projekt først');
+        const rows=res.data.filter(r=>r.full_name?.trim()); 
+        if(rows.length === 0) return alert('Ingen gyldige rækker fundet i CSV');
+        const payload=rows.map(r=>({
+          project_id:pid,
+          full_name:r.full_name.trim(),
+          employee_no:r.employee_no?.trim()||null
+        })); 
+        const { error } = await supabase.from('project_people').insert(payload); 
+        if(error) return alert(error.message); 
+        alert(`${payload.length} personer importeret`);
+        loadPeople(); 
+      },
+      error: (error) => {
+        alert('Fejl ved læsning af CSV: ' + error.message);
+      }
+    });
+  });
+
+  $('btnMakeLink').onclick = async ()=>{
+    const pid = $('selProject3').value;
+    if(!pid) return alert('Vælg et projekt først');
+    
+    const btn = $('btnMakeLink');
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Genererer...';
+    
+    try {
+      let { data: link } = await supabase.from('project_link').select().eq('project_id', pid).maybeSingle();
+      
+      if(!link) { 
+        const token = crypto.randomUUID().replaceAll('-', ''); 
+        const { data, error } = await supabase.from('project_link').insert({
+          project_id: pid,
+          token
+        }).select().single(); 
+        
+        if(error) throw error;
+        link = data; 
+      }
+      
+      // Intelligent URL building
+      const protocol = window.location.protocol;
+      const hostname = window.location.hostname;
+      const port = window.location.port;
+      
+      let baseUrl;
+      if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        baseUrl = `${protocol}//${hostname}${port ? ':' + port : ''}`;
+      } else {
+        baseUrl = `${protocol}//${hostname}${port && port !== '80' && port !== '443' ? ':' + port : ''}`;
+      }
+      
+      const url = baseUrl + '/respondent.html?t=' + link.token;
+      
+      const urlEl = $('projectUrl');
+      urlEl.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <strong>Evaluerings-link:</strong>
+          <button onclick="copyFullLink('${url}')" class="btn" style="padding:4px 8px;font-size:0.8rem;">📋 Kopiér</button>
+        </div>
+        <div style="word-break:break-all;background:#f8fafc;padding:8px;border-radius:4px;font-family:monospace;font-size:0.85rem;border:1px solid #e2e8f0;">
+          ${url}
+        </div>
+      `;
+      
+      const qrBox = $('qr');
+      generateQRCode(qrBox, url, { width: 220, height: 220 });
+      
+    } catch(error) {
+      console.error('Link generation error:', error);
+      alert('Fejl ved generering: ' + error.message);
+      
+      const qrBox = $('qr');
+      showQRFallback(qrBox, 'Fejl ved generering af link', 'Der opstod en fejl');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
+  };
+
+  window.copyFullLink = function(url) {
+    copyToClipboard(url, { textContent: '📋 Kopiér', style: {} });
+  };
+
+  // Simple copy function
+  function copyLink(url, button) {
+    navigator.clipboard.writeText(url).then(() => {
+      const original = button.textContent;
+      button.textContent = '✅ Kopieret';
+      button.style.background = '#48bb78';
+      button.style.color = 'white';
+      
+      setTimeout(() => {
+        button.textContent = original;
+        button.style.background = '';
+        button.style.color = '';
+      }, 2000);
+    }).catch(() => {
+      // Fallback
+      const textArea = document.createElement('textarea');
+      textArea.value = url;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      alert('Link kopieret til udklipsholder!');
+    });
+  }
+
+  // Forbedret QR-generation funktion
+function generateQRCode(container, url, options = {}) {
+  const defaultOptions = {
+    width: 220,
+    height: 220,
+    margin: 2,
+    color: { dark: '#2d3748', light: '#ffffff' },
+    ...options
+  };
+
+  container.innerHTML = '';
+  
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'text-align:center;padding:10px;';
+  container.appendChild(wrapper);
+
+  if (typeof QRCode === 'undefined') {
+    showQRFallback(wrapper, url, 'QRCode bibliotek ikke indlæst');
+    return;
+  }
+
+  try {
+    wrapper.innerHTML = '<div style="color:#999;padding:20px;font-size:0.9rem;">📱 Genererer QR...</div>';
+    
+    const canvas = document.createElement('canvas');
+    wrapper.innerHTML = '';
+    wrapper.appendChild(canvas);
+    
+    QRCode.toCanvas(canvas, url, defaultOptions, (error) => {
+      if (error) {
+        console.error('QR generation failed:', error);
+        showQRFallback(wrapper, url, 'QR kunne ikke genereres');
+      } else {
+        console.log('QR generated successfully for:', url);
+        addCopyButton(wrapper, url);
+      }
+    });
+    
+  } catch (error) {
+    console.error('QR library error:', error);
+    showQRFallback(wrapper, url, 'QR bibliotek fejl');
+  }
+}
+
+function showQRFallback(container, url, reason) {
+  container.innerHTML = `
+    <div style="border:2px dashed #ccc;padding:15px;border-radius:8px;background:#f9f9f9;max-width:200px;margin:0 auto;">
+      <div style="color:#666;margin-bottom:8px;font-size:0.8rem;">⚠️ ${reason}</div>
+      <div style="font-weight:bold;margin-bottom:8px;font-size:0.9rem;">Manuel link:</div>
+      <div style="background:white;padding:6px;border-radius:4px;word-break:break-all;font-family:monospace;font-size:0.75rem;border:1px solid #ddd;line-height:1.2;">
+        ${url}
+      </div>
+    </div>
+  `;
+  addCopyButton(container, url);
+}
+
+function addCopyButton(container, url) {
+  const copyBtn = document.createElement('button');
+  copyBtn.textContent = '📋 Kopiér Link';
+  copyBtn.style.cssText = 'margin-top:8px;padding:6px 12px;background:#007bff;color:white;border:none;border-radius:4px;cursor:pointer;font-size:0.85rem;';
+  
+  copyBtn.onclick = () => copyToClipboard(url, copyBtn);
+  container.appendChild(copyBtn);
+}
+
+function copyToClipboard(text, button) {
+  const originalText = button.textContent;
+  
+  navigator.clipboard.writeText(text).then(() => {
+    button.textContent = '✅ Kopieret!';
+    button.style.background = '#28a745';
+    setTimeout(() => {
+      button.textContent = originalText;
+      button.style.background = '#007bff';
+    }, 2000);
+  }).catch(() => {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.opacity = '0';
+    document.body.appendChild(textArea);
+    textArea.select();
+    try {
+      document.execCommand('copy');
+      button.textContent = '✅ Kopieret!';
+      button.style.background = '#28a745';
+      setTimeout(() => {
+        button.textContent = originalText;
+        button.style.background = '#007bff';
+      }, 2000);
+    } catch (err) {
+      alert('Kopiér dette link manuelt:\n\n' + text);
+    }
+    document.body.removeChild(textArea);
+  });
+}
+
+function generateSimpleQR(url) {
+  const qrBox = document.getElementById('qr');
+  generateQRCode(qrBox, url, { width: 180, height: 180 });
+}
+
+  $('selProject2').onchange = async ()=>{
+    const pid=$('selProject2').value; 
+    const { data } = await supabase.from('project_people').select().eq('project_id',pid).order('full_name');
+    const s=$('selTarget'); 
+    s.innerHTML=''; 
+    (data||[]).forEach(p=>{ 
+      const o=document.createElement('option'); 
+      o.value=p.id; 
+      o.textContent=p.full_name; 
+      s.appendChild(o); 
+    });
+  };
+
+  $('btnLoadRadar').onclick = async ()=>{
+    const pid=$('selProject2').value, tid=$('selTarget').value;
+    const { data } = await supabase.from('v_kompas_series').select().eq('project_id',pid).eq('target_id',tid);
+    const cats=[...new Set(data.map(d=>d.category_name))];
+    const self = cats.map(c=>data.find(r=>r.category_name===c && r.respondent_type==='self')?.safe_avg ?? null);
+    const peer = cats.map(c=>data.find(r=>r.category_name===c && r.respondent_type==='peer')?.safe_avg ?? null);
+    const leader = cats.map(c=>data.find(r=>r.category_name===c && r.respondent_type==='leader')?.safe_avg ?? null);
+    const ctx=$('radar').getContext('2d'); 
+    if(radar) radar.destroy();
+    radar = new Chart(ctx,{
+      type:'radar',
+      data:{
+        labels:cats,
+        datasets:[
+          {label:'Selv',data:self,borderColor:'#111',backgroundColor:'rgba(0,0,0,.04)',pointBackgroundColor:'#111',borderWidth:2},
+          {label:'Kollega',data:peer,borderColor:'rgba(102,126,234,1)',backgroundColor:'rgba(102,126,234,.12)',pointBackgroundColor:'rgba(102,126,234,1)',borderWidth:2},
+          {label:'Fører',data:leader,borderColor:'rgba(118,75,162,1)',backgroundColor:'rgba(118,75,162,.12)',pointBackgroundColor:'rgba(118,75,162,1)',borderWidth:2}
+        ]
+      }, 
+      options:{ 
+        scales:{ 
+          r:{beginAtZero:true,min:0,max:5,ticks:{stepSize:1}}
+        }, 
+        plugins:{legend:{position:'bottom'}} 
+      }
+    });
+    const hidden=[]; 
+    if(peer.every(v=>v===null)) hidden.push('Kollega'); 
+    if(leader.every(v=>v===null)) hidden.push('Fører');
+    $('resultNote').textContent = hidden.length? `Skjult pga. anonymitetsgrænse: ${hidden.join(', ')}`:'';
+  };
+
+  function openDoc(url){ window.open(url,'_blank'); }
+  $('btnPdf').onclick = ()=>{ 
+    const pid=$('selProject2').value, tid=$('selTarget').value; 
+    openDoc(`http://localhost:8000/pdf?project_id=${pid}&target_id=${tid}`); 
+  };
+  $('btnZip').onclick = ()=>{ 
+    const pid=$('selProject2').value; 
+    openDoc(`http://localhost:8000/zip?project_id=${pid}`); 
+  };
+
+  // Session check + rolleadskillelse
+  supabase.auth.getUser().then(async ({data})=>{
+    if(!data?.user){
+      window.location.href = 'login.html';
+      return;
+    }
+    const { data: roleData } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', data.user.id)
+      .single();
+
+    if(roleData?.role === 'programmer'){
+      // Master-bruger skal ind på master.html
+      window.location.href = 'master.html';
+      return;
+    }
+
+    user = data.user;
+    loadAll();
+  });
+
+});
+</script>
+</body>
+</html>

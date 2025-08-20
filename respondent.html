@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KOMPAS • Besvarelse</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg1:#667eea;--bg2:#764ba2;--ink:#2d3748;--muted:#718096;--card:#f8fafc;--line:#e2e8f0;--brand:#667eea;--radius:16px}
+    body{font-family:"Segoe UI",Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,var(--bg1),var(--bg2));min-height:100vh;padding:20px;color:var(--ink)}
+    .app{max-width:860px;margin:0 auto;background:#fff;border-radius:20px;box-shadow:0 20px 40px rgba(0,0,0,.15);overflow:hidden}
+    .header{background:linear-gradient(135deg,#2d3748 0%,#4a5568 100%);color:#fff;padding:16px 18px;display:flex;align-items:center;gap:12px}
+    .logo{width:42px;height:42px;border-radius:10px;background:#fff;display:grid;place-items:center}
+    .logo img{height:28px}
+    .title{font-weight:800}
+    .content{padding:18px}
+    .section{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:12px}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .input,.select,button{border:1px solid var(--line);background:#fff;color:#111;padding:10px 12px;border-radius:10px;font-size:1rem}
+    .btn{cursor:pointer}
+    .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+    .muted{color:var(--muted);font-size:.92rem}
+    .q{border-top:1px solid var(--line);margin-top:10px;padding-top:10px}
+    .scale{display:flex;gap:8px;flex-wrap:wrap}
+    .chip{border:1px solid var(--line);padding:8px 12px;border-radius:999px;cursor:pointer;background:#fff}
+    .chip.active{background:#111;color:#fff;border-color:#111}
+    .chip.sg.active{background:#4a5568;color:#fff;border-color:#4a5568}
+    .footer{display:flex;justify-content:space-between;align-items:center;margin-top:12px;gap:10px;flex-wrap:wrap}
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="logo"><img src="../kompas_logo.png" alt="KOMPAS" onerror="this.style.display='none'"></div>
+    <div>
+      <div class="title">KOMPAS 360</div>
+      <div id="subtitle" class="muted">Indlæser …</div>
+    </div>
+  </div>
+
+  <div class="content">
+    <div id="intro" class="section">
+      <h3 id="title" style="margin-bottom:6px">Indlæser …</h3>
+      <p id="info" class="muted" style="margin-bottom:10px"></p>
+      <div class="row">
+        <label>Tilbagemeldingstype
+          <select id="selType" class="select"></select>
+        </label>
+        <label style="flex:1">Hvem tilbagemelder du på?
+          <select id="selTarget" class="select" style="width:100%"></select>
+        </label>
+        <label id="idField" style="display:none">Dit medarbejdernummer
+          <input id="empNo" class="input" placeholder="Hvis krævet">
+        </label>
+      </div>
+    </div>
+
+    <div id="form" class="section" style="display:none"></div>
+
+    <div id="done" class="section" style="display:none">
+      <h3>Tak for din besvarelse!</h3>
+      <p class="muted">Du kan nu vælge en ny person og svare igen.</p>
+      <button class="btn primary" onclick="location.reload()">Besvar for en anden</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://wsrstyrsuwhcmmlmnbrz.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzcnN0eXJzdXdoY21tbG1uYnJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MTU0NTIsImV4cCI6MjA3MTE5MTQ1Mn0.Rf3Z3bQGjV5CKXKZr6IMOjzPdbhVJCh3SwuvlkpxUD0";
+const supabase = window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const token = new URLSearchParams(location.search).get('t');
+
+let ctx=null; const answers=new Map();
+const $=(id)=>document.getElementById(id);
+const el=(tag,attrs={},...children)=>{ const e=document.createElement(tag); Object.entries(attrs).forEach(([k,v])=>k==='class'?e.className=v:k==='html'?e.innerHTML=v:e.setAttribute(k,v)); children.forEach(c=>e.appendChild(typeof c==='string'?document.createTextNode(c):c)); return e; };
+
+async function loadContext(){
+  const { data, error } = await supabase.rpc('get_project_context',{ p_token:token });
+  if(error || data?.error){ $('subtitle').textContent='Linket er ikke aktivt.'; return; }
+  ctx=data; $('title').textContent=ctx.title; $('info').textContent=ctx.info_text||''; $('subtitle').textContent='Besvar nedenfor';
+  // typer
+  const selType=$('selType'); [['self',ctx.labels.self],['peer',ctx.labels.peer],['leader',ctx.labels.leader]]
+    .forEach(([v,t])=>{ const o=document.createElement('option'); o.value=v; o.textContent=t; selType.appendChild(o); });
+  // målpersoner
+  const selTarget=$('selTarget'); ctx.people.forEach(p=>{ const o=document.createElement('option'); o.value=p.id; o.textContent=p.name; selTarget.appendChild(o); });
+  // anonym?
+  $('idField').style.display = ctx.is_anonymous ? 'none' : 'block';
+  renderQuestions();
+}
+
+function renderQuestions(){
+  const box=$('form'); box.innerHTML='';
+  let lastCat=null;
+  ctx.questions.forEach(q=>{
+    if(lastCat!==q.category){
+      box.appendChild(el('h4',{style:'margin-top:6px'}, `${q.category} — ${q.domain}`));
+      lastCat=q.category;
+    }
+    const scale = renderScale(q.id);
+    const row = el('div',{class:'q'}, el('div',{class:'muted'}, q.text), scale);
+    box.appendChild(row);
+  });
+  const footer = el('div',{class:'footer'},
+    el('span',{class:'muted'}, 'Skala: 1=I ringe grad … 5=I meget høj grad. "Savner grundlag" tæller som 3.'),
+    el('button',{class:'btn primary', id:'submitBtn'},'Send')
+  );
+  box.appendChild(footer);
+  box.style.display='block';
+  $('submitBtn').onclick = submit;
+}
+
+function renderScale(qid){
+  const wrap=el('div',{class:'scale'}); const chips=[];
+  for(let s=1;s<=5;s++){
+    const b=el('button',{class:'chip'},String(s));
+    b.onclick=()=>{ answers.set(qid,{score:s}); chips.forEach(x=>x.classList.remove('active')); sg.classList.remove('active'); b.classList.add('active'); };
+    chips.push(b); wrap.appendChild(b);
+  }
+  const sg=el('button',{class:'chip sg'},'Savner grundlag');
+  sg.onclick=()=>{ answers.set(qid,{score:3,sg:true}); chips.forEach(x=>x.classList.remove('active')); sg.classList.add('active'); };
+  wrap.appendChild(sg);
+  return wrap;
+}
+
+async function submit(){
+  const payload = ctx.questions.map(q=>{
+    const a=answers.get(q.id); if(!a) throw new Error('Ubesvaret spørgsmål: '+q.text);
+    return {question_id:q.id, score:a.score, sg:!!a.sg};
+  });
+  const { error } = await supabase.rpc('create_response_via_token', {
+    p_token:token, p_target:$('selTarget').value, p_type:$('selType').value,
+    p_employee_no: $('empNo').value || null, p_answers: payload
+  });
+  if(error){ alert(error.message); return; }
+  $('form').style.display='none'; $('done').style.display='block';
+}
+
+loadContext();
+</script>
+</body>
+</html>

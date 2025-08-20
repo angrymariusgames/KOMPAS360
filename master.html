@@ -1,0 +1,850 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KOMPAS • Master Backoffice</title>
+  <link rel="icon" href="data:," />
+ <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://cdn.jsdelivr.net; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
+
+  <style>
+    /* ---------- Theme ---------- */
+    *{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg1:#667eea; --bg2:#764ba2; --ink:#2d3748; --muted:#718096;
+      --card:#f8fafc; --line:#e2e8f0; --brand:#667eea; --radius:16px;
+      --master-bg1:#e53e3e; --master-bg2:#d53f8c; /* Røde toner for master */
+    }
+    body{font-family:"Segoe UI",Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,var(--master-bg1) 0%,var(--master-bg2) 100%);min-height:100vh;padding:20px;color:var(--ink)}
+    .app{max-width:1400px;margin:0 auto;background:#fff;border-radius:20px;box-shadow:0 20px 40px rgba(0,0,0,.15);overflow:hidden}
+
+    /* Header */
+    .header{background:linear-gradient(135deg,#2d3748 0%,#4a5568 100%);color:#fff;padding:20px 24px;display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center;position:sticky;top:0;z-index:30}
+    .club-title{display:flex;align-items:center;gap:14px}
+    .club-logo{width:56px;height:56px;border-radius:14px;background:#fff;display:grid;place-items:center}
+    .club-logo img{height:38px;object-fit:contain}
+    .club-name{font-size:1.6rem;font-weight:800;margin-bottom:2px}
+    .club-sub{opacity:.85;font-size:.92rem}
+    .header-tools{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+    .input, .select{border:1px solid var(--line);background:#fff;color:#111;padding:10px 12px;border-radius:10px;font-size:.95rem}
+    .btn{cursor:pointer;font-weight:700;border:1px solid var(--line);background:#fff;color:#111;padding:10px 14px;border-radius:10px}
+    .btn.primary{background:var(--master-bg1);border-color:var(--master-bg1);color:#fff}
+    .btn.ghost{background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.35)}
+
+    /* Tabs */
+    .tabbar{background:var(--card);border-bottom:1px solid var(--line);padding:0 20px;display:flex;gap:0;position:sticky;top:120px;z-index:20}
+    .tabbtn{background:none;border:none;padding:16px 22px;font-size:1.05rem;font-weight:700;color:#64748b;cursor:pointer;border-bottom:3px solid transparent;transition:.25s;white-space:nowrap;position:relative}
+    .tabbtn:hover{color:#334155;background:rgba(229,62,62,.06)}
+    .tabbtn.active{color:var(--master-bg1);border-bottom-color:var(--master-bg1);background:#fff}
+    .content{padding:20px}
+    .section{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+    .grid{display:grid;gap:16px}
+    .grid2{display:grid;gap:10px;grid-template-columns:1fr 1fr}
+    .row{display:flex;gap:8px;align-items:center}
+    .muted{color:var(--muted);font-size:.92rem}
+
+    /* Tables */
+    table{width:100%;border-collapse:separate;border-spacing:0}
+    th,td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:.95rem}
+    thead th{position:sticky;top:0;background:#fff;z-index:2}
+
+    /* Right rail */
+    .rail{padding:20px;background:var(--card);border-left:1px solid var(--line)}
+    .qrbox{background:#fff;border:1px dashed var(--line);border-radius:12px;display:grid;place-items:center;width:220px;height:220px}
+
+    @media(max-width:1100px){ .layout{display:block} .rail{border-left:0;border-top:1px solid var(--line)} }
+
+    /* Template editor */
+    .template-editor{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-top:10px}
+    .domain-section{border-left:4px solid var(--master-bg1);padding-left:12px;margin:10px 0}
+    .category-item{background:var(--card);padding:10px;margin:5px 0;border-radius:8px}
+    .question-item{background:#fff;border:1px solid var(--line);padding:8px;margin:4px 0;border-radius:6px}
+  </style>
+</head>
+<body>
+<div class="app">
+  <!-- HEADER -->
+  <div class="header">
+    <div class="club-title">
+      <div class="club-logo"><img src="../kompas_logo.png" alt="KOMPAS" onerror="this.style.display='none'"></div>
+      <div>
+        <div class="club-name">KOMPAS — Master Backoffice</div>
+        <div class="club-sub">Skabeloner • Projekter • Full Admin</div>
+      </div>
+    </div>
+
+    <div class="header-tools" id="authArea">
+        <span id="userEmail" class="muted"></span>
+        <button id="logoutBtn" class="btn ghost">Log ud</button>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabbar">
+    <button class="tabbtn active" data-tab="templates">🧩 Skabeloner</button>
+    <button class="tabbtn" data-tab="projects">📝 Projekter</button>
+    <button class="tabbtn" data-tab="people">👥 Navneliste</button>
+    <button class="tabbtn" data-tab="results">📈 Resultater</button>
+    <button class="tabbtn" data-tab="users">👤 Brugere</button>
+  </div>
+
+  <!-- LAYOUT -->
+  <div class="layout" style="display:grid;grid-template-columns:1fr 300px">
+    <!-- MAIN -->
+    <div class="content">
+
+      <!-- Skabeloner (default synlig) -->
+      <div id="tab-templates" class="section" style="display:block">
+        <h3>🧩 Skabelon Administration</h3>
+        <div class="row" style="margin:16px 0">
+          <input id="tmplName" class="input" placeholder="Navn på skabelon">
+          <input id="tmplDesc" class="input" placeholder="Beskrivelse">
+          <button id="createTemplate" class="btn primary">Opret skabelon</button>
+        </div>
+
+        <div class="grid2" style="margin-bottom:16px">
+          <select id="selTemplate" class="select">
+            <option value="">Vælg skabelon at redigere...</option>
+          </select>
+          <button id="loadTemplate" class="btn">Indlæs til redigering</button>
+        </div>
+
+        <div id="templateEditor" class="template-editor" style="display:none">
+          <h4>Rediger skabelon</h4>
+          <div id="templateContent"></div>
+          <div class="row" style="margin-top:16px">
+            <button id="saveTemplate" class="btn primary">Gem ændringer</button>
+            <button id="addDomain" class="btn">Tilføj domæne</button>
+          </div>
+        </div>
+
+        <h4 style="margin-top:24px">Eksisterende skabeloner</h4>
+        <ul id="tmplList" style="list-style:none;display:grid;gap:8px;margin-top:8px"></ul>
+      </div>
+
+      <!-- Projekter -->
+      <div id="tab-projects" class="section" style="display:none">
+        <div class="grid">
+          <div class="grid2">
+            <label>Projekt-titel
+              <input id="p-title" class="input" placeholder="Fx KOMPAS 360 — 3. bataljon">
+            </label>
+            <label>Skabelon
+              <select id="p-template" class="select"></select>
+            </label>
+          </div>
+
+          <label>Info-tekst
+            <textarea id="p-info" class="input" rows="3" placeholder="Kort introduktion …"></textarea>
+          </label>
+
+          <div class="grid2">
+            <label>Variant
+              <select id="p-lite" class="select">
+                <option value="false">FULD (48)</option>
+                <option value="true">LITE (16)</option>
+              </select>
+            </label>
+            <label>Anonymitet
+              <select id="p-anon" class="select">
+                <option value="true">Anonym (peer/leader kræver min. n)</option>
+                <option value="false">Ikke anonym</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="grid2">
+            <label>Åbn
+              <input id="p-open" class="input" type="datetime-local">
+            </label>
+            <label>Luk
+              <input id="p-close" class="input" type="datetime-local">
+            </label>
+          </div>
+
+          <div class="grid2">
+            <label>Minimum pr. gruppe (anonym)
+              <input id="p-minn" class="input" value="2">
+            </label>
+            <div class="grid2">
+              <label>Label — Selv
+                <input id="label-self" class="input" value="Vurdering af sig selv">
+              </label>
+              <label>Label — Kollega
+                <input id="label-peer" class="input" value="Vurdering af kollega">
+              </label>
+              <label>Label — Fører
+                <input id="label-leader" class="input" value="Fører vurdering">
+              </label>
+            </div>
+          </div>
+
+          <div class="row">
+            <button id="createProject" class="btn primary">Opret projekt</button>
+            <span id="projectStatus" class="muted"></span>
+          </div>
+        </div>
+
+        <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
+
+        <h3>🗂 Alle projekter</h3>
+        <div class="section" style="margin-top:8px">
+          <table id="projectsTbl">
+            <thead>
+              <tr>
+                <th>Titel</th>
+                <th>Ejer</th>
+                <th>Åbner</th>
+                <th>Lukker</th>
+                <th>Link</th>
+                <th style="text-align:right">Handling</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Navneliste -->
+      <div id="tab-people" class="section" style="display:none">
+        <div class="row" style="justify-content:space-between;gap:12px;margin-bottom:8px">
+          <select id="selProject" class="select"></select>
+          <div class="row">
+            <button id="btnReloadPeople" class="btn">Genindlæs</button>
+            <input type="file" id="csvFile" accept=".csv,.txt,.tsv" style="display:none">
+            <button id="importCsv" class="btn">Importer CSV</button>
+          </div>
+        </div>
+
+        <div class="row" style="margin-bottom:8px">
+          <input id="personName" class="input" placeholder="Fulde navn">
+          <input id="personNo" class="input" placeholder="Medarbejder nr.">
+          <button id="addPerson" class="btn primary">Tilføj</button>
+        </div>
+
+        <div class="section">
+          <table id="peopleTbl">
+            <thead>
+              <tr>
+                <th>Navn</th>
+                <th>Nr.</th>
+                <th style="text-align:right">Slet</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Resultater -->
+      <div id="tab-results" class="section" style="display:none">
+        <div class="grid2" style="margin-bottom:8px">
+          <select id="selProject2" class="select"></select>
+          <select id="selTarget" class="select"></select>
+        </div>
+        <div class="row" style="margin-bottom:10px">
+          <button id="btnLoadRadar" class="btn">Vis KOMPAS-hjul</button>
+          <button id="btnPdf" class="btn">Download PDF</button>
+          <button id="btnZip" class="btn">Download alle (ZIP)</button>
+        </div>
+        <div class="section" style="background:#fff">
+          <canvas id="radar" height="360"></canvas>
+        </div>
+        <div id="resultNote" class="muted" style="margin-top:6px"></div>
+      </div>
+
+     
+    <!-- Brugere -->
+    <div id="tab-users" class="section" style="display:none">
+    <h3>🔑 Generer aktiveringsnøgle</h3>
+    <div class="row" style="margin:16px 0">
+        <input id="keyEmail" class="input" placeholder="Email til evaluator" type="email">
+        <input id="keyNotes" class="input" placeholder="Valgfri note">
+        <button id="generateKey" class="btn primary">Generer nøgle</button>
+    </div>
+    
+    <div id="keyResult" class="section" style="display:none;background:#e6fffa;border-color:#81e6d9">
+        <h4 style="color:#234e52">Aktiveringsnøgle genereret!</h4>
+        <div style="margin-top:12px">
+        <p><strong>Nøgle:</strong> <span id="generatedKey" style="font-family:monospace;font-size:1.2rem;font-weight:bold"></span></p>
+        <p><strong>Email:</strong> <span id="generatedEmail"></span></p>
+        </div>
+        <p class="muted" style="margin-top:12px">Send denne nøgle til brugeren sammen med login-linket.</p>
+    </div>
+
+    <hr style="border:0;border-top:1px solid var(--line);margin:24px 0">
+
+    <h3>📋 Aktiveringsnøgler</h3>
+    <div class="section" style="margin-top:8px">
+        <table id="keysTbl">
+        <thead>
+            <tr>
+            <th>Nøgle</th>
+            <th>Email</th>
+            <th>Status</th>
+            <th>Oprettet</th>
+            <th>Brugt</th>
+            <th>Note</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+        </table>
+    </div>
+
+    <hr style="border:0;border-top:1px solid var(--line);margin:24px 0">
+    
+    <h3>👤 Eksisterende brugere</h3>
+    <div class="row" style="margin:16px 0">
+        <input id="userEmail" class="input" placeholder="Email adresse">
+        <select id="userRole" class="select">
+        <option value="evaluator">Evaluator (kun projekter)</option>
+        <option value="programmer">Programmør (fuld adgang)</option>
+        </select>
+        <button id="addUser" class="btn primary">Tilføj rolle direkte</button>
+    </div>
+
+    <div class="section">
+        <table id="usersTbl">
+        <thead>
+            <tr>
+            <th>Email</th>
+            <th>Rolle</th>
+            <th>Oprettet</th>
+            <th style="text-align:right">Handling</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+        </table>
+    </div>
+    </div>
+
+    <!-- RIGHT RAIL: Link & QR -->
+    <aside class="rail">
+        <h3 style="margin-bottom:8px">🔗 Evaluerings Link</h3>
+        <div class="row" style="margin-bottom:8px">
+            <select id="selProject3" class="select" style="flex:1"></select>
+            <button id="btnMakeLink" class="btn">Generér</button>
+        </div>
+        <div id="projectUrl" style="margin-bottom:12px"></div>
+        <div id="qr" class="qrbox" style="display:flex;align-items:center;justify-content:center;color:#999;font-size:0.9rem">
+            Vælg projekt og klik "Generér"
+        </div>
+        </aside>
+  </div>
+
+<script>
+window.addEventListener('load', function() {
+  let radar = null;
+  let user = null;
+  let currentTemplate = null;
+
+  const SUPABASE_URL = "https://wsrstyrsuwhcmmlmnbrz.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzcnN0eXJzdXdoY21tbG1uYnJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MTU0NTIsImV4cCI6MjA3MTE5MTQ1Mn0.Rf3Z3bQGjV5CKXKZr6IMOjzPdbhVJCh3SwuvlkpxUD0";
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const $ = (id)=>document.getElementById(id);
+  
+  // Tabs
+  document.querySelectorAll('.tabbtn').forEach(btn=>{
+    btn.onclick = ()=>{
+      console.log('Tab clicked:', btn.dataset.tab); // Debug log
+      
+      // Remove active from all tabs
+      document.querySelectorAll('.tabbtn').forEach(x=>x.classList.remove('active'));
+      btn.classList.add('active');
+
+      // Hide all sections
+      ['templates','projects','people','results','users'].forEach(name=>{
+        const panel = $('tab-'+name);
+        if(panel) {
+          panel.style.display = 'none';
+          console.log('Hiding:', name); // Debug log
+        }
+      });
+
+      // Show selected section
+      const target = $('tab-' + btn.dataset.tab);
+      if(target) {
+        target.style.display = 'block';
+        console.log('Showing:', btn.dataset.tab); // Debug log
+      } else {
+        console.error('Tab panel not found:', 'tab-' + btn.dataset.tab); // Debug log
+      }
+    };
+  });
+
+  // Auth gate: kun 'programmer' må blive på master.html
+    $('logoutBtn').onclick = async ()=>{ 
+    await supabase.auth.signOut(); 
+    window.location.href = 'login.html';
+    };
+
+    async function guard(){
+    const { data: u } = await supabase.auth.getUser();
+    if(!u?.user){ 
+        window.location.href = 'login.html'; 
+        return;
+    }
+    const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', u.user.id)
+        .single();
+
+    if(roleData?.role !== 'programmer'){
+        // Logget ind men ikke master => send til admin
+        window.location.href = 'admin.html';
+        return;
+    }
+
+    user = u.user;
+    const emailEl = document.getElementById('userEmail');
+    if(emailEl) emailEl.textContent = user.email || '';
+    await loadAll();
+    }
+
+    // Kør gate ved load
+    guard();
+
+
+  async function loadAll(){ 
+    await loadTemplates(); 
+    await loadProjects(); 
+    await loadProjectsInto(['selProject','selProject2','selProject3']); 
+    await loadUsers();
+  }
+
+  // Templates
+  async function loadTemplates(){
+    const { data } = await supabase.from('templates').select().order('created_at',{ascending:false});
+    
+    // Dropdown
+    const sel = $('p-template'); 
+    sel.innerHTML=''; 
+    const selEdit = $('selTemplate');
+    selEdit.innerHTML='<option value="">Vælg skabelon at redigere...</option>';
+    
+    (data||[]).forEach(t=>{
+      const o=document.createElement('option'); 
+      o.value=t.id; 
+      o.textContent=`${t.name} v${t.version}`; 
+      sel.appendChild(o);
+      
+      const o2=document.createElement('option'); 
+      o2.value=t.id; 
+      o2.textContent=`${t.name} v${t.version}`; 
+      selEdit.appendChild(o2);
+    });
+    
+    // List
+    const ul = $('tmplList'); 
+    ul.innerHTML=''; 
+    (data||[]).forEach(t=>{ 
+      const li=document.createElement('li'); 
+      li.className='section'; 
+      li.innerHTML=`<strong>${t.name}</strong> v${t.version}<br><span class="muted">${t.description||''}</span>`; 
+      ul.appendChild(li); 
+    });
+  }
+
+  // Template editor
+  $('createTemplate').onclick = async ()=>{
+    const name = $('tmplName').value;
+    const desc = $('tmplDesc').value;
+    if(!name) return alert('Navn påkrævet');
+    
+    const { data, error } = await supabase.from('templates').insert({
+      name, description: desc, version: 1
+    }).select().single();
+    
+    if(error) return alert(error.message);
+    $('tmplName').value = '';
+    $('tmplDesc').value = '';
+    loadTemplates();
+  };
+
+  $('loadTemplate').onclick = async ()=>{
+    const tid = $('selTemplate').value;
+    if(!tid) return;
+    
+    // Load full template structure
+    const { data: template } = await supabase.from('templates').select('*').eq('id', tid).single();
+    const { data: domains } = await supabase.from('domains').select('*').eq('template_id', tid).order('sort_order');
+    const { data: categories } = await supabase.from('categories').select('*,domain_id').order('sort_order');
+    const { data: questions } = await supabase.from('questions').select('*,category_id').order('sort_order');
+    
+    currentTemplate = { template, domains, categories, questions };
+    renderTemplateEditor();
+  };
+
+  function renderTemplateEditor() {
+    const editor = $('templateEditor');
+    const content = $('templateContent');
+    editor.style.display = 'block';
+    content.innerHTML = '';
+    
+    currentTemplate.domains.forEach(domain => {
+      const domainDiv = document.createElement('div');
+      domainDiv.className = 'domain-section';
+      domainDiv.innerHTML = `<h4>${domain.name}</h4>`;
+      
+      const domainCats = currentTemplate.categories.filter(c => c.domain_id === domain.id);
+      domainCats.forEach(category => {
+        const catDiv = document.createElement('div');
+        catDiv.className = 'category-item';
+        catDiv.innerHTML = `<strong>${category.name}</strong>`;
+        
+        const catQuestions = currentTemplate.questions.filter(q => q.category_id === category.id);
+        catQuestions.forEach(question => {
+          const qDiv = document.createElement('div');
+          qDiv.className = 'question-item';
+          qDiv.innerHTML = `${question.text} ${question.is_lite ? '<span class="muted">(LITE)</span>' : ''}`;
+          catDiv.appendChild(qDiv);
+        });
+        
+        domainDiv.appendChild(catDiv);
+      });
+      
+      content.appendChild(domainDiv);
+    });
+  }
+
+  // Template save handler
+    $('saveTemplate').onclick = async ()=>{
+        if(!currentTemplate) return alert('Ingen template indlæst');
+        
+        try {
+        // Increment version
+        const newVersion = currentTemplate.template.version + 1;
+        
+        // Create new template version
+        const { data: newTemplate, error: templateError } = await supabase
+            .from('templates')
+            .insert({
+            name: currentTemplate.template.name,
+            description: currentTemplate.template.description,
+            version: newVersion
+            })
+            .select()
+            .single();
+        
+        if (templateError) throw templateError;
+        
+        alert(`Template gemt som version ${newVersion}`);
+        loadTemplates();
+        
+        } catch (error) {
+        alert('Fejl ved gem: ' + error.message);
+        }
+    };
+
+    $('addDomain').onclick = ()=>{
+        alert('Tilføj domæne funktionalitet ikke implementeret endnu');
+    };
+
+    // Projects (show all projects for master with owner info)
+    async function loadProjects(){
+    const { data } = await supabase.from('v_all_projects_with_owners').select('*').limit(1000);
+    const tb = $('projectsTbl').querySelector('tbody'); 
+    tb.innerHTML='';
+    (data||[]).forEach(p=>{
+        const tr=document.createElement('tr');
+        tr.innerHTML = `
+        <td><strong>${p.title}</strong><br><span class="muted">${p.info_text || ''}</span></td>
+        <td>${p.owner_email || 'N/A'}<br><span class="muted">${p.owner_role || 'ingen rolle'}</span></td>
+        <td>${p.open_at ? new Date(p.open_at).toLocaleString('da-DK') : 'Ikke sat'}</td>
+        <td>${p.close_at ? new Date(p.close_at).toLocaleString('da-DK') : 'Ikke sat'}</td>
+        <td>${p.link_url ? '✅' : '—'}</td>
+        <td style="text-align:right">
+            <button class="btn" onclick="deleteProject('${p.id}', '${p.title.replace(/'/g, '\\\'')}')" style="background:#dc3545;color:white;border-color:#dc3545">Slet</button>
+        </td>`;
+        tb.appendChild(tr);
+    });
+    }
+
+  async function loadProjectsInto(ids){
+    const { data } = await supabase.from('projects').select('id,title').order('title');
+    ids.forEach(id=>{ 
+      const s=$(id); 
+      s.innerHTML=''; 
+      (data||[]).forEach(p=>{ 
+        const o=document.createElement('option'); 
+        o.value=p.id; 
+        o.textContent=p.title; 
+        s.appendChild(o); 
+      }); 
+    });
+  }
+
+  // Users management
+  async function loadUsers(){
+  // Load activation keys
+  const { data: keys } = await supabase.from('v_activation_keys').select('*').order('created_at',{ascending:false});
+  const ktb = $('keysTbl').querySelector('tbody'); 
+  ktb.innerHTML='';
+  (keys||[]).forEach(k=>{
+    const tr=document.createElement('tr');
+    const status = k.used ? `<span style="color:var(--success)">Brugt</span>` : `<span style="color:var(--brand)">Aktiv</span>`;
+    const usedInfo = k.used ? `${new Date(k.used_at).toLocaleDateString()}<br><span class="muted">${k.used_by_email}</span>` : '-';
+    tr.innerHTML = `
+      <td style="font-family:monospace;font-weight:bold">${k.key_code}</td>
+      <td>${k.email}</td>
+      <td>${status}</td>
+      <td>${new Date(k.created_at).toLocaleDateString()}</td>
+      <td>${usedInfo}</td>
+      <td>${k.notes || '-'}</td>
+    `;
+    ktb.appendChild(tr);
+  });
+
+  // Load existing users
+  const { data } = await supabase.from('v_users_with_roles').select('*').order('created_at',{ascending:false});
+  const tb = $('usersTbl').querySelector('tbody'); 
+  tb.innerHTML='';
+  (data||[]).forEach(u=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML = `<td>${u.email || 'N/A'}</td><td>${u.role || 'Ingen rolle'}</td><td>${new Date(u.created_at).toLocaleDateString()}</td><td style="text-align:right"><button class="btn" onclick="removeUserRole('${u.email}')">Fjern rolle</button></td>`;
+    tb.appendChild(tr);
+  });
+}
+
+// Generate activation key
+$('generateKey').onclick = async ()=>{
+  const email = $('keyEmail').value;
+  const notes = $('keyNotes').value;
+  if(!email) return alert('Email påkrævet');
+  
+  const { data, error } = await supabase.rpc('generate_activation_key', {
+    p_email: email,
+    p_notes: notes || null
+  });
+  
+  if(error) return alert(error.message);
+  if(data.error) return alert(data.error);
+  
+  // Show result
+  $('generatedKey').textContent = data.key_code;
+  $('generatedEmail').textContent = data.email;
+  $('keyResult').style.display = 'block';
+  
+  // Clear inputs
+  $('keyEmail').value = '';
+  $('keyNotes').value = '';
+  
+  // Reload keys table
+  loadUsers();
+  
+  // Hide result after 30 seconds
+  setTimeout(() => {
+    $('keyResult').style.display = 'none';
+  }, 30000);
+};
+
+  // Global function for remove user role
+  window.removeUserRole = async (email) => {
+    if(!confirm(`Fjern rolle for ${email}?`)) return;
+    
+    const { data, error } = await supabase.rpc('remove_user_role', {
+      p_user_email: email
+    });
+    
+    if(error) return alert(error.message);
+    if(data.error) return alert(data.error);
+    
+    alert(data.message);
+    loadUsers();
+  };
+
+  // Add user role directly
+  $('addUser').onclick = async ()=>{
+    const email = $('userEmail').value.trim();
+    const role = $('userRole').value;
+    if(!email) return alert('Email påkrævet');
+    
+    const { data, error } = await supabase.rpc('manage_user_role', {
+      p_user_email: email,
+      p_role: role
+    });
+    
+    if(error) return alert(error.message);
+    if(data.error) return alert(data.error);
+    
+    alert(data.message);
+    $('userEmail').value = '';
+    loadUsers();
+  };
+
+  // Rest of the functions (same as admin.html but with master permissions)
+  $('createProject').onclick = async ()=>{
+    const u = (await supabase.auth.getUser()).data.user;
+    const settings={
+      labels:{
+        self:$('label-self').value,
+        peer:$('label-peer').value,
+        leader:$('label-leader').value
+      },
+      min_group_n:parseInt($('p-minn').value||'2',10)
+    };
+    const ins={ 
+      template_id:$('p-template').value, 
+      owner:u.id, 
+      title:$('p-title').value, 
+      info_text:$('p-info').value, 
+      is_lite:$('p-lite').value==='true', 
+      is_anonymous:$('p-anon').value==='true', 
+      open_at:$('p-open').value||null, 
+      close_at:$('p-close').value||null, 
+      settings 
+    };
+    const { error } = await supabase.from('projects').insert(ins);
+    if(error) return alert(error.message); 
+    $('projectStatus').textContent='Projekt oprettet'; 
+    loadProjects(); 
+    loadProjectsInto(['selProject','selProject2','selProject3']);
+  };
+
+  // People management
+    $('addPerson').onclick = async ()=>{
+    const pid=$('selProject').value; 
+    if(!pid) return alert('Vælg et projekt først');
+    if(!$('personName').value.trim()) return alert('Navn påkrævet');
+    const ins={ 
+        project_id:pid, 
+        full_name:$('personName').value.trim(), 
+        employee_no:$('personNo').value.trim()||null 
+    };
+    const { error } = await supabase.from('project_people').insert(ins); 
+    if(error) return alert(error.message);
+    $('personName').value=''; $('personNo').value=''; 
+    loadPeople();
+    };
+
+    // Global function for delete person
+    window.deletePerson = async (personId) => {
+    if(!confirm('Slet denne person?')) return;
+    const { error } = await supabase.from('project_people').delete().eq('id', personId);
+    if(error) return alert(error.message);
+    loadPeople();
+    };
+
+  $('btnReloadPeople').onclick = loadPeople;
+  
+  async function loadPeople(){
+    const pid=$('selProject').value; 
+    if(!pid) return;
+    const { data } = await supabase.from('project_people').select().eq('project_id',pid).order('full_name');
+    const tb=$('peopleTbl').querySelector('tbody'); 
+    tb.innerHTML='';
+    (data||[]).forEach(p=>{ 
+        const tr=document.createElement('tr'); 
+        tr.innerHTML=`<td>${p.full_name}</td><td>${p.employee_no||''}</td><td style="text-align:right"><button class="btn" onclick="deletePerson('${p.id}')">Slet</button></td>`; 
+        tb.appendChild(tr); 
+    });
+    }
+
+  // CSV import
+  $('importCsv').onclick=()=>{ $('csvFile').click(); };
+  $('csvFile').addEventListener('change',(e)=>{
+    const f=e.target.files[0]; if(!f) return;
+    Papa.parse(f,{
+        header:true,
+        complete:async (res)=>{ 
+        const pid=$('selProject').value;
+        if(!pid) return alert('Vælg et projekt først');
+        const rows=res.data.filter(r=>r.full_name?.trim()); 
+        if(rows.length === 0) return alert('Ingen gyldige rækker fundet i CSV');
+        const payload=rows.map(r=>({
+            project_id:pid,
+            full_name:r.full_name.trim(),
+            employee_no:r.employee_no?.trim()||null
+        })); 
+        const { error } = await supabase.from('project_people').insert(payload); 
+        if(error) return alert(error.message); 
+        alert(`${payload.length} personer importeret`);
+        loadPeople(); 
+        },
+        error: (error) => {
+        alert('Fejl ved læsning af CSV: ' + error.message);
+        }
+    });
+    });
+
+  // QR Link generation
+  $('btnMakeLink').onclick = async ()=>{
+    const pid=$('selProject3').value;
+    let { data:link } = await supabase.from('project_link').select().eq('project_id',pid).maybeSingle();
+    if(!link){ 
+      const token=crypto.randomUUID().replaceAll('-',''); 
+      const { data, error } = await supabase.from('project_link').insert({project_id:pid,token}).select().single(); 
+      if(error) return alert(error.message); 
+      link=data; 
+    }
+    const url = location.origin + '/web/respondent.html?t=' + link.token; 
+    $('projectUrl').textContent=url; 
+    const box=$('qr'); 
+    $('qr').innerHTML=''; 
+    QRCode.toCanvas(box,url,{width:220});
+  };
+
+  // Results (same as admin.html)
+  $('selProject2').onchange = async ()=>{
+    const pid=$('selProject2').value; 
+    const { data } = await supabase.from('project_people').select().eq('project_id',pid).order('full_name');
+    const s=$('selTarget'); 
+    s.innerHTML=''; 
+    (data||[]).forEach(p=>{ 
+      const o=document.createElement('option'); 
+      o.value=p.id; 
+      o.textContent=p.full_name; 
+      s.appendChild(o); 
+    });
+  };
+
+  $('btnLoadRadar').onclick = async ()=>{
+    const pid=$('selProject2').value, tid=$('selTarget').value;
+    const { data } = await supabase.from('v_kompas_series').select().eq('project_id',pid).eq('target_id',tid);
+    const cats=[...new Set(data.map(d=>d.category_name))];
+    const self = cats.map(c=>data.find(r=>r.category_name===c && r.respondent_type==='self')?.safe_avg ?? null);
+    const peer = cats.map(c=>data.find(r=>r.category_name===c && r.respondent_type==='peer')?.safe_avg ?? null);
+    const leader = cats.map(c=>data.find(r=>r.category_name===c && r.respondent_type==='leader')?.safe_avg ?? null);
+    const ctx=$('radar').getContext('2d'); 
+    if(radar) radar.destroy();
+    radar = new Chart(ctx,{type:'radar',data:{labels:cats,datasets:[
+      {label:'Selv',data:self,borderColor:'#111',backgroundColor:'rgba(0,0,0,.04)',pointBackgroundColor:'#111',borderWidth:2},
+      {label:'Kollega',data:peer,borderColor:'rgba(229,62,62,1)',backgroundColor:'rgba(229,62,62,.12)',pointBackgroundColor:'rgba(229,62,62,1)',borderWidth:2},
+      {label:'Fører',data:leader,borderColor:'rgba(213,63,140,1)',backgroundColor:'rgba(213,63,140,.12)',pointBackgroundColor:'rgba(213,63,140,1)',borderWidth:2}
+    ]}, options:{ scales:{ r:{beginAtZero:true,min:0,max:5,ticks:{stepSize:1}}}, plugins:{legend:{position:'bottom'}} }});
+    const hidden=[]; 
+    if(peer.every(v=>v===null)) hidden.push('Kollega'); 
+    if(leader.every(v=>v===null)) hidden.push('Fører');
+    $('resultNote').textContent = hidden.length? `Skjult pga. anonymitetsgrænse: ${hidden.join(', ')}`:'';
+  };
+
+  // PDF/ZIP download
+  function openDoc(url){ window.open(url,'_blank'); }
+  $('btnPdf').onclick = ()=>{ 
+    const pid=$('selProject2').value, tid=$('selTarget').value; 
+    openDoc(`http://localhost:8000/pdf?project_id=${pid}&target_id=${tid}`); 
+  };
+  $('btnZip').onclick = ()=>{ 
+    const pid=$('selProject2').value; 
+    openDoc(`http://localhost:8000/zip?project_id=${pid}`); 
+  };
+
+  // Auto-login check
+  supabase.auth.getUser().then(({data})=>{ 
+    if(data.user){ 
+      user=data.user; 
+      $('loginBtn').style.display='none'; 
+      $('logoutBtn').style.display='inline-block'; 
+      loadAll(); 
+    }
+  });
+});
+</script>
+</body>
+</html>
