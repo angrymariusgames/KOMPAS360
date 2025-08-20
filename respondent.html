@@ -4,140 +4,915 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>KOMPAS • Besvarelse</title>
+  <link rel="icon" href="data:," />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
+    /* Modern theme matching admin.html */
     *{box-sizing:border-box;margin:0;padding:0}
-    :root{--bg1:#667eea;--bg2:#764ba2;--ink:#2d3748;--muted:#718096;--card:#f8fafc;--line:#e2e8f0;--brand:#667eea;--radius:16px}
-    body{font-family:"Segoe UI",Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,var(--bg1),var(--bg2));min-height:100vh;padding:20px;color:var(--ink)}
-    .app{max-width:860px;margin:0 auto;background:#fff;border-radius:20px;box-shadow:0 20px 40px rgba(0,0,0,.15);overflow:hidden}
-    .header{background:linear-gradient(135deg,#2d3748 0%,#4a5568 100%);color:#fff;padding:16px 18px;display:flex;align-items:center;gap:12px}
-    .logo{width:42px;height:42px;border-radius:10px;background:#fff;display:grid;place-items:center}
-    .logo img{height:28px}
-    .title{font-weight:800}
-    .content{padding:18px}
-    .section{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:12px}
-    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    .input,.select,button{border:1px solid var(--line);background:#fff;color:#111;padding:10px 12px;border-radius:10px;font-size:1rem}
-    .btn{cursor:pointer}
-    .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
-    .muted{color:var(--muted);font-size:.92rem}
-    .q{border-top:1px solid var(--line);margin-top:10px;padding-top:10px}
-    .scale{display:flex;gap:8px;flex-wrap:wrap}
-    .chip{border:1px solid var(--line);padding:8px 12px;border-radius:999px;cursor:pointer;background:#fff}
-    .chip.active{background:#111;color:#fff;border-color:#111}
-    .chip.sg.active{background:#4a5568;color:#fff;border-color:#4a5568}
-    .footer{display:flex;justify-content:space-between;align-items:center;margin-top:12px;gap:10px;flex-wrap:wrap}
+    :root{
+      --bg1:#667eea; --bg2:#764ba2; --ink:#2d3748; --muted:#718096;
+      --card:#ffffff; --line:#e2e8f0; --brand:#667eea; --radius:20px;
+      --success:#48bb78; --error:#f56565; --warning:#ed8936;
+    }
+    
+    body{
+      font-family:"Segoe UI",Tahoma,Geneva,Verdana,sans-serif;
+      background:linear-gradient(135deg,var(--bg1) 0%,var(--bg2) 100%);
+      min-height:100vh;
+      padding:20px;
+      color:var(--ink);
+      line-height:1.6;
+    }
+    
+    .app{
+      max-width:920px;
+      margin:0 auto;
+      background:#fff;
+      border-radius:20px;
+      box-shadow:0 20px 40px rgba(0,0,0,.15);
+      overflow:hidden;
+      position:relative;
+    }
+
+    /* Header */
+    .header{
+      background:linear-gradient(135deg,#2d3748 0%,#4a5568 100%);
+      color:#fff;
+      padding:24px;
+      display:flex;
+      align-items:center;
+      gap:16px;
+      position:relative;
+    }
+    
+    .logo{
+      width:56px;
+      height:56px;
+      border-radius:14px;
+      background:#fff;
+      display:grid;
+      place-items:center;
+      flex-shrink:0;
+    }
+    
+    .logo img{
+      height:38px;
+      object-fit:contain;
+    }
+    
+    .header-content{
+      flex:1;
+    }
+    
+    .title{
+      font-size:1.75rem;
+      font-weight:800;
+      margin-bottom:6px;
+    }
+    
+    .subtitle{
+      opacity:.9;
+      font-size:1rem;
+    }
+
+    /* Progress bar */
+    .progress-container{
+      position:absolute;
+      bottom:0;
+      left:0;
+      right:0;
+      height:4px;
+      background:rgba(255,255,255,.2);
+    }
+    
+    .progress-bar{
+      height:100%;
+      background:var(--success);
+      width:0%;
+      transition:width .5s ease;
+    }
+
+    /* Content */
+    .content{
+      padding:28px;
+    }
+    
+    .section{
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      padding:24px;
+      margin-bottom:20px;
+      position:relative;
+    }
+    
+    .section h3{
+      font-size:1.3rem;
+      margin-bottom:12px;
+      color:var(--ink);
+    }
+
+    /* Loading state */
+    .loading{
+      text-align:center;
+      padding:40px 20px;
+      color:var(--muted);
+    }
+    
+    .spinner{
+      display:inline-block;
+      width:32px;
+      height:32px;
+      border:3px solid var(--line);
+      border-top:3px solid var(--brand);
+      border-radius:50%;
+      animation:spin 1s linear infinite;
+      margin-bottom:16px;
+    }
+    
+    @keyframes spin{
+      0%{transform:rotate(0deg)}
+      100%{transform:rotate(360deg)}
+    }
+
+    /* Form elements */
+    .form-row{
+      display:grid;
+      grid-template-columns:1fr 2fr auto;
+      gap:16px;
+      align-items:end;
+      margin-bottom:16px;
+    }
+    
+    @media(max-width:768px){
+      .form-row{
+        grid-template-columns:1fr;
+        gap:12px;
+      }
+    }
+    
+    .input, .select{
+      border:1px solid var(--line);
+      background:#fff;
+      color:var(--ink);
+      padding:12px 16px;
+      border-radius:12px;
+      font-size:1rem;
+      transition:.3s;
+      width:100%;
+    }
+    
+    .input:focus, .select:focus{
+      outline:none;
+      border-color:var(--brand);
+      box-shadow:0 0 0 3px rgba(102,126,234,.1);
+    }
+    
+    label{
+      display:block;
+      font-weight:600;
+      margin-bottom:6px;
+      color:var(--ink);
+      font-size:.95rem;
+    }
+    
+    .btn{
+      cursor:pointer;
+      font-weight:700;
+      border:1px solid var(--line);
+      background:#fff;
+      color:var(--ink);
+      padding:12px 24px;
+      border-radius:12px;
+      font-size:1rem;
+      transition:.3s;
+      text-transform:uppercase;
+      letter-spacing:.5px;
+      position:relative;
+      overflow:hidden;
+    }
+    
+    .btn.primary{
+      background:var(--brand);
+      border-color:var(--brand);
+      color:#fff;
+    }
+    
+    .btn.primary:hover:not(:disabled){
+      background:#5a67d8;
+      transform:translateY(-2px);
+      box-shadow:0 8px 20px rgba(102,126,234,.3);
+    }
+    
+    .btn:disabled{
+      opacity:.5;
+      cursor:not-allowed;
+      transform:none!important;
+    }
+
+    /* Questions */
+    .questions-container{
+      display:none;
+    }
+    
+    .questions-container.active{
+      display:block;
+    }
+    
+    .category-group{
+      margin-bottom:32px;
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:16px;
+      overflow:hidden;
+    }
+    
+    .category-header{
+      background:linear-gradient(135deg,var(--brand) 0%,#5a67d8 100%);
+      color:#fff;
+      padding:16px 20px;
+      font-weight:700;
+      font-size:1.1rem;
+    }
+    
+    .question-item{
+      padding:20px;
+      border-bottom:1px solid var(--line);
+      position:relative;
+    }
+    
+    .question-item:last-child{
+      border-bottom:none;
+    }
+    
+    .question-text{
+      font-size:1.05rem;
+      margin-bottom:16px;
+      color:var(--ink);
+      font-weight:500;
+      line-height:1.5;
+    }
+    
+    .scale-container{
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    
+    .scale-option{
+      border:2px solid var(--line);
+      background:#fff;
+      color:var(--ink);
+      padding:12px;
+      border-radius:50%;
+      cursor:pointer;
+      font-weight:700;
+      font-size:1rem;
+      width:48px;
+      height:48px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      transition:.3s;
+      position:relative;
+      user-select:none;
+    }
+    
+    .scale-option:hover{
+      border-color:var(--brand);
+      transform:scale(1.1);
+    }
+    
+    .scale-option.active{
+      background:var(--brand);
+      border-color:var(--brand);
+      color:#fff;
+      transform:scale(1.15);
+      box-shadow:0 4px 12px rgba(102,126,234,.3);
+    }
+    
+    .sg-option{
+      border:2px solid var(--warning);
+      background:#fff;
+      color:var(--warning);
+      padding:8px 16px;
+      border-radius:24px;
+      cursor:pointer;
+      font-weight:600;
+      font-size:.9rem;
+      transition:.3s;
+      white-space:nowrap;
+      user-select:none;
+    }
+    
+    .sg-option:hover{
+      background:var(--warning);
+      color:#fff;
+    }
+    
+    .sg-option.active{
+      background:var(--warning);
+      color:#fff;
+      box-shadow:0 4px 12px rgba(237,137,54,.3);
+    }
+    
+    .scale-label{
+      font-size:.85rem;
+      color:var(--muted);
+      margin-left:8px;
+      white-space:nowrap;
+    }
+
+    /* Validation */
+    .question-item.error{
+      background:#fef5e7;
+      border-left:4px solid var(--error);
+    }
+    
+    .error-message{
+      color:var(--error);
+      font-size:.9rem;
+      margin-top:8px;
+      display:none;
+    }
+    
+    .question-item.error .error-message{
+      display:block;
+    }
+
+    /* Success/Done state */
+    .done{
+      text-align:center;
+      padding:40px 20px;
+      display:none;
+    }
+    
+    .done.active{
+      display:block;
+    }
+    
+    .success-icon{
+      width:80px;
+      height:80px;
+      background:var(--success);
+      border-radius:50%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      margin:0 auto 24px;
+      font-size:2.5rem;
+      color:#fff;
+      animation:successPulse 1.5s ease;
+    }
+    
+    @keyframes successPulse{
+      0%,100%{transform:scale(1)}
+      50%{transform:scale(1.1)}
+    }
+    
+    .done h3{
+      font-size:1.8rem;
+      color:var(--success);
+      margin-bottom:12px;
+    }
+    
+    .done p{
+      color:var(--muted);
+      font-size:1.1rem;
+      margin-bottom:24px;
+    }
+
+    /* Error states */
+    .error-container{
+      background:#fef2f2;
+      border:1px solid #fecaca;
+      border-radius:12px;
+      padding:20px;
+      margin-bottom:20px;
+      display:none;
+    }
+    
+    .error-container.active{
+      display:block;
+    }
+    
+    .error-title{
+      color:#dc2626;
+      font-weight:700;
+      margin-bottom:8px;
+    }
+    
+    .error-message{
+      color:#991b1b;
+      line-height:1.5;
+    }
+
+    /* Footer */
+    .form-footer{
+      background:var(--card);
+      border-top:1px solid var(--line);
+      padding:24px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:16px;
+      flex-wrap:wrap;
+    }
+    
+    .scale-legend{
+      color:var(--muted);
+      font-size:.9rem;
+      line-height:1.4;
+    }
+    
+    .submit-area{
+      display:flex;
+      gap:12px;
+      align-items:center;
+    }
+    
+    .answer-count{
+      color:var(--muted);
+      font-size:.9rem;
+      font-weight:600;
+    }
+
+    /* Mobile optimizations */
+    @media(max-width:768px){
+      .content{
+        padding:20px;
+      }
+      
+      .section{
+        padding:20px;
+      }
+      
+      .scale-container{
+        justify-content:center;
+      }
+      
+      .form-footer{
+        flex-direction:column;
+        align-items:stretch;
+        text-align:center;
+      }
+      
+      .submit-area{
+        justify-content:center;
+      }
+    }
+
+    /* Accessibility improvements */
+    .scale-option:focus, .sg-option:focus{
+      outline:3px solid rgba(102,126,234,.5);
+      outline-offset:2px;
+    }
+    
+    @media(prefers-reduced-motion:reduce){
+      *{
+        animation-duration:.01ms!important;
+        animation-iteration-count:1!important;
+        transition-duration:.01ms!important;
+      }
+    }
   </style>
 </head>
 <body>
 <div class="app">
+  <!-- HEADER -->
   <div class="header">
-    <div class="logo"><img src="../kompas_logo.png" alt="KOMPAS" onerror="this.style.display='none'"></div>
-    <div>
-      <div class="title">KOMPAS 360</div>
-      <div id="subtitle" class="muted">Indlæser …</div>
+    <div class="logo">
+      <img src="./assets/logo.png" alt="KOMPAS" onerror="this.style.display='none'">
+    </div>
+    <div class="header-content">
+      <div class="title" id="projectTitle">Indlæser...</div>
+      <div class="subtitle" id="projectSubtitle">Evaluering & Feedback</div>
+    </div>
+    <div class="progress-container">
+      <div class="progress-bar" id="progressBar"></div>
     </div>
   </div>
 
+  <!-- MAIN CONTENT -->
   <div class="content">
-    <div id="intro" class="section">
-      <h3 id="title" style="margin-bottom:6px">Indlæser …</h3>
-      <p id="info" class="muted" style="margin-bottom:10px"></p>
-      <div class="row">
+    
+    <!-- Loading State -->
+    <div id="loadingState" class="loading">
+      <div class="spinner"></div>
+      <div>Indlæser evaluering...</div>
+    </div>
+
+    <!-- Error State -->
+    <div id="errorContainer" class="error-container">
+      <div class="error-title">Der opstod en fejl</div>
+      <div class="error-message" id="errorMessage"></div>
+    </div>
+
+    <!-- Initial Setup -->
+    <div id="setupSection" class="section" style="display:none">
+      <h3>Evalueringsopsætning</h3>
+      <div id="projectInfo" class="muted" style="margin-bottom:20px;line-height:1.6"></div>
+      
+      <div class="form-row">
         <label>Tilbagemeldingstype
-          <select id="selType" class="select"></select>
+          <select id="feedbackType" class="select" required>
+            <option value="">-- Vælg type --</option>
+          </select>
         </label>
-        <label style="flex:1">Hvem tilbagemelder du på?
-          <select id="selTarget" class="select" style="width:100%"></select>
+        
+        <label>Hvem evaluerer du?
+          <select id="targetPerson" class="select" required>
+            <option value="">-- Vælg person --</option>
+          </select>
         </label>
-        <label id="idField" style="display:none">Dit medarbejdernummer
-          <input id="empNo" class="input" placeholder="Hvis krævet">
-        </label>
+        
+        <div id="employeeField" style="display:none">
+          <label>Dit medarbejdernummer
+            <input id="employeeNo" class="input" placeholder="Hvis påkrævet">
+          </label>
+        </div>
+      </div>
+      
+      <div style="margin-top:20px">
+        <button id="startEvaluation" class="btn primary" disabled>Start evaluering</button>
       </div>
     </div>
 
-    <div id="form" class="section" style="display:none"></div>
+    <!-- Questions Container -->
+    <div id="questionsContainer" class="questions-container">
+      <div id="questionsContent"></div>
+    </div>
 
-    <div id="done" class="section" style="display:none">
+    <!-- Success State -->
+    <div id="successState" class="done">
+      <div class="success-icon">✓</div>
       <h3>Tak for din besvarelse!</h3>
-      <p class="muted">Du kan nu vælge en ny person og svare igen.</p>
-      <button class="btn primary" onclick="location.reload()">Besvar for en anden</button>
+      <p>Din evaluering er blevet gemt og vil indgå i den samlede rapport.</p>
+      <button class="btn primary" onclick="location.reload()">Evaluér en anden person</button>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div id="formFooter" class="form-footer" style="display:none">
+    <div class="scale-legend">
+      <strong>Skala:</strong> 1 = I ringe grad · 2 = I mindre grad · 3 = I nogen grad · 4 = I høj grad · 5 = I meget høj grad<br>
+      <em>"Savner grundlag" registreres som neutral (3)</em>
+    </div>
+    <div class="submit-area">
+      <div class="answer-count" id="answerCount">0 af 0 besvaret</div>
+      <button id="submitBtn" class="btn primary" disabled>Send evaluering</button>
     </div>
   </div>
 </div>
 
 <script>
+// Configuration
 const SUPABASE_URL = "https://wsrstyrsuwhcmmlmnbrz.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzcnN0eXJzdXdoY21tbG1uYnJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MTU0NTIsImV4cCI6MjA3MTE5MTQ1Mn0.Rf3Z3bQGjV5CKXKZr6IMOjzPdbhVJCh3SwuvlkpxUD0";
-const supabase = window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+
+// Initialize Supabase
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Get token from URL
 const token = new URLSearchParams(location.search).get('t');
 
-let ctx=null; const answers=new Map();
-const $=(id)=>document.getElementById(id);
-const el=(tag,attrs={},...children)=>{ const e=document.createElement(tag); Object.entries(attrs).forEach(([k,v])=>k==='class'?e.className=v:k==='html'?e.innerHTML=v:e.setAttribute(k,v)); children.forEach(c=>e.appendChild(typeof c==='string'?document.createTextNode(c):c)); return e; };
+// State management
+let projectContext = null;
+let answers = new Map();
+let totalQuestions = 0;
 
-async function loadContext(){
-  const { data, error } = await supabase.rpc('get_project_context',{ p_token:token });
-  if(error || data?.error){ $('subtitle').textContent='Linket er ikke aktivt.'; return; }
-  ctx=data; $('title').textContent=ctx.title; $('info').textContent=ctx.info_text||''; $('subtitle').textContent='Besvar nedenfor';
-  // typer
-  const selType=$('selType'); [['self',ctx.labels.self],['peer',ctx.labels.peer],['leader',ctx.labels.leader]]
-    .forEach(([v,t])=>{ const o=document.createElement('option'); o.value=v; o.textContent=t; selType.appendChild(o); });
-  // målpersoner
-  const selTarget=$('selTarget'); ctx.people.forEach(p=>{ const o=document.createElement('option'); o.value=p.id; o.textContent=p.name; selTarget.appendChild(o); });
-  // anonym?
-  $('idField').style.display = ctx.is_anonymous ? 'none' : 'block';
-  renderQuestions();
-}
+// DOM helpers
+const $ = (id) => document.getElementById(id);
+const show = (id) => $(id).style.display = 'block';
+const hide = (id) => $(id).style.display = 'none';
 
-function renderQuestions(){
-  const box=$('form'); box.innerHTML='';
-  let lastCat=null;
-  ctx.questions.forEach(q=>{
-    if(lastCat!==q.category){
-      box.appendChild(el('h4',{style:'margin-top:6px'}, `${q.category} — ${q.domain}`));
-      lastCat=q.category;
-    }
-    const scale = renderScale(q.id);
-    const row = el('div',{class:'q'}, el('div',{class:'muted'}, q.text), scale);
-    box.appendChild(row);
-  });
-  const footer = el('div',{class:'footer'},
-    el('span',{class:'muted'}, 'Skala: 1=I ringe grad … 5=I meget høj grad. "Savner grundlag" tæller som 3.'),
-    el('button',{class:'btn primary', id:'submitBtn'},'Send')
-  );
-  box.appendChild(footer);
-  box.style.display='block';
-  $('submitBtn').onclick = submit;
-}
-
-function renderScale(qid){
-  const wrap=el('div',{class:'scale'}); const chips=[];
-  for(let s=1;s<=5;s++){
-    const b=el('button',{class:'chip'},String(s));
-    b.onclick=()=>{ answers.set(qid,{score:s}); chips.forEach(x=>x.classList.remove('active')); sg.classList.remove('active'); b.classList.add('active'); };
-    chips.push(b); wrap.appendChild(b);
+// Main initialization
+document.addEventListener('DOMContentLoaded', async () => {
+  if (!token) {
+    showError('Manglende evalueringslink', 'Dette link er ikke gyldigt. Kontakt den ansvarlige for et nyt link.');
+    return;
   }
-  const sg=el('button',{class:'chip sg'},'Savner grundlag');
-  sg.onclick=()=>{ answers.set(qid,{score:3,sg:true}); chips.forEach(x=>x.classList.remove('active')); sg.classList.add('active'); };
-  wrap.appendChild(sg);
-  return wrap;
+  
+  await loadProjectContext();
+});
+
+// Load project context
+async function loadProjectContext() {
+  try {
+    const { data, error } = await supabase.rpc('get_project_context', { p_token: token });
+    
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+    
+    projectContext = data;
+    renderSetup();
+    
+  } catch (error) {
+    console.error('Context load error:', error);
+    let message = 'Evalueringen kunne ikke indlæses.';
+    
+    if (error.message.includes('Invalid') || error.message.includes('closed')) {
+      message = 'Dette evalueringslink er ikke længere aktivt eller er udløbet.';
+    }
+    
+    showError('Evalueringen er ikke tilgængelig', message);
+  }
 }
 
-async function submit(){
-  const payload = ctx.questions.map(q=>{
-    const a=answers.get(q.id); if(!a) throw new Error('Ubesvaret spørgsmål: '+q.text);
-    return {question_id:q.id, score:a.score, sg:!!a.sg};
+// Render setup form
+function renderSetup() {
+  hide('loadingState');
+  show('setupSection');
+  
+  // Update header
+  $('projectTitle').textContent = projectContext.title;
+  $('projectSubtitle').textContent = 'Evaluering & Feedback';
+  
+  // Project info
+  if (projectContext.info_text) {
+    $('projectInfo').textContent = projectContext.info_text;
+    $('projectInfo').style.display = 'block';
+  }
+  
+  // Populate feedback types
+  const typeSelect = $('feedbackType');
+  typeSelect.innerHTML = '<option value="">-- Vælg type --</option>';
+  
+  Object.entries(projectContext.labels).forEach(([key, label]) => {
+    const option = document.createElement('option');
+    option.value = key;
+    option.textContent = label;
+    typeSelect.appendChild(option);
   });
-  const { error } = await supabase.rpc('create_response_via_token', {
-    p_token:token, p_target:$('selTarget').value, p_type:$('selType').value,
-    p_employee_no: $('empNo').value || null, p_answers: payload
+  
+  // Populate target persons
+  const targetSelect = $('targetPerson');
+  targetSelect.innerHTML = '<option value="">-- Vælg person --</option>';
+  
+  projectContext.people.forEach(person => {
+    const option = document.createElement('option');
+    option.value = person.id;
+    option.textContent = person.name;
+    targetSelect.appendChild(option);
   });
-  if(error){ alert(error.message); return; }
-  $('form').style.display='none'; $('done').style.display='block';
+  
+  // Show/hide employee field based on anonymity
+  if (!projectContext.is_anonymous) {
+    show('employeeField');
+  }
+  
+  // Event listeners
+  typeSelect.onchange = validateSetup;
+  targetSelect.onchange = validateSetup;
+  
+  $('startEvaluation').onclick = startEvaluation;
 }
 
-loadContext();
+// Validate setup form
+function validateSetup() {
+  const type = $('feedbackType').value;
+  const target = $('targetPerson').value;
+  
+  $('startEvaluation').disabled = !(type && target);
+}
+
+// Start evaluation
+function startEvaluation() {
+  hide('setupSection');
+  renderQuestions();
+  show('questionsContainer');
+  show('formFooter');
+  updateProgress();
+}
+
+// Render questions
+function renderQuestions() {
+  const container = $('questionsContent');
+  const questions = projectContext.questions;
+  totalQuestions = questions.length;
+  
+  // Group questions by category
+  const categories = {};
+  questions.forEach(q => {
+    if (!categories[q.category]) {
+      categories[q.category] = {
+        name: q.category,
+        domain: q.domain,
+        questions: []
+      };
+    }
+    categories[q.category].questions.push(q);
+  });
+  
+  // Render each category
+  Object.values(categories).forEach(category => {
+    const categoryDiv = document.createElement('div');
+    categoryDiv.className = 'category-group';
+    
+    categoryDiv.innerHTML = `
+      <div class="category-header">
+        ${category.name} — ${category.domain}
+      </div>
+    `;
+    
+    category.questions.forEach(question => {
+      const questionDiv = document.createElement('div');
+      questionDiv.className = 'question-item';
+      questionDiv.dataset.questionId = question.id;
+      
+      questionDiv.innerHTML = `
+        <div class="question-text">${question.text}</div>
+        <div class="scale-container">
+          ${[1,2,3,4,5].map(score => `
+            <div class="scale-option" data-score="${score}" role="button" tabindex="0" aria-label="Score ${score}">
+              ${score}
+            </div>
+          `).join('')}
+          <div class="sg-option" data-sg="true" role="button" tabindex="0" aria-label="Savner grundlag">
+            Savner grundlag
+          </div>
+          <div class="scale-label">1=Ringe grad ↔ 5=Meget høj grad</div>
+        </div>
+        <div class="error-message">Dette spørgsmål skal besvares</div>
+      `;
+      
+      // Add click handlers
+      questionDiv.querySelectorAll('.scale-option').forEach(option => {
+        option.onclick = () => selectAnswer(question.id, parseInt(option.dataset.score), false, questionDiv);
+        option.onkeydown = (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            option.click();
+          }
+        };
+      });
+      
+      questionDiv.querySelector('.sg-option').onclick = () => selectAnswer(question.id, 3, true, questionDiv);
+      questionDiv.querySelector('.sg-option').onkeydown = (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          questionDiv.querySelector('.sg-option').click();
+        }
+      };
+      
+      categoryDiv.appendChild(questionDiv);
+    });
+    
+    container.appendChild(categoryDiv);
+  });
+  
+  // Submit button handler
+  $('submitBtn').onclick = submitEvaluation;
+}
+
+// Select answer
+function selectAnswer(questionId, score, isSG, questionDiv) {
+  // Store answer
+  answers.set(questionId, { score, sg: isSG });
+  
+  // Update UI
+  questionDiv.querySelectorAll('.scale-option, .sg-option').forEach(opt => {
+    opt.classList.remove('active');
+  });
+  
+  if (isSG) {
+    questionDiv.querySelector('.sg-option').classList.add('active');
+  } else {
+    questionDiv.querySelector(`[data-score="${score}"]`).classList.add('active');
+  }
+  
+  // Remove error state
+  questionDiv.classList.remove('error');
+  
+  // Update progress
+  updateProgress();
+}
+
+// Update progress
+function updateProgress() {
+  const answered = answers.size;
+  const progress = (answered / totalQuestions) * 100;
+  
+  $('progressBar').style.width = `${progress}%`;
+  $('answerCount').textContent = `${answered} af ${totalQuestions} besvaret`;
+  $('submitBtn').disabled = answered < totalQuestions;
+}
+
+// Submit evaluation
+async function submitEvaluation() {
+  // Validate all questions answered
+  const unanswered = [];
+  projectContext.questions.forEach(q => {
+    if (!answers.has(q.id)) {
+      unanswered.push(q.id);
+    }
+  });
+  
+  if (unanswered.length > 0) {
+    // Highlight unanswered questions
+    unanswered.forEach(qid => {
+      const questionDiv = document.querySelector(`[data-question-id="${qid}"]`);
+      if (questionDiv) {
+        questionDiv.classList.add('error');
+        questionDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+    
+    showError('Manglende svar', `Du skal besvare alle ${totalQuestions} spørgsmål før du kan sende evalueringen.`);
+    return;
+  }
+  
+  // Prepare submission
+  const submitBtn = $('submitBtn');
+  const originalText = submitBtn.textContent;
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Sender...';
+  
+  try {
+    // Prepare answers payload
+    const answersPayload = projectContext.questions.map(q => {
+      const answer = answers.get(q.id);
+      return {
+        question_id: q.id,
+        score: answer.score,
+        sg: answer.sg || false
+      };
+    });
+    
+    // Submit via RPC
+    const { data, error } = await supabase.rpc('create_response_via_token', {
+      p_token: token,
+      p_target: $('targetPerson').value,
+      p_type: $('feedbackType').value,
+      p_employee_no: $('employeeNo').value || null,
+      p_answers: answersPayload
+    });
+    
+    if (error) throw error;
+    
+    // Success!
+    hide('questionsContainer');
+    hide('formFooter');
+    hide('errorContainer');
+    show('successState');
+    
+    // Update progress to 100%
+    $('progressBar').style.width = '100%';
+    
+  } catch (error) {
+    console.error('Submission error:', error);
+    submitBtn.disabled = false;
+    submitBtn.textContent = originalText;
+    
+    showError('Fejl ved indsendelse', 'Der opstod en fejl ved indsendelse af din evaluering. Prøv venligst igen.');
+  }
+}
+
+// Show error
+function showError(title, message) {
+  $('errorContainer').querySelector('.error-title').textContent = title;
+  $('errorMessage').textContent = message;
+  show('errorContainer');
+  hide('loadingState');
+  
+  // Scroll to top
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Keyboard navigation support
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && $('errorContainer').style.display !== 'none') {
+    hide('errorContainer');
+  }
+});
+
+// Prevent form submission on Enter
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') {
+    e.preventDefault();
+  }
+});
+
+// Accessibility: announce page changes to screen readers
+function announceToScreenReader(message) {
+  const announcement = document.createElement('div');
+  announcement.setAttribute('aria-live', 'polite');
+  announcement.setAttribute('aria-atomic', 'true');
+  announcement.style.position = 'absolute';
+  announcement.style.left = '-10000px';
+  announcement.style.width = '1px';
+  announcement.style.height = '1px';
+  announcement.style.overflow = 'hidden';
+  announcement.textContent = message;
+  
+  document.body.appendChild(announcement);
+  
+  setTimeout(() => {
+    document.body.removeChild(announcement);
+  }, 1000);
+}
 </script>
 </body>
 </html>
