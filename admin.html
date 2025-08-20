@@ -724,7 +724,7 @@ window.addEventListener('load', function() {
     const feedback = (ok) => {
       icon.classList.add('copied');
       icon.textContent = ok ? '✅' : '📥';
-      icon.title = ok ? 'QR billede kopieret!' : 'QR billede gjort klar (downloadet)';
+      icon.title = ok ? 'QR billede kopieret!' : 'QR billede downloadet';
       icon.style.transform = 'scale(1.2)';
       setTimeout(() => {
         icon.textContent = originalText;
@@ -735,53 +735,132 @@ window.addEventListener('load', function() {
     };
 
     try {
-      const off = document.createElement('canvas');
+      // Create canvas and generate QR
+      const canvas = document.createElement('canvas');
+      
       await new Promise((resolve, reject) => {
-        if (typeof QRCode === 'undefined') return reject(new Error('QRCode lib mangler'));
-        QRCode.toCanvas(off, url, { width: 512, margin: 2 }, (err) => err ? reject(err) : resolve());
-      });
-
-      if (!('ClipboardItem' in window) || !navigator.clipboard?.write || !window.isSecureContext) {
-        throw new Error('Clipboard image API ikke tilgængelig');
-      }
-
-      const blob = await new Promise((resolve, reject) => {
-        if (off.toBlob) {
-          off.toBlob((b) => b ? resolve(b) : reject(new Error('toBlob mislykkedes')), 'image/png');
-        } else {
-          try { resolve(dataURLToBlob(off.toDataURL('image/png'))); }
-          catch(e){ reject(e); }
+        if (typeof QRCode === 'undefined') {
+          reject(new Error('QRCode library not loaded'));
+          return;
         }
+        
+        QRCode.toCanvas(canvas, url, { 
+          width: 512, 
+          margin: 2,
+          color: {
+            dark: '#000000',
+            light: '#FFFFFF'
+          }
+        }, (err) => {
+          if (err) reject(err);
+          else resolve();
+        });
       });
 
-      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-      feedback(true);
-    } catch (e) {
-      try {
-        const dataUrl = await new Promise((resolve, reject) => {
-          if (typeof QRCode === 'undefined') return reject(new Error('QRCode lib mangler'));
-          QRCode.toDataURL(url, { width: 512, margin: 2 }, (err, d) => err ? reject(err) : resolve(d));
+      // Try to copy to clipboard
+      if ('ClipboardItem' in window && navigator.clipboard?.write && window.isSecureContext) {
+        const blob = await new Promise((resolve, reject) => {
+          canvas.toBlob((blob) => {
+            if (blob) resolve(blob);
+            else reject(new Error('Failed to create blob'));
+          }, 'image/png');
         });
+
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': blob })
+        ]);
+        feedback(true);
+      } else {
+        // Fallback to download
+        throw new Error('Clipboard API not available');
+      }
+      
+    } catch (error) {
+      console.warn('Copy failed, falling back to download:', error);
+      
+      // Fallback: download the image
+      try {
+        const canvas = document.createElement('canvas');
+        
+        await new Promise((resolve, reject) => {
+          QRCode.toCanvas(canvas, url, { 
+            width: 512, 
+            margin: 2,
+            color: {
+              dark: '#000000',
+              light: '#FFFFFF'
+            }
+          }, (err) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
+        
+        canvas.toBlob((blob) => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'qr-kode.png';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          feedback(false);
+        });
+      } catch (finalError) {
+        console.error('Failed to generate QR code:', finalError);
+        alert('Kunne ikke generere QR-kode. Tjek om siden er indlæst korrekt.');
+      }
+    }
+  }
+
+  // New helper function for copying canvas content
+  async function copyQRCanvas(canvas, icon) {
+    const originalText = icon.textContent;
+    const originalTitle = icon.title;
+
+    const feedback = (ok) => {
+      icon.classList.add('copied');
+      icon.textContent = ok ? '✅' : '📥';
+      icon.title = ok ? 'QR billede kopieret!' : 'QR billede downloadet';
+      icon.style.transform = 'scale(1.2)';
+      setTimeout(() => {
+        icon.textContent = originalText;
+        icon.title = originalTitle;
+        icon.classList.remove('copied');
+        icon.style.transform = '';
+      }, 1500);
+    };
+
+    try {
+      if ('ClipboardItem' in window && navigator.clipboard?.write && window.isSecureContext) {
+        const blob = await new Promise((resolve, reject) => {
+          canvas.toBlob((blob) => {
+            if (blob) resolve(blob);
+            else reject(new Error('Failed to create blob'));
+          }, 'image/png');
+        });
+
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': blob })
+        ]);
+        feedback(true);
+      } else {
+        throw new Error('Clipboard API not available');
+      }
+    } catch (error) {
+      // Fallback to download
+      canvas.toBlob((blob) => {
+        const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = dataUrl;
-        a.download = 'qr.png';
+        a.href = url;
+        a.download = 'qr-kode.png';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
+        URL.revokeObjectURL(url);
         feedback(false);
-      } catch {
-        alert('Kunne ikke kopiere eller generere QR-billede.');
-      }
-    }
-
-    function dataURLToBlob(dataURL) {
-      const [header, data] = dataURL.split(',');
-      const mime = header.match(/:(.*?);/)[1] || 'image/png';
-      const bin = atob(data);
-      const len = bin.length;
-      const u8 = new Uint8Array(len);
-      for (let i = 0; i < len; i++) u8[i] = bin.charCodeAt(i);
-      return new Blob([u8], { type: mime });
+      });
     }
   }
 
@@ -791,7 +870,7 @@ window.addEventListener('load', function() {
     modal.innerHTML = `
       <div class="modal-content">
         <h3 style="margin-bottom:16px">${title}</h3>
-        <img id="large-qr-img" alt="QR" style="display:block;margin:0 auto;max-width:70vw;height:auto"/>
+        <canvas id="large-qr-canvas" style="display:block;margin:0 auto;"></canvas>
         <div style="margin-top:12px;display:flex;gap:8px;justify-content:center">
           <button class="btn small" id="btnCopyQR">Kopiér QR</button>
           <button class="btn small" id="btnDownloadQR">Download QR</button>
@@ -801,37 +880,54 @@ window.addEventListener('load', function() {
     `;
     document.body.appendChild(modal);
 
-    const img = modal.querySelector('#large-qr-img');
-
+    const canvas = modal.querySelector('#large-qr-canvas');
+    
+    // Generate QR code directly on canvas
     if (typeof QRCode !== 'undefined') {
-      QRCode.toDataURL(url, { width: 600, margin: 2 }, (err, dataUrl) => {
-        if (err) {
-          console.error('QR (stor) fejlede:', err);
-          img.alt = 'QR kunne ikke genereres';
-          return;
+      QRCode.toCanvas(canvas, url, { 
+        width: 400, 
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
         }
-        img.src = dataUrl;
+      }, (err) => {
+        if (err) {
+          console.error('QR generation failed:', err);
+          canvas.style.display = 'none';
+          const errorMsg = document.createElement('p');
+          errorMsg.textContent = 'QR-kode kunne ikke genereres';
+          errorMsg.style.color = 'var(--error)';
+          canvas.parentNode.insertBefore(errorMsg, canvas);
+        }
       });
     } else {
-      img.alt = 'QR lib ikke indlæst';
+      console.error('QRCode library not loaded');
+      canvas.style.display = 'none';
+      const errorMsg = document.createElement('p');
+      errorMsg.textContent = 'QR bibliotek ikke indlæst';
+      errorMsg.style.color = 'var(--error)';
+      canvas.parentNode.insertBefore(errorMsg, canvas);
     }
 
-    modal.querySelector('#btnCopyQR').onclick = (e) => copyQRPNG(url, e.currentTarget);
+    modal.querySelector('#btnCopyQR').onclick = (e) => copyQRCanvas(canvas, e.currentTarget);
 
     modal.querySelector('#btnDownloadQR').onclick = () => {
-      const a = document.createElement('a');
-      a.href = img.src;
-      a.download = 'qr.png';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      canvas.toBlob((blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'qr-kode.png';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
     };
 
     modal.onclick = (e) => { if (e.target === modal) document.body.removeChild(modal); };
     modal.querySelector('.modal-content').onclick = (e) => e.stopPropagation();
   }
-
-
 
   async function createProjectLink(projectId) {
     try {
