@@ -496,7 +496,15 @@
                 <option value="none">Ingen normalisering (0–5)</option>
                 <option value="zscore">Z-score pr. kategori (over tid)</option>
               </select>
-              <input id="devSearchPerson" class="input" placeholder="Søg deltager (til Individ)" style="flex:1;min-width:180px">
+
+              <!-- NY: tillad blandede typer (FULD+LITE) → vi bruger kun fælles kategorier -->
+              <label title="Hvis aktiveret: når filer er en blanding af FULD og LITE, vises kun de kategorier som findes i alle filer.">
+                <input type="checkbox" id="devAllowMix"> Tillad blandede UDV-typer (fælles kategorier)
+              </label>
+
+              <input id="devSearchPerson" class="input" placeholder="Søg/vælg deltager (til Individ)" list="devPersonList" style="flex:1;min-width:180px">
+              <datalist id="devPersonList"></datalist>
+
             </div>
           </div>
           <div>
@@ -1909,30 +1917,37 @@ window.showLargeProjectQR = (url, title) => {
       return;
     }
 
-    // 1) Afvis LITE i Udvikling
-    const hasLite = variants.some(v => v.variant === 'LITE');
-    if(hasLite){
-      const list = variants.filter(v=>v.variant==='LITE').map(v=>`• ${v.name}`).join('\n');
-      alert('UDV-typen er LITE i følgende filer — Udviklingsfanen understøtter kun FULD:\n\n' + list);
-      return;
-    }
-
-    // 2) Afvis blandede varianter (FULD/LITE/UKENDT)
+    // Klassificér varianter
     const unique = Array.from(new Set(variants.map(v=>v.variant)));
-    if(unique.length > 1 && !unique.every(v => v==='FULD' || v==='UKENDT')){
-      const list = variants.map(v=>`• ${v.name} — ${v.variant}`).join('\n');
-      alert('Blandede UDV-typer fundet. Alle filer skal være samme type (FULD). Filer:\n\n' + list);
-      return;
+    const hasLite = unique.includes('LITE');
+    const hasFuld = unique.includes('FULD');
+
+    // Gem tilstand globalt (bruges i merge + KPI)
+    window.__devVariant = (unique.length===1 ? unique[0] : 'MIX');
+
+    // Default-regel:
+    // - Kun LITE -> tilladt
+    // - Kun FULD -> tilladt
+    // - MIX (LITE + FULD):
+    //    - tillad KUN hvis brugeren har slået "devAllowMix" til (vi bruger da kun fælles kategorier)
+    if(window.__devVariant==='MIX'){
+      const allowMix = $('devAllowMix')?.checked;
+      if(!allowMix){
+        const list = variants.map(v=>`• ${v.name} — ${v.variant}`).join('\n');
+        alert('Du har uploadet en blanding af FULD og LITE.\nSlå "Tillad blandede UDV-typer (fælles kategorier)" til for at fortsætte.\n\nFiler:\n\n' + list);
+        return;
+      }
     }
 
     // Sortér bølger
     waves.sort((a,b)=> (a.exported_at||a.meta.file).localeCompare(b.exported_at||b.meta.file));
 
     // Vis filnavne
+    const htmlList = waves.map((w,i)=>`#${i+1} ${w.project?.title||'—'} • ${w.variant||w.project?.is_lite?'LITE':'FULD'} • ${w.exported_at||w.meta.file}`).join('<br>');
     if(fileListEl){
-      fileListEl.innerHTML = waves.map((w,i)=>`#${i+1} ${w.project?.title||'—'} • ${w.exported_at||w.meta.file}`).join('<br>');
+      fileListEl.innerHTML = htmlList;
     } else {
-      $('udvFileList').innerHTML = waves.map((w,i)=>`#${i+1} ${w.project?.title||'—'} • ${w.exported_at||w.meta.file}`).join('<br>');
+      $('udvFileList').innerHTML = htmlList;
     }
 
     window.__udvWaves = waves;
@@ -1945,10 +1960,17 @@ window.showLargeProjectQR = (url, title) => {
   }
 
 
-  // Sammenflet bølger (robust over nye/manglende personer)
+
+  // Sammenflet bølger (robust ved LITE/FULD og blanding)
+  // - FULD-only: union af alle kategorier
+  // - LITE-only: union (typisk mindre sæt)
+  // - MIX (FULD+LITE): intersection (fælles kategorier i alle filer)
   function mergeUdv(waves){
-    const byKey = (p)=> (p.employee_no && p.employee_no.trim()) ? `no:${p.employee_no.trim()}` : `name:${(p.name||'').trim().toLowerCase()}`;
-    // Unik personliste på tværs
+    const byKey = (p)=> (p.employee_no && p.employee_no.trim())
+      ? `no:${p.employee_no.trim()}`
+      : `name:${(p.name||'').trim().toLowerCase()}`;
+
+    // 1) Unik personliste
     const personsMap = new Map();
     waves.forEach((w,wi)=>{
       (w.people||[]).forEach(p=>{
@@ -1956,37 +1978,86 @@ window.showLargeProjectQR = (url, title) => {
         if(!personsMap.has(key)){
           personsMap.set(key, { key, name:p.name, employee_no:p.employee_no||null, ids: {} });
         }
-        personsMap.get(key).ids[wi] = p.id; // original id pr. bølge
+        personsMap.get(key).ids[wi] = p.id;
       });
     });
     const persons = [...personsMap.values()];
 
-    // Taxonomi (brug første bølge som master)
-    const taxonomy = (waves[0]?.taxonomy||[]).map(t=>({
-      domain_id:t.domain_id, domain_name:t.domain_name,
-      category_id:t.category_id, category_name:t.category_name
-    }));
+    // 2) MASTER-taxonomi via (domain_name :: category_name)
+    const norm = s=> (s||'').trim().toLowerCase();
+    const mkKey = (t)=> `${norm(t.domain_name||'') }::${ norm(t.category_name||'') }`;
 
-    // Scores per bølge -> personKey -> category -> types
+    const perWaveSets = waves.map(w=>{
+      return new Set((w.taxonomy||[]).map(t=> mkKey(t)));
+    });
+
+    let masterKeys = new Set();
+    if(window.__devVariant==='MIX'){
+      // intersection
+      masterKeys = perWaveSets.reduce((acc, s, idx)=>{
+        if(idx===0) return new Set(s);
+        return new Set([...acc].filter(k=> s.has(k)));
+      }, new Set());
+    } else {
+      // union
+      perWaveSets.forEach(s=> s.forEach(k=> masterKeys.add(k)));
+    }
+
+    const masterMap = new Map();
+    // Brug første forekomst for label casing
+    waves.forEach(w=>{
+      (w.taxonomy||[]).forEach(t=>{
+        const k = mkKey(t);
+        if(masterKeys.has(k) && !masterMap.has(k)){
+          masterMap.set(k, {
+            master_id: k,
+            domain_name: t.domain_name || '',
+            category_name: t.category_name || ''
+          });
+        }
+      });
+    });
+    const taxonomy = [...masterMap.values()];
+
+    // 3) Lokale category_id -> master_id mapping pr. bølge
+    const waveCatMap = waves.map(w=>{
+      const m = new Map();
+      (w.taxonomy||[]).forEach(t=>{
+        const k = mkKey(t);
+        if(masterKeys.has(k)) m.set(t.category_id, k);
+      });
+      return m;
+    });
+
+    // 4) Scores pr. bølge: personKey -> master_id -> { self,peer,leader }
     const wavesData = waves.map((w,wi)=>{
-      const map = new Map(); // key -> {catId->{self,peer,leader}}
+      const map = new Map();
+      const catMap = waveCatMap[wi];
+
       (w.scores||[]).forEach(s=>{
-        // map target_id i denne bølge til personKey
+        // person-key i denne bølge
         let keyFound = null;
         for(const person of persons){
           if(person.ids[wi]===s.target_id){ keyFound = person.key; break; }
         }
-        if(!keyFound) return; // person ikke med i denne bølge
+        if(!keyFound) return;
+
+        // remap lokal category_id -> master_id
+        const masterId = catMap.get(s.category_id);
+        if(!masterId) return;
+
         if(!map.has(keyFound)) map.set(keyFound, {});
         const byCat = map.get(keyFound);
-        if(!byCat[s.category_id]) byCat[s.category_id] = { self:null, peer:null, leader:null };
-        byCat[s.category_id][s.respondent_type] = s.value===null? null : Number(s.value);
+        if(!byCat[masterId]) byCat[masterId] = { self:null, peer:null, leader:null };
+        byCat[masterId][s.respondent_type] = s.value===null? null : Number(s.value);
       });
+
       return map;
     });
 
     return { persons, taxonomy, wavesData };
   }
+
 
   function hydrateWaveSelects(waves){
     const a=$('devWaveA'), b=$('devWaveB');
@@ -2067,22 +2138,6 @@ window.showLargeProjectQR = (url, title) => {
     }
 
     // KPI (fx deltagelse / datadækning)
-    const kpiEl = $('devKpi');
-    if(kpiEl){
-      const coverage = wavesSeries.map(ws=>{
-        const values = ws.flatMap(r=>r.perCat).filter(v=>v!=null);
-        const personsWithAny = ws.filter(r=> r.perCat.some(v=>v!=null)).length;
-        const cov = values.length / Math.max(1, ws.length*taxonomy.length);
-        return { personsWithAny, cov };
-      });
-      kpiEl.innerHTML = coverage.map((c, i)=>`
-        <div style="background:#f8fafc;border:1px solid var(--line);padding:8px;border-radius:8px">
-          <div style="font-weight:600">Bølge #${i+1}</div>
-          <div class="muted">Dækning: ${(c.cov*100).toFixed(0)}% • Personer m. data: ${c.personsWithAny}
-          </div>
-        </div>
-      `).join('');
-    }
 
     // Linjediagram (team-snit pr. bølge)
     const lineCtx = $('devLine');
