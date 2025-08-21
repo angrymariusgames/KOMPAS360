@@ -2123,46 +2123,71 @@ window.showLargeProjectQR = (url, title) => {
   };
 
   // Frontend PDF generation functions
-async function generatePDFFromHTML(htmlContent, filename) {
-  try {
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = htmlContent;
-    tempDiv.style.cssText = 'position:absolute;top:-9999px;left:-9999px;width:794px;background:white;font-family:Arial,sans-serif;padding:20px;box-sizing:border-box;';
-    document.body.appendChild(tempDiv);
-    
-    const canvas = await html2canvas(tempDiv, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff' });
-    document.body.removeChild(tempDiv);
-    
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const imgData = canvas.toDataURL('image/png');
-    const imgWidth = 210;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-    pdf.save(filename);
-    return true;
-  } catch (error) {
-    console.error('PDF Error:', error);
-    alert('Fejl ved PDF generering: ' + error.message);
-    return false;
+  async function generatePDFFromHTML(htmlContent, filename) {
+    try {
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = htmlContent;
+      tempDiv.style.cssText = 'position:absolute;top:-9999px;left:-9999px;width:750px;background:white;font-family:Arial,sans-serif;padding:10px;box-sizing:border-box;';
+      document.body.appendChild(tempDiv);
+      
+      const canvas = await html2canvas(tempDiv, { 
+        scale: 1.5, 
+        useCORS: true, 
+        allowTaint: true, 
+        backgroundColor: '#ffffff',
+        height: 1000 // Begrænser højden
+      });
+      document.body.removeChild(tempDiv);
+      
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgData = canvas.toDataURL('image/png');
+      const pdfWidth = 210;
+      const pdfHeight = 297;
+      const imgWidth = pdfWidth - 20; // 10mm margin på hver side
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      // Hvis billedet er for højt, skal vi skalere ned så det passer på 1 side
+      if (imgHeight > pdfHeight - 20) {
+        const scale = (pdfHeight - 20) / imgHeight;
+        const scaledWidth = imgWidth * scale;
+        const scaledHeight = imgHeight * scale;
+        const xOffset = (pdfWidth - scaledWidth) / 2;
+        pdf.addImage(imgData, 'PNG', xOffset, 10, scaledWidth, scaledHeight);
+      } else {
+        pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
+      }
+      
+      pdf.save(filename);
+      return true;
+    } catch (error) {
+      console.error('PDF Error:', error);
+      alert('Fejl ved PDF generering: ' + error.message);
+      return false;
+    }
   }
-}
 
 function generatePersonReportHTML(project, person, categories, series, labels) {
-  const currentDate = new Date().toLocaleDateString('da-DK', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const currentDate = new Date().toLocaleDateString('da-DK', { 
+    year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+  });
   
+  // Kompakte kategorikort - 4 kolonner i stedet for 2
   const categoryCards = categories.map((cat, index) => {
     const selfScore = series.self[index];
     const peerScore = series.peer[index];
     const leaderScore = series.leader[index];
     
     const badges = [];
-    if (selfScore !== null) badges.push(`<span style="background:#10b981;color:white;padding:3px 6px;border-radius:3px;font-size:12px;margin-right:4px">Selv: ${selfScore.toFixed(1)}</span>`);
-    if (peerScore !== null) badges.push(`<span style="background:#3b82f6;color:white;padding:3px 6px;border-radius:3px;font-size:12px;margin-right:4px">Kollega: ${peerScore.toFixed(1)}</span>`);
-    if (leaderScore !== null) badges.push(`<span style="background:#8b5cf6;color:white;padding:3px 6px;border-radius:3px;font-size:12px">Leder: ${leaderScore.toFixed(1)}</span>`);
-    if (badges.length === 0) badges.push(`<span style="background:#94a3b8;color:#475569;padding:3px 6px;border-radius:3px;font-size:12px">Ingen data</span>`);
+    if (selfScore !== null) badges.push(`<span style="background:#10b981;color:white;padding:2px 4px;border-radius:2px;font-size:9px;margin-right:2px">S:${selfScore.toFixed(1)}</span>`);
+    if (peerScore !== null) badges.push(`<span style="background:#3b82f6;color:white;padding:2px 4px;border-radius:2px;font-size:9px;margin-right:2px">K:${peerScore.toFixed(1)}</span>`);
+    if (leaderScore !== null) badges.push(`<span style="background:#8b5cf6;color:white;padding:2px 4px;border-radius:2px;font-size:9px">L:${leaderScore.toFixed(1)}</span>`);
+    if (badges.length === 0) badges.push(`<span style="background:#94a3b8;color:#475569;padding:2px 4px;border-radius:2px;font-size:9px">Ingen data</span>`);
     
-    return `<div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin-bottom:8px;background:white"><div style="font-weight:600;margin-bottom:6px;font-size:14px">${cat.category_name}</div><div>${badges.join('')}</div></div>`;
+    return `<div style="border:1px solid #e2e8f0;border-radius:4px;padding:6px;margin-bottom:4px;background:white">
+      <div style="font-weight:600;margin-bottom:3px;font-size:10px">${cat.category_name}</div>
+      <div>${badges.join('')}</div>
+    </div>`;
   }).join('');
   
   const allScores = [];
@@ -2177,35 +2202,49 @@ function generatePersonReportHTML(project, person, categories, series, labels) {
     count: allScores.length
   } : null;
   
-  return `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#333;max-width:800px">
-    <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;padding:30px;margin-bottom:20px;border-radius:8px;text-align:center">
-      <h1 style="margin:0 0 8px 0;font-size:28px;font-weight:300">${project.title}</h1>
-      <p style="margin:0;font-size:16px;opacity:0.9">Personlig Kompetencerapport</p>
+  return `<div style="font-family:Arial,sans-serif;line-height:1.2;color:#333;max-width:750px;font-size:11px">
+    <!-- Kompakt Header -->
+    <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;padding:15px;margin-bottom:12px;border-radius:6px;text-align:center">
+      <h1 style="margin:0 0 4px 0;font-size:18px;font-weight:300">${project.title}</h1>
+      <p style="margin:0;font-size:11px;opacity:0.9">Personlig Kompetencerapport</p>
     </div>
-    <div style="background:#f8fafc;padding:20px;border-radius:8px;margin-bottom:20px;border-left:4px solid #667eea">
-      <h2 style="margin:0 0 8px 0;color:#1e293b;font-size:24px">${person.full_name}</h2>
-      <div style="color:#64748b;font-size:14px">
-        ${person.employee_no ? `<p style="margin:4px 0"><strong>Medarbejdernummer:</strong> ${person.employee_no}</p>` : ''}
-        <p style="margin:4px 0"><strong>Rapport genereret:</strong> ${currentDate}</p>
+    
+    <!-- Person Info & Stats - Side ved side -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div style="background:#f8fafc;padding:12px;border-radius:6px;border-left:3px solid #667eea">
+        <h2 style="margin:0 0 4px 0;color:#1e293b;font-size:14px">${person.full_name}</h2>
+        <div style="color:#64748b;font-size:9px">
+          ${person.employee_no ? `Medarbejdernr: ${person.employee_no}<br>` : ''}
+          Genereret: ${currentDate}
+        </div>
+      </div>
+      
+      ${stats ? `<div style="background:#fefce8;border:1px solid #fbbf24;border-radius:6px;padding:12px">
+        <h3 style="color:#92400e;margin:0 0 6px 0;font-size:12px">📋 Sammenfatning</h3>
+        <div style="color:#78350f;font-size:9px">
+          <strong>Gennemsnit:</strong> ${stats.avg} | <strong>Højeste:</strong> ${stats.max}<br>
+          <strong>Laveste:</strong> ${stats.min} | <strong>Antal:</strong> ${stats.count}
+        </div>
+      </div>` : ''}
+    </div>
+    
+    <!-- KOMPAS Hjul Placeholder -->
+    <div style="text-align:center;background:#f8fafc;border:2px dashed #cbd5e1;border-radius:8px;padding:15px;margin-bottom:12px">
+      <div style="font-size:12px;color:#64748b;margin-bottom:6px">🎯 KOMPAS Kompetencehjul</div>
+      <div style="font-size:9px;color:#94a3b8">
+        Radar chart ville være synligt her i web-versionen<br>
+        Viser de 16 kompetencer fordelt på 4 domæner
       </div>
     </div>
-    <div style="background:#f8fafc;padding:15px;border-radius:8px;margin-bottom:20px;text-align:center">
-      <div style="display:inline-flex;gap:20px;flex-wrap:wrap;justify-content:center">
-        <div style="display:flex;align-items:center;gap:6px"><div style="width:12px;height:12px;background:#10b981;border-radius:3px"></div><span style="font-size:14px">${labels.self || 'Selvvurdering'}</span></div>
-        <div style="display:flex;align-items:center;gap:6px"><div style="width:12px;height:12px;background:#3b82f6;border-radius:3px"></div><span style="font-size:14px">${labels.peer || 'Kollegavurdering'}</span></div>
-        <div style="display:flex;align-items:center;gap:6px"><div style="width:12px;height:12px;background:#8b5cf6;border-radius:3px"></div><span style="font-size:14px">${labels.leader || 'Ledervurdering'}</span></div>
-      </div>
+    
+    <!-- Kompetencer i 4 kolonner -->
+    <h3 style="color:#1e293b;margin-bottom:8px;font-size:12px">🏆 Kompetence Kategorier</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;margin-bottom:12px">
+      ${categoryCards}
     </div>
-    <h3 style="color:#1e293b;margin-bottom:15px;font-size:18px">📊 Kompetence Kategorier</h3>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">${categoryCards}</div>
-    ${stats ? `<div style="background:#fefce8;border:1px solid #fbbf24;border-radius:8px;padding:20px;margin-top:20px">
-      <h3 style="color:#92400e;margin:0 0 12px 0;font-size:18px">📋 Sammenfatning</h3>
-      <div style="color:#78350f">
-        <p style="margin:6px 0">Denne rapport viser kompetenceprofilen for <strong>${person.full_name}</strong> baseret på vurderinger i projektet "${project.title}".</p>
-        <p style="margin:6px 0"><strong>Gennemsnitsscore:</strong> ${stats.avg}<br><strong>Antal vurderinger:</strong> ${stats.count}<br><strong>Højeste score:</strong> ${stats.max}<br><strong>Laveste score:</strong> ${stats.min}</p>
-      </div>
-    </div>` : ''}
-    <div style="margin-top:30px;padding-top:20px;border-top:1px solid #e2e8f0;text-align:center;color:#64748b;font-size:12px">
+    
+    <!-- Kompakt Footer -->
+    <div style="margin-top:12px;padding-top:8px;border-top:1px solid #e2e8f0;text-align:center;color:#64748b;font-size:9px">
       <p style="margin:0">Genereret af KOMPAS PDF Service</p>
     </div>
   </div>`;
@@ -3529,57 +3568,111 @@ $('btnZip').onclick = () => {
   };
 
   $('btnDownloadTeamPDF').onclick = async () => {
-  const pid = $('selProject3').value;
-  if (!pid) { alert('Vælg et projekt først'); return; }
+  const projectId = $('selProject2').value;
+  if (!projectId) { alert('Vælg et projekt først'); return; }
   
   try {
     const originalText = $('btnDownloadTeamPDF').textContent;
-    $('btnDownloadTeamPDF').textContent = 'Genererer PDF...';
+    $('btnDownloadTeamPDF').textContent = 'Genererer Team PDF...';
     $('btnDownloadTeamPDF').disabled = true;
     
-    const { data: project } = await supabase.from('projects').select('*').eq('id', pid).single();
-    const { data: people } = await supabase.from('project_people').select('*').eq('project_id', pid);
+    const { data: project } = await supabase.from('projects').select('*').eq('id', projectId).single();
+    const { data: people } = await supabase.from('project_people').select('*').eq('project_id', projectId).order('full_name');
     const { data: cats } = await supabase.from('v_category_path').select('*').eq('template_id', project.template_id).order('category_sort');
-    const { data: allSeries } = await supabase.from('v_kompas_series').select('*').eq('project_id', pid);
     
     const selectedPeople = teamData.filter(p => p.selected);
-    const selectedIds = selectedPeople.length > 0 ? selectedPeople.map(p => p.id) : people.map(p => p.id);
-    const relevantSeries = allSeries.filter(s => selectedIds.includes(s.target_id));
+    const targetPeople = selectedPeople.length > 0 ? selectedPeople : people;
+    
+    // Aggregere maksimale værdier for teamet
+    const teamSeries = { self: [], peer: [], leader: [] };
+    
+    for (let catIndex = 0; catIndex < cats.length; catIndex++) {
+      const categoryId = cats[catIndex].category_id;
+      const maxValues = { self: null, peer: null, leader: null };
+      
+      for (const person of targetPeople) {
+        const { data: series } = await supabase.from('v_kompas_series')
+          .select('*')
+          .eq('project_id', projectId)
+          .eq('target_id', person.id)
+          .eq('category_id', categoryId);
+        
+        ['self', 'peer', 'leader'].forEach(type => {
+          const record = series.find(s => s.respondent_type === type);
+          if (record && record.safe_avg !== null) {
+            if (maxValues[type] === null || record.safe_avg > maxValues[type]) {
+              maxValues[type] = record.safe_avg;
+            }
+          }
+        });
+      }
+      
+      teamSeries.self.push(maxValues.self);
+      teamSeries.peer.push(maxValues.peer);
+      teamSeries.leader.push(maxValues.leader);
+    }
     
     const labels = project.settings?.labels || { self: 'Vurdering af sig selv', peer: 'Vurdering af kollega', leader: 'Fører vurdering' };
-    const teamSeries = { self: [], peer: [], leader: [] };
-    cats.forEach(cat => {
-      ['self', 'peer', 'leader'].forEach(type => {
-        const catSeries = relevantSeries.filter(s => s.category_id === cat.category_id && s.respondent_type === type);
-        const values = catSeries.map(s => s.safe_avg).filter(v => v !== null);
-        teamSeries[type].push(values.length > 0 ? Math.max(...values) : null);
-      });
-    });
     
-    const teamName = selectedPeople.length > 0 ? `Team (${selectedPeople.length} medlemmer)` : `Hele teamet (${people.length} medlemmer)`;
-    const htmlContent = `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#333;max-width:800px">
-      <div style="background:linear-gradient(135deg,#f093fb 0%,#f5576c 100%);color:white;padding:30px;margin-bottom:20px;border-radius:8px;text-align:center">
-        <h1 style="margin:0 0 8px 0;font-size:28px;font-weight:300">${project.title}</h1>
-        <p style="margin:0;font-size:16px;opacity:0.9">🎯 Team Kompetencerapport</p>
+    // Kompakt team rapport HTML
+    const teamName = selectedPeople.length > 0 ? 
+      `Team (${selectedPeople.length} medlemmer)` : 
+      `Hele teamet (${people.length} medlemmer)`;
+    
+    const categoryCards = cats.map((cat, index) => {
+      const badges = [];
+      if (teamSeries.self[index] !== null) badges.push(`<span style="background:#10b981;color:white;padding:2px 4px;border-radius:2px;font-size:9px;margin-right:2px">S:${teamSeries.self[index].toFixed(1)}</span>`);
+      if (teamSeries.peer[index] !== null) badges.push(`<span style="background:#3b82f6;color:white;padding:2px 4px;border-radius:2px;font-size:9px;margin-right:2px">K:${teamSeries.peer[index].toFixed(1)}</span>`);
+      if (teamSeries.leader[index] !== null) badges.push(`<span style="background:#8b5cf6;color:white;padding:2px 4px;border-radius:2px;font-size:9px">L:${teamSeries.leader[index].toFixed(1)}</span>`);
+      if (badges.length === 0) badges.push(`<span style="background:#94a3b8;color:#475569;padding:2px 4px;border-radius:2px;font-size:9px">Ingen data</span>`);
+      
+      const maxValue = Math.max(
+        teamSeries.self[index] || 0,
+        teamSeries.peer[index] || 0,
+        teamSeries.leader[index] || 0
+      );
+      const isTopStrength = maxValue >= 4.0;
+      
+      return `<div style="border:1px solid #e2e8f0;border-radius:4px;padding:6px;margin-bottom:4px;background:white;${isTopStrength ? 'border-left:3px solid #10b981;background:linear-gradient(135deg,#ecfdf5 0%,#d1fae5 100%)' : ''}">
+        <div style="font-weight:600;margin-bottom:3px;font-size:10px">
+          ${cat.category_name}
+          ${isTopStrength ? '<span style="background:#fbbf24;color:#92400e;font-size:8px;padding:1px 3px;border-radius:2px;font-weight:700;text-transform:uppercase;margin-left:4px">TOP</span>' : ''}
+        </div>
+        <div>${badges.join('')}</div>
+      </div>`;
+    }).join('');
+    
+    const htmlContent = `<div style="font-family:Arial,sans-serif;line-height:1.2;color:#333;max-width:750px;font-size:11px">
+      <!-- Kompakt Team Header -->
+      <div style="background:linear-gradient(135deg,#f093fb 0%,#f5576c 100%);color:white;padding:15px;margin-bottom:12px;border-radius:6px;text-align:center">
+        <h1 style="margin:0 0 4px 0;font-size:18px;font-weight:300">${project.title}</h1>
+        <p style="margin:0;font-size:11px;opacity:0.9">🎯 Team Kompetencerapport</p>
       </div>
-      <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;padding:20px;border-radius:8px;margin-bottom:20px;text-align:center">
-        <h2 style="margin:0 0 8px 0;font-size:24px;font-weight:400">${teamName}</h2>
-        <div style="font-size:14px;opacity:0.9">Aggregeret kompetenceprofil baseret på maksimale værdier</div>
+      
+      <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;padding:12px;border-radius:6px;margin-bottom:12px;text-align:center">
+        <h2 style="margin:0 0 4px 0;font-size:16px;font-weight:400">${teamName}</h2>
+        <div style="font-size:9px;opacity:0.9">Aggregeret kompetenceprofil baseret på maksimale værdier</div>
       </div>
-      <h3 style="color:#1e293b;margin-bottom:15px;font-size:18px">🏆 Team Kompetence Kategorier</h3>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
-        ${cats.map((cat, index) => {
-          const badges = [];
-          if (teamSeries.self[index] !== null) badges.push(`<span style="background:#10b981;color:white;padding:4px 8px;border-radius:4px;font-size:12px;margin-right:4px">Selv: ${teamSeries.self[index].toFixed(1)}</span>`);
-          if (teamSeries.peer[index] !== null) badges.push(`<span style="background:#3b82f6;color:white;padding:4px 8px;border-radius:4px;font-size:12px;margin-right:4px">Kollega: ${teamSeries.peer[index].toFixed(1)}</span>`);
-          if (teamSeries.leader[index] !== null) badges.push(`<span style="background:#8b5cf6;color:white;padding:4px 8px;border-radius:4px;font-size:12px">Leder: ${teamSeries.leader[index].toFixed(1)}</span>`);
-          if (badges.length === 0) badges.push(`<span style="background:#94a3b8;color:#475569;padding:4px 8px;border-radius:4px;font-size:12px">Ingen data</span>`);
-          return `<div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin-bottom:8px;background:white"><div style="font-weight:600;margin-bottom:8px;font-size:14px">${cat.category_name}</div><div>${badges.join('')}</div></div>`;
-        }).join('')}
+      
+      <!-- Team KOMPAS Hjul Placeholder -->
+      <div style="text-align:center;background:#f8fafc;border:2px dashed #cbd5e1;border-radius:8px;padding:15px;margin-bottom:12px">
+        <div style="font-size:12px;color:#64748b;margin-bottom:6px">🎯 Team KOMPAS Kompetencehjul</div>
+        <div style="font-size:9px;color:#94a3b8">
+          Team radar chart ville være synligt her i web-versionen<br>
+          Viser maksimale scores for hver af de 16 kompetencer
+        </div>
       </div>
-      <div style="margin-top:30px;padding-top:20px;border-top:1px solid #e2e8f0;text-align:center;color:#64748b;font-size:12px">
+      
+      <!-- Team Kompetencer i 4 kolonner -->
+      <h3 style="color:#1e293b;margin-bottom:8px;font-size:12px">🏆 Team Kompetence Kategorier</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;margin-bottom:12px">
+        ${categoryCards}
+      </div>
+      
+      <!-- Kompakt Footer -->
+      <div style="margin-top:12px;padding-top:8px;border-top:1px solid #e2e8f0;text-align:center;color:#64748b;font-size:9px">
         <p style="margin:0"><strong>Genereret af KOMPAS PDF Service</strong></p>
-        <p style="margin:4px 0 0 0">Team rapport baseret på aggregerede maksimale værdier</p>
+        <p style="margin:2px 0 0 0">Team rapport baseret på aggregerede maksimale værdier</p>
       </div>
     </div>`;
     
