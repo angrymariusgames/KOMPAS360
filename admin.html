@@ -2978,6 +2978,7 @@ $('btnZip').onclick = () => {
       });
 
       renderTeamTable();
+      updateTeamSelection(); // Sikrer at radar chart opdateres når data loades
 
     } catch (error) {
       console.error('Error loading team building data:', error);
@@ -3117,6 +3118,7 @@ $('btnZip').onclick = () => {
     if (selectedMembers.length > 0) {
       $('teamFocusSection').style.display = 'block';
       generateTeamRadar();
+      updateDomainPercentages();
     } else {
       $('teamFocusSection').style.display = 'none';
     }
@@ -3326,6 +3328,143 @@ $('btnZip').onclick = () => {
     }
   }
 
+  // Generate Team Radar Chart (MISSING FUNCTION)
+  function generateTeamRadar() {
+    const selectedMembers = teamData.filter(p => p.selected);
+    if (selectedMembers.length === 0) return;
+
+    // Samme kategori-organisering som i andre radar charts
+    const orderedCategories = [
+      '', // Tom akse ved 0° (kl. 12)
+      'Fleksibilitet', 'Nytænkning', 'Helhedsorientering', 'Fremtidsorientering', // Fornyelse
+      '', // Tom akse ved 90° (kl. 3)
+      'Håndtering af pres', 'Beslutningstagning', 'Styring', 'Initiativ', // Resultater
+      '', // Tom akse ved 180° (kl. 6) 
+      'Analytisk tænkning', 'Faglighed', 'Planlægning', 'Ressourcebevidsthed', // Stabilitet
+      '', // Tom akse ved 270° (kl. 9)
+      'Samarbejde', 'Udvikling af andre', 'Motivere andre', 'Kommunikation' // Relationer
+    ];
+
+    // Beregn maksimale værdier for hvert kategori
+    const teamMaxData = orderedCategories.map(catName => {
+      if (catName === '') return null; // Tomme akser
+      
+      const category = categories.find(cat => cat.category_name === catName);
+      if (!category) return null;
+
+      let maxValue = 0;
+      selectedMembers.forEach(person => {
+        const avg = calculateAverage(person, category.category_id);
+        if (avg !== null && avg > maxValue) {
+          maxValue = avg;
+        }
+      });
+      
+      return maxValue > 0 ? maxValue : null;
+    });
+
+    // Kvadrant baggrund plugin (samme som andre charts)
+    const quadrantBackgroundPlugin = {
+      id: 'quadrantBackground',
+      beforeDatasetsDraw: (chart) => {
+        const {ctx, scales: {r}} = chart;
+        const centerX = r.xCenter;
+        const centerY = r.yCenter;
+        const radius = r.drawingArea;
+        
+        ctx.save();
+        
+        const drawSector = (startAngle, endAngle, color) => {
+          ctx.beginPath();
+          ctx.moveTo(centerX, centerY);
+          ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+          ctx.closePath();
+          ctx.fillStyle = color;
+          ctx.fill();
+        };
+        
+        const degToRad = (deg) => (deg - 90) * Math.PI / 180;
+        
+        // De 4 kvadrant baggrunde
+        drawSector(degToRad(0), degToRad(90), 'rgba(34, 139, 34, 0.08)');     // Fornyelse
+        drawSector(degToRad(90), degToRad(180), 'rgba(220, 20, 60, 0.08)');   // Resultater  
+        drawSector(degToRad(180), degToRad(270), 'rgba(128, 128, 128, 0.08)'); // Stabilitet
+        drawSector(degToRad(270), degToRad(360), 'rgba(100, 149, 237, 0.08)'); // Relationer
+        
+        ctx.restore();
+      }
+    };
+
+    const ctx = $('teamRadar').getContext('2d');
+    if (teamRadar) teamRadar.destroy();
+
+    teamRadar = new Chart(ctx, {
+      type: 'radar',
+      data: {
+        labels: orderedCategories,
+        datasets: [{
+          label: 'Team Maximum',
+          data: teamMaxData,
+          borderColor: 'rgba(34, 197, 94, 1)',
+          backgroundColor: 'rgba(34, 197, 94, 0.12)',
+          pointBackgroundColor: 'rgba(34, 197, 94, 1)',
+          borderWidth: 3,
+          spanGaps: true
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        elements: {
+          line: { tension: 0.2 },
+          point: { radius: 4, hitRadius: 8 }
+        },
+        scales: {
+          r: {
+            beginAtZero: true,
+            min: 0,
+            max: 5,
+            ticks: { stepSize: 1, display: false },
+            grid: { color: 'rgba(0,0,0,0.08)' },
+            pointLabels: {
+              display: function(context) {
+                return orderedCategories[context.index] !== '';
+              },
+              font: { size: 12, weight: 'bold' }
+            }
+          }
+        },
+        plugins: { legend: { position: 'bottom' } }
+      },
+      plugins: [quadrantBackgroundPlugin]
+    });
+  }
+
+  // Opdater domæne procenter
+  function updateDomainPercentages() {
+    const percentages = calculateDomainPercentages();
+    
+    if (percentages.relationer + percentages.stabilitet + percentages.fornyelse + percentages.resultater === 0) {
+      $('domainPercentages').innerHTML = '<div style="text-align:center;color:var(--muted)">Ingen data at vise</div>';
+      return;
+    }
+
+    $('domainPercentages').innerHTML = `
+      <div style="background:rgba(100, 149, 237, 0.1);padding:8px;border-radius:6px;margin-bottom:8px;border-left:4px solid rgba(100, 149, 237, 0.8)">
+        <strong>Relationer:</strong> ${percentages.relationer.toFixed(1)}%
+      </div>
+      <div style="background:rgba(128, 128, 128, 0.1);padding:8px;border-radius:6px;margin-bottom:8px;border-left:4px solid rgba(128, 128, 128, 0.8)">
+        <strong>Stabilitet:</strong> ${percentages.stabilitet.toFixed(1)}%
+      </div>
+      <div style="background:rgba(34, 139, 34, 0.1);padding:8px;border-radius:6px;margin-bottom:8px;border-left:4px solid rgba(34, 139, 34, 0.8)">
+        <strong>Fornyelse:</strong> ${percentages.fornyelse.toFixed(1)}%
+      </div>
+      <div style="background:rgba(220, 20, 60, 0.1);padding:8px;border-radius:6px;margin-bottom:8px;border-left:4px solid rgba(220, 20, 60, 0.8)">
+        <strong>Resultater:</strong> ${percentages.resultater.toFixed(1)}%
+      </div>
+    `;
+  }
+
   // Global functions for team building
   window.togglePersonSelection = (personId) => {
     const person = teamData.find(p => p.id === personId);
@@ -3334,6 +3473,7 @@ $('btnZip').onclick = () => {
       updateTeamSelection();
     }
   };
+
 
   // Event Listeners for Team Building
   $('selProject3').onchange = loadTeamBuildingData;
