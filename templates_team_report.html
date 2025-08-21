@@ -4,49 +4,38 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ project.title }} - Team Rapport</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
         @page {
             size: A4;
-            margin: 2cm;
-            @top-center {
-                content: "{{ project.title }} - Team Rapport";
-                font-family: Arial, sans-serif;
-                font-size: 10pt;
-                color: #666;
-            }
-            @bottom-center {
-                content: "Side " counter(page) " af " counter(pages);
-                font-family: Arial, sans-serif;
-                font-size: 10pt;
-                color: #666;
-            }
+            margin: 1.5cm;
         }
         
         body {
             font-family: Arial, sans-serif;
-            line-height: 1.6;
+            line-height: 1.3;
             color: #333;
             margin: 0;
             padding: 0;
+            font-size: 11px;
         }
         
         .header {
             background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
             color: white;
-            padding: 2rem;
-            margin: -2cm -2cm 2rem -2cm;
-            border-radius: 0 0 1rem 1rem;
+            padding: 15px;
+            margin-bottom: 12px;
+            border-radius: 6px;
+            text-align: center;
         }
         
         .header h1 {
-            margin: 0 0 0.5rem 0;
-            font-size: 2.2rem;
+            margin: 0 0 4px 0;
+            font-size: 20px;
             font-weight: 300;
         }
         
         .header .subtitle {
-            font-size: 1.1rem;
+            font-size: 12px;
             opacity: 0.9;
             margin: 0;
         }
@@ -54,168 +43,160 @@
         .team-info {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 1.5rem;
-            border-radius: 0.5rem;
-            margin-bottom: 2rem;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 12px;
             text-align: center;
         }
         
         .team-info h2 {
-            margin: 0 0 0.5rem 0;
-            font-size: 1.8rem;
+            margin: 0 0 4px 0;
+            font-size: 18px;
             font-weight: 400;
         }
         
         .team-info .team-description {
-            font-size: 1rem;
+            font-size: 10px;
             opacity: 0.9;
         }
         
-        .chart-container {
-            background: white;
-            border: 1px solid #e2e8f0;
-            border-radius: 0.5rem;
-            padding: 2rem;
-            margin: 2rem 0;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        
-        .chart-title {
-            font-size: 1.3rem;
-            font-weight: 600;
-            color: #1e293b;
-            margin-bottom: 1.5rem;
+        .chart-placeholder {
+            background: #f8fafc;
+            border: 2px dashed #cbd5e1;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
             text-align: center;
         }
         
-        .chart-wrapper {
-            width: 500px;
-            height: 500px;
-            margin: 0 auto;
-            position: relative;
+        .chart-placeholder h3 {
+            margin: 0 0 8px 0;
+            font-size: 14px;
+            color: #64748b;
         }
+        
+        .chart-placeholder p {
+            margin: 0;
+            font-size: 10px;
+            color: #94a3b8;
+        }
+        
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 10px 0;
+            font-size: 10px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .legend-color {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+        }
+        
+        .score-self { background-color: #10b981; }
+        .score-peer { background-color: #3b82f6; }
+        .score-leader { background-color: #8b5cf6; }
         
         .categories-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 1rem;
-            margin-top: 2rem;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 6px;
+            margin: 15px 0;
         }
         
         .category-card {
             background: white;
             border: 1px solid #e2e8f0;
-            border-radius: 0.5rem;
-            padding: 1rem;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border-radius: 4px;
+            padding: 6px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
             position: relative;
         }
         
         .category-card.top-strength {
-            border-left: 4px solid #10b981;
+            border-left: 3px solid #10b981;
             background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
         }
         
         .category-name {
             font-weight: 600;
             color: #1e293b;
-            margin-bottom: 0.8rem;
-            font-size: 0.95rem;
+            margin-bottom: 4px;
+            font-size: 10px;
         }
         
         .category-scores {
             display: flex;
-            gap: 0.5rem;
+            gap: 2px;
             flex-wrap: wrap;
             align-items: center;
         }
         
         .score-badge {
-            padding: 0.3rem 0.6rem;
-            border-radius: 0.3rem;
-            font-size: 0.8rem;
+            padding: 2px 4px;
+            border-radius: 2px;
+            font-size: 9px;
             font-weight: 600;
             color: white;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
         }
         
-        .score-self { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
-        .score-peer { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
-        .score-leader { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); }
         .score-none { background-color: #94a3b8; color: #475569; }
         
         .max-indicator {
             background: #fbbf24;
             color: #92400e;
-            font-size: 0.7rem;
-            padding: 0.2rem 0.4rem;
-            border-radius: 0.2rem;
+            font-size: 8px;
+            padding: 1px 3px;
+            border-radius: 2px;
             font-weight: 700;
             text-transform: uppercase;
-        }
-        
-        .legend {
-            display: flex;
-            justify-content: center;
-            gap: 2rem;
-            margin: 1.5rem 0;
-            flex-wrap: wrap;
-            background: #f8fafc;
-            padding: 1rem;
-            border-radius: 0.5rem;
-        }
-        
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.9rem;
-            font-weight: 500;
-        }
-        
-        .legend-color {
-            width: 1rem;
-            height: 1rem;
-            border-radius: 0.25rem;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            margin-left: 2px;
         }
         
         .team-summary {
             background: linear-gradient(135deg, #fef3c7 0%, #fbbf24 20%, #f59e0b 100%);
-            border-radius: 0.5rem;
-            padding: 2rem;
-            margin: 2rem 0;
+            border-radius: 6px;
+            padding: 12px;
+            margin: 15px 0;
             color: #92400e;
         }
         
         .team-summary h3 {
-            margin: 0 0 1rem 0;
-            font-size: 1.3rem;
+            margin: 0 0 8px 0;
+            font-size: 12px;
             color: #78350f;
         }
         
         .summary-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-top: 1rem;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 8px;
+            margin-top: 8px;
         }
         
         .summary-card {
             background: rgba(255, 255, 255, 0.3);
-            padding: 1rem;
-            border-radius: 0.5rem;
+            padding: 6px;
+            border-radius: 4px;
             text-align: center;
         }
         
         .summary-number {
-            font-size: 1.5rem;
+            font-size: 14px;
             font-weight: 700;
             color: #78350f;
         }
         
         .summary-label {
-            font-size: 0.8rem;
+            font-size: 8px;
             color: #92400e;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -224,25 +205,26 @@
         .strengths-section {
             background: #ecfdf5;
             border: 1px solid #a7f3d0;
-            border-radius: 0.5rem;
-            padding: 1.5rem;
-            margin: 2rem 0;
+            border-radius: 6px;
+            padding: 10px;
+            margin: 12px 0;
         }
         
         .strengths-section h3 {
             color: #065f46;
-            margin: 0 0 1rem 0;
-            font-size: 1.2rem;
+            margin: 0 0 6px 0;
+            font-size: 11px;
         }
         
         .strengths-list {
             list-style: none;
             padding: 0;
             margin: 0;
+            font-size: 9px;
         }
         
         .strengths-list li {
-            padding: 0.5rem 0;
+            padding: 3px 0;
             border-bottom: 1px solid #a7f3d0;
             color: #047857;
         }
@@ -252,18 +234,12 @@
         }
         
         .footer {
-            margin-top: 3rem;
-            padding-top: 2rem;
+            margin-top: 15px;
+            padding-top: 10px;
             border-top: 1px solid #e2e8f0;
             text-align: center;
             color: #64748b;
-            font-size: 0.9rem;
-        }
-        
-        @media print {
-            .header {
-                margin: -2cm -2cm 1rem -2cm;
-            }
+            font-size: 9px;
         }
     </style>
 </head>
@@ -281,26 +257,24 @@
         </div>
     </div>
     
-    <div class="chart-container">
-        <h3 class="chart-title">🏆 Team Kompetencehjul (Max Værdier)</h3>
-        
-        <div class="legend">
-            <div class="legend-item">
-                <div class="legend-color score-self"></div>
-                <span>{{ labels_text.self or 'Selvvurdering' }}</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color score-peer"></div>
-                <span>{{ labels_text.peer or 'Kollegavurdering' }}</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color score-leader"></div>
-                <span>{{ labels_text.leader or 'Ledervurdering' }}</span>
-            </div>
+    <div class="chart-placeholder">
+        <h3>🏆 Team Kompetencehjul (Max Værdier)</h3>
+        <p>Team radar chart ville være synligt her i web-versionen<br>
+        Viser maksimale scores for hver af de 16 kompetencer</p>
+    </div>
+    
+    <div class="legend">
+        <div class="legend-item">
+            <div class="legend-color score-self"></div>
+            <span>{{ labels_text.self or 'Selvvurdering' }}</span>
         </div>
-        
-        <div class="chart-wrapper">
-            <canvas id="teamRadarChart"></canvas>
+        <div class="legend-item">
+            <div class="legend-color score-peer"></div>
+            <span>{{ labels_text.peer or 'Kollegavurdering' }}</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color score-leader"></div>
+            <span>{{ labels_text.leader or 'Ledervurdering' }}</span>
         </div>
     </div>
     
@@ -332,25 +306,25 @@
             <div class="category-name">
                 {{ cat.name }}
                 {% if cat_max >= 4.0 %}
-                <span class="max-indicator">Top Styrke</span>
+                <span class="max-indicator">Top</span>
                 {% endif %}
             </div>
             <div class="category-scores">
                 {% if series.self[cat_index] is not none %}
                 <span class="score-badge score-self">
-                    Selv: {{ "%.1f"|format(series.self[cat_index]) }}
+                    S:{{ "%.1f"|format(series.self[cat_index]) }}
                 </span>
                 {% endif %}
                 
                 {% if series.peer[cat_index] is not none %}
                 <span class="score-badge score-peer">
-                    Kollega: {{ "%.1f"|format(series.peer[cat_index]) }}
+                    K:{{ "%.1f"|format(series.peer[cat_index]) }}
                 </span>
                 {% endif %}
                 
                 {% if series.leader[cat_index] is not none %}
                 <span class="score-badge score-leader">
-                    Leder: {{ "%.1f"|format(series.leader[cat_index]) }}
+                    L:{{ "%.1f"|format(series.leader[cat_index]) }}
                 </span>
                 {% endif %}
                 
@@ -385,23 +359,23 @@
             
             <div class="summary-card">
                 <div class="summary-number">{{ "%.1f"|format(all_scores|max) }}</div>
-                <div class="summary-label">Højeste Score</div>
+                <div class="summary-label">Højeste</div>
             </div>
             
             <div class="summary-card">
                 <div class="summary-number">{{ "%.1f"|format(all_scores|min) }}</div>
-                <div class="summary-label">Laveste Score</div>
+                <div class="summary-label">Laveste</div>
             </div>
             
             <div class="summary-card">
                 <div class="summary-number">{{ all_scores|length }}</div>
-                <div class="summary-label">Total Vurderinger</div>
+                <div class="summary-label">Vurderinger</div>
             </div>
             {% endif %}
             
             <div class="summary-card">
                 <div class="summary-number">{{ top_categories|length }}</div>
-                <div class="summary-label">Styrkeområder</div>
+                <div class="summary-label">Styrker</div>
             </div>
             
             <div class="summary-card">
@@ -410,8 +384,8 @@
             </div>
         </div>
         
-        <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(146, 64, 14, 0.3);">
-            <p style="margin: 0; font-size: 0.9rem; line-height: 1.5;">
+        <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(146, 64, 14, 0.3);">
+            <p style="margin: 0; font-size: 9px; line-height: 1.3;">
                 <strong>📌 Note:</strong> Denne rapport viser de højeste scores fra alle teammedlemmer for hver kompetencekategori. 
                 Dette giver et overblik over teamets samlede potentiale og styrkeområder.
             </p>
@@ -422,132 +396,5 @@
         <p><strong>Genereret af KOMPAS PDF Service</strong></p>
         <p>Team rapport baseret på aggregerede maksimale værdier</p>
     </div>
-
-    <!-- Forbered data for JavaScript -->
-    <script type="application/json" id="chart-data">
-    {
-        "categories": [
-            {% for cat in cats %}
-            {% set cat_index = loop.index0 %}
-            {% set cat_scores = [series.self[cat_index], series.peer[cat_index], series.leader[cat_index]] %}
-            {% set cat_max = cat_scores|select('!=', none)|list|max if cat_scores|select('!=', none)|list else 0 %}
-            {
-                "name": "{{ cat.name }}",
-                "max": {% if cat_max > 0 %}{{ cat_max }}{% else %}null{% endif %}
-            }{% if not loop.last %},{% endif %}
-            {% endfor %}
-        ],
-        "labels": {
-            "self": "{{ labels_text.self or 'Selvvurdering' }}",
-            "peer": "{{ labels_text.peer or 'Kollegavurdering' }}", 
-            "leader": "{{ labels_text.leader or 'Ledervurdering' }}"
-        }
-    }
-    </script>
-
-    <script>
-        window.addEventListener('load', function() {
-            const chartData = JSON.parse(document.getElementById('chart-data').textContent);
-            
-            const orderedCategories = [
-                '', 'Fleksibilitet', 'Nytænkning', 'Helhedsorientering', 'Fremtidsorientering',
-                '', 'Håndtering af pres', 'Beslutningstagning', 'Styring', 'Initiativ',
-                '', 'Analytisk tænkning', 'Faglighed', 'Planlægning', 'Ressourcebevidsthed',
-                '', 'Samarbejde', 'Udvikling af andre', 'Motivere andre', 'Kommunikation'
-            ];
-
-            function mapTeamMaxData() {
-                return orderedCategories.map(catName => {
-                    if (catName === '') return null;
-                    const cat = chartData.categories.find(c => c.name === catName);
-                    return cat ? cat.max : null;
-                });
-            }
-
-            const teamMaxData = mapTeamMaxData();
-
-            const quadrantBackgroundPlugin = {
-                id: 'quadrantBackground',
-                beforeDatasetsDraw: (chart) => {
-                    const ctx = chart.ctx;
-                    const r = chart.scales.r;
-                    const centerX = r.xCenter;
-                    const centerY = r.yCenter;
-                    const radius = r.drawingArea;
-                    
-                    ctx.save();
-                    
-                    function drawSector(startAngle, endAngle, color) {
-                        ctx.beginPath();
-                        ctx.moveTo(centerX, centerY);
-                        ctx.arc(centerX, centerY, radius, startAngle, endAngle);
-                        ctx.closePath();
-                        ctx.fillStyle = color;
-                        ctx.fill();
-                    }
-                    
-                    function degToRad(deg) {
-                        return (deg - 90) * Math.PI / 180;
-                    }
-                    
-                    drawSector(degToRad(0), degToRad(90), 'rgba(34, 139, 34, 0.08)');
-                    drawSector(degToRad(90), degToRad(180), 'rgba(220, 20, 60, 0.08)');
-                    drawSector(degToRad(180), degToRad(270), 'rgba(128, 128, 128, 0.08)');
-                    drawSector(degToRad(270), degToRad(360), 'rgba(100, 149, 237, 0.08)');
-                    
-                    ctx.restore();
-                }
-            };
-
-            const ctx = document.getElementById('teamRadarChart').getContext('2d');
-            
-            new Chart(ctx, {
-                type: 'radar',
-                data: {
-                    labels: orderedCategories,
-                    datasets: [{
-                        label: 'Team Maximum',
-                        data: teamMaxData,
-                        borderColor: 'rgba(34, 197, 94, 1)',
-                        backgroundColor: 'rgba(34, 197, 94, 0.15)',
-                        pointBackgroundColor: 'rgba(34, 197, 94, 1)',
-                        borderWidth: 3,
-                        spanGaps: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    elements: {
-                        line: { tension: 0.2 },
-                        point: { radius: 0, hitRadius: 6 }
-                    },
-                    scales: {
-                        r: {
-                            beginAtZero: true,
-                            min: 0,
-                            max: 5,
-                            grid: { circular: true },
-                            ticks: { display: false },
-                            angleLines: { color: 'rgba(0,0,0,0.08)' },
-                            pointLabels: {
-                                display: function(context) {
-                                    return orderedCategories[context.index] !== '';
-                                },
-                                font: {
-                                    size: 11,
-                                    weight: 'bold'
-                                }
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: { position: 'bottom' }
-                    }
-                },
-                plugins: [quadrantBackgroundPlugin]
-            });
-        });
-    </script>
 </body>
 </html>
