@@ -304,7 +304,7 @@
       <button class="tabbtn active" data-tab="projects">📂 Projekter</button>
       <button class="tabbtn" data-tab="results">📈 Resultater</button>
       <button class="tabbtn" data-tab="teambuilding">🤝 Team Building</button>
-      <button class="tabbtn" data-tab="development">📈 Udvikling</button>
+      <button class="tabbtn" data-tab="development">🌱 Udvikling</button>
 
     </div>
     <div style="padding:16px 0">
@@ -468,6 +468,87 @@
         <canvas id="radar" height="360"></canvas>
       </div>
       <div id="resultNote" class="muted" style="margin-top:6px"></div>
+
+      <!-- Coaching Anbefalinger -->
+      <div class="section" style="margin-top:20px">
+        <div style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:12px;background:var(--card);border:1px solid var(--line);border-radius:12px" onclick="toggleCoachingSection('coaching-main')">
+          <span id="coaching-main-toggle" style="font-size:1.2rem">▶</span>
+          <h3 style="margin:0">🎯 Coaching – Fastholde & Udvikle</h3>
+        </div>
+        <div id="coaching-main-content" style="display:none;margin-top:12px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+            <!-- Fastholde -->
+            <div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px">
+              <h4 style="color:var(--success);margin-bottom:12px;display:flex;align-items:center;gap:8px">
+                ✅ Fastholde (Top styrker)
+              </h4>
+              <div id="coaching-keep" style="display:flex;flex-direction:column;gap:12px">
+                <div style="text-align:center;color:var(--muted);padding:20px">
+                  Vælg projekt og målperson først
+                </div>
+              </div>
+            </div>
+            
+            <!-- Udvikle -->
+            <div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px">
+              <h4 style="color:var(--brand);margin-bottom:12px;display:flex;align-items:center;gap:8px">
+                📈 Udvikle (Fokusområder)
+              </h4>
+              <div id="coaching-develop" style="display:flex;flex-direction:column;gap:12px">
+                <div style="text-align:center;color:var(--muted);padding:20px">
+                  Vælg projekt og målperson først
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- GROW & Plan -->
+      <div class="section" style="margin-top:12px">
+        <div style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:12px;background:var(--card);border:1px solid var(--line);border-radius:12px" onclick="toggleCoachingSection('coaching-grow')">
+          <span id="coaching-grow-toggle" style="font-size:1.2rem">▶</span>
+          <h3 style="margin:0">🗣️ GROW & 30/60/90-plan</h3>
+        </div>
+        <div id="coaching-grow-content" style="display:none;margin-top:12px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+            <!-- GROW -->
+            <div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px">
+              <h4 style="color:var(--brand);margin-bottom:12px">GROW Coachspørgsmål</h4>
+              <div id="coaching-grow-questions" style="display:flex;flex-direction:column;gap:12px">
+                <div style="padding:12px;background:var(--card);border-radius:8px">
+                  <strong>🎯 Goal:</strong> Hvad er dit vigtigste udviklingsmål?
+                </div>
+                <div style="padding:12px;background:var(--card);border-radius:8px">
+                  <strong>📍 Reality:</strong> Hvor står du i dag på dette område?
+                </div>
+                <div style="padding:12px;background:var(--card);border-radius:8px">
+                  <strong>🔄 Options:</strong> Hvilke muligheder har du for at komme fremad?
+                </div>
+                <div style="padding:12px;background:var(--card);border-radius:8px">
+                  <strong>💪 Will:</strong> Hvad vil du konkret gøre de næste 2 uger?
+                </div>
+              </div>
+            </div>
+            
+            <!-- 30/60/90 Plan -->
+            <div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px">
+              <h4 style="color:var(--success);margin-bottom:12px">📅 30/60/90-dages plan</h4>
+              <div id="coaching-timeline" style="display:flex;flex-direction:column;gap:12px">
+                <div style="padding:12px;background:rgba(34,197,94,0.1);border-radius:8px;border-left:4px solid var(--success)">
+                  <strong>30 dage:</strong> <span id="plan-30">Etablér daglige mikrovaner</span>
+                </div>
+                <div style="padding:12px;background:rgba(59,130,246,0.1);border-radius:8px;border-left:4px solid var(--brand)">
+                  <strong>60 dage:</strong> <span id="plan-60">Evalér og juster tilgang</span>
+                </div>
+                <div style="padding:12px;background:rgba(249,115,22,0.1);border-radius:8px;border-left:4px solid #f97316">
+                  <strong>90 dage:</strong> <span id="plan-90">Konsolidér ny adfærd</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Udvikling -->
@@ -502,8 +583,10 @@
                 <input type="checkbox" id="devAllowMix"> Tillad blandede UDV-typer (fælles kategorier)
               </label>
 
-              <input id="devSearchPerson" class="input" placeholder="Søg/vælg deltager (til Individ)" list="devPersonList" style="flex:1;min-width:180px">
-              <datalist id="devPersonList"></datalist>
+              <select id="devPersonSelect" class="select" style="min-width:240px">
+                <option value="">— Vælg deltager —</option>
+              </select>
+
 
             </div>
           </div>
@@ -516,8 +599,8 @@
         </div>
       </div>
 
-      <div class="section" style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:16px">
-        <canvas id="devLine" height="320"></canvas>
+      <div class="section" style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:16px;height:360px;display:flex;align-items:stretch">
+        <canvas id="devLine" style="width:100%;height:100%"></canvas>
       </div>
 
       <div class="section" style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:16px">
@@ -526,8 +609,13 @@
           <select id="devWaveA" class="select"></select>
           <select id="devWaveB" class="select"></select>
         </div>
-        <canvas id="devRadar" height="320"></canvas>
+        <!-- Fast wrapper-højde + overflow:hidden → ingen overlap -->
+        <div style="position:relative;height:480px;overflow:hidden">
+          <canvas id="devRadar" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+        </div>
       </div>
+
+
 
       <div class="section" style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px">
         <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:8px">
@@ -642,8 +730,32 @@
 </div>
 
 <script>
+// Ignorér kendte extension-fejl i konsollen, så de ikke forstyrrer appen
+window.addEventListener('unhandledrejection', function(e){
+  const msg = (e?.reason && (e.reason.message || String(e.reason))) || '';
+  if (
+    msg.includes('You do not have a background page') ||
+    msg.includes('invalid arguments to extensionAdapter.sendMessageToTab') ||
+    msg.includes('A listener indicated an asynchronous response')
+  ) {
+    e.preventDefault();
+    console.warn('[IGNORERET EXTENSION-FEJL]', msg);
+  }
+});
+window.addEventListener('error', function(e){
+  const msg = (e?.message || '') + '';
+  if (
+    msg.includes('You do not have a background page') ||
+    msg.includes('A listener indicated an asynchronous response')
+  ) {
+    e.preventDefault();
+    console.warn('[IGNORERET EXTENSION-FEJL]', msg);
+  }
+});
+
 // Vent til hele siden er indlæst
 window.addEventListener('load', function() {
+
   let radar = null;
   let user = null;
   let currentEditProject = null; // Track which project is being edited
@@ -1528,6 +1640,171 @@ window.showLargeProjectQR = (url, title) => {
     });
   });
 
+  // Toggle coaching sections
+  window.toggleCoachingSection = (sectionId) => {
+    const content = document.getElementById(sectionId + '-content');
+    const toggle = document.getElementById(sectionId + '-toggle');
+    
+    if (content.style.display === 'none') {
+      content.style.display = 'block';
+      toggle.textContent = '▼';
+    } else {
+      content.style.display = 'none';
+      toggle.textContent = '▶';
+    }
+  };
+
+  // Load coaching recommendations
+  async function loadCoachingRecommendations() {
+    const pid = $('selProject2').value;
+    const tid = $('selTarget').value;
+    
+    if (!pid || !tid) {
+      $('coaching-keep').innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px">Vælg projekt og målperson først</div>';
+      $('coaching-develop').innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px">Vælg projekt og målperson først</div>';
+      return;
+    }
+    
+    console.log('Loading coaching for project:', pid, 'target:', tid);
+    
+    try {
+      // First check if coaching tables exist
+      const { data: testTables, error: tableError } = await supabase
+        .from('coaching_competency')
+        .select('id')
+        .limit(1);
+      
+      if (tableError) {
+        console.error('Coaching tables not found:', tableError);
+        $('coaching-keep').innerHTML = '<div style="color:var(--warning);padding:12px">⚠️ Coaching tabeller ikke fundet - kør SQL-filen først</div>';
+        $('coaching-develop').innerHTML = '<div style="color:var(--warning);padding:12px">⚠️ Coaching tabeller ikke fundet - kør SQL-filen først</div>';
+        return;
+      }
+      
+      console.log('Coaching tables exist');
+      
+      // Get checked respondent types (same logic as radar)
+      const types = ['self', 'peer', 'leader'];
+      
+      console.log('Calling RPC with params:', { p_project_id: pid, p_target_id: tid, p_types: types });
+      
+      const { data, error } = await supabase.rpc('get_coaching_recommendations', {
+        p_project_id: pid,
+        p_target_id: tid,
+        p_types: types,
+        p_limit_keep: 3,
+        p_limit_develop: 3
+      });
+      
+      if (error) {
+        console.error('RPC error:', error);
+        throw error;
+      }
+      
+      console.log('Coaching data received:', data);
+      
+      if (!data) {
+        $('coaching-keep').innerHTML = '<div style="color:var(--muted);padding:12px">Ingen coaching data tilgængelig</div>';
+        $('coaching-develop').innerHTML = '<div style="color:var(--muted);padding:12px">Ingen coaching data tilgængelig</div>';
+        return;
+      }
+      
+      renderCoachingRecommendations(data);
+      updateCoachingPlan(data);
+      
+    } catch (error) {
+      console.error('Error loading coaching recommendations:', error);
+      const errorMsg = error.message || error.toString();
+      $('coaching-keep').innerHTML = `<div style="color:var(--error);padding:12px">❌ Fejl: ${errorMsg}</div>`;
+      $('coaching-develop').innerHTML = `<div style="color:var(--error);padding:12px">❌ Fejl: ${errorMsg}</div>`;
+    }
+  }
+
+  function renderCoachingRecommendations(data) {
+    console.log('Rendering coaching recommendations with data:', data);
+    
+    if (!data) {
+      $('coaching-keep').innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px">Ingen coaching data modtaget</div>';
+      $('coaching-develop').innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px">Ingen coaching data modtaget</div>';
+      return;
+    }
+    
+    // Render "Fastholde" section
+    const keepContainer = $('coaching-keep');
+    if (data.fastholde && data.fastholde.length > 0) {
+      console.log('Rendering', data.fastholde.length, 'keep items');
+      keepContainer.innerHTML = data.fastholde.map(item => `
+        <div style="border:1px solid #dcfce7;border-radius:8px;padding:12px;background:#f0fdf4">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <strong style="color:var(--success)">${item.category_name}</strong>
+            <span style="background:var(--success);color:white;padding:2px 8px;border-radius:12px;font-size:0.8rem">${item.score}</span>
+          </div>
+          <div style="font-size:0.9rem;color:var(--muted);margin-bottom:8px">
+            ${item.overview?.synopsis || 'Stærk kompetence'}
+          </div>
+          <div style="margin-top:8px">
+            <strong style="font-size:0.85rem;color:var(--success)">💡 Fortsæt med:</strong>
+            ${(item.keep_doing || []).map(action => `
+              <div style="margin:4px 0;font-size:0.85rem;padding:4px 8px;background:rgba(34,197,94,0.1);border-radius:6px">
+                ${action.micro_habit || action.title}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('');
+    } else {
+      console.log('No keep items found');
+      keepContainer.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px">📊 Ingen tydelige styrker fundet (muligvis anonymitetsgrænse)</div>';
+    }
+    
+    // Render "Udvikle" section
+    const developContainer = $('coaching-develop');
+    if (data.udvikle && data.udvikle.length > 0) {
+      console.log('Rendering', data.udvikle.length, 'develop items');
+      developContainer.innerHTML = data.udvikle.map(item => `
+        <div style="border:1px solid #dbeafe;border-radius:8px;padding:12px;background:#f8fafc">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <strong style="color:var(--brand)">${item.category_name}</strong>
+            <span style="background:var(--error);color:white;padding:2px 8px;border-radius:12px;font-size:0.8rem">${item.score}</span>
+          </div>
+          <div style="margin-top:8px">
+            <strong style="font-size:0.85rem;color:var(--brand)">🚀 Udviklingstips:</strong>
+            ${(item.how_to_develop || []).slice(0, 2).map(tip => `
+              <div style="margin:6px 0;padding:8px;background:white;border-radius:6px;border-left:3px solid var(--brand)">
+                <div style="font-weight:600;font-size:0.9rem">${tip.title}</div>
+                <div style="font-size:0.8rem;color:var(--muted);margin-top:2px">${tip.description || ''}</div>
+                <div style="margin-top:4px;font-size:0.8rem">
+                  <span style="background:var(--brand);color:white;padding:1px 6px;border-radius:8px;margin-right:6px">
+                    ${tip.method || 'self'}
+                  </span>
+                  ${tip.next_action || tip.title}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('');
+    } else {
+      console.log('No develop items found');
+      developContainer.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px">📊 Ingen tydelige udviklingsområder fundet (muligvis anonymitetsgrænse)</div>';
+    }
+  }
+
+  function updateCoachingPlan(data) {
+    if (!data || !data.udvikle || data.udvikle.length === 0) return;
+    
+    // Update 30/60/90 plan based on development areas
+    const topDevelopArea = data.udvikle[0];
+    if (topDevelopArea) {
+      const topTip = (topDevelopArea.how_to_develop || [])[0];
+      if (topTip) {
+        $('plan-30').textContent = `Start med: ${topTip.next_action || topTip.title}`;
+        $('plan-60').textContent = `Udvikl rutiner inden for ${topDevelopArea.category_name.toLowerCase()}`;
+        $('plan-90').textContent = `Mål observerbar forbedring i ${topDevelopArea.category_name.toLowerCase()}`;
+      }
+    }
+  }
+
   // Funktion til at generere radar chart
   async function generateRadarChart(){
     const pid=$('selProject2').value, tid=$('selTarget').value;
@@ -1699,6 +1976,9 @@ window.showLargeProjectQR = (url, title) => {
     if(peer.every(v=>v===null)) hidden.push('Kollega'); 
     if(leader.every(v=>v===null)) hidden.push('Fører');
     $('resultNote').textContent = hidden.length? `Skjult pga. anonymitetsgrænse: ${hidden.join(', ')}`:'';
+    
+    // Load coaching recommendations after radar is generated
+    await loadCoachingRecommendations();
   }
 
   // Results
@@ -1720,11 +2000,13 @@ window.showLargeProjectQR = (url, title) => {
     // Auto-generate radar hvis target er valgt
     if(data && data.length > 0) {
       s.selectedIndex = 0; // Vælg første person automatisk
-      generateRadarChart();
+      await generateRadarChart();
     }
   };
 
-  $('selTarget').onchange = generateRadarChart;
+  $('selTarget').onchange = async () => {
+    await generateRadarChart();
+  };
 
   // Navigation mellem targets
   function updateNavigationButtons() {
@@ -1850,9 +2132,13 @@ window.showLargeProjectQR = (url, title) => {
 
   // ======= UDV IMPORT + UDVIKLING (over tid) =======
   function setupDevelopmentTab(){
+    if (window.__devInitDone) return;
+    window.__devInitDone = true;
+
     const drop = $('udvDrop');
     const input = $('udvFiles');
     const fileList = $('udvFileList');
+
 
     // Klik på boksen åbner file picker
     drop.onclick = () => input.click();
@@ -1871,19 +2157,19 @@ window.showLargeProjectQR = (url, title) => {
       const files=[...e.dataTransfer.files];
       await handleUdvFiles(files, fileList);
     });
-    input.onchange = async (e)=>{
-      const files=[...e.target.files];
-      await handleUdvFiles(files, fileList);
-    };
+        input.onchange = async (e)=>{
+          const files=[...e.target.files];
+          await handleUdvFiles(files, fileList);
+          // tillad at vælge samme fil igen
+          e.target.value = '';
+        };
+
 
 
     // UI events
-    ['devTypeSelf','devTypePeer','devTypeLeader','devView','devNorm','devWaveA','devWaveB']
+    ['devTypeSelf','devTypePeer','devTypeLeader','devView','devNorm','devWaveA','devWaveB','devPersonSelect']
       .forEach(id=>$(id)?.addEventListener('change', renderDevelopment));
-    $('devSearchPerson')?.addEventListener('input', renderDevelopment);
-    $('devSearchPerson')?.addEventListener('change', renderDevelopment);
-
-
+    
     $('btnExportDevCsv').onclick = exportDevCsv;
 
     // Lokale state på window (enkelt at debugg’e)
@@ -1892,85 +2178,71 @@ window.showLargeProjectQR = (url, title) => {
   }
 
   async function handleUdvFiles(files, fileListEl){
-    const waves=[];
-    const variants=[];
+  const waves=[];
+  const variants=[];
 
-    for(const f of files){
-      if(!f) continue;
-      const text = await f.text();
-      let json=null;
-      try{ json = JSON.parse(text); }catch{}
-      if(!json || !json.udv_version){
-        alert(`Ugyldig UDV: ${f.name}`);
-        continue;
-      }
-
-      // Aflæs variant – både nye og gamle UDV'er understøttes
-      const fileVariant = json.variant || (json.project && (json.project.is_lite ? 'LITE' : 'FULD')) || 'UKENDT';
-      variants.push({ name:f.name, variant:fileVariant });
-
-      waves.push({ meta:{ file:f.name }, ...json });
+  for(const f of files){
+    if(!f) continue;
+    const text = await f.text();
+    let json=null;
+    try{ json = JSON.parse(text); }catch{}
+    if(!json || !json.udv_version){
+      alert(`Ugyldig UDV: ${f.name}`);
+      continue;
     }
 
-    if(waves.length < 1){
-      alert('Ingen gyldige UDV-filer');
-      return;
-    }
+    // variant: 'FULD' | 'LITE' | 'UKENDT'
+    const fileVariant = json.variant || (json.project && (json.project.is_lite ? 'LITE' : 'FULD')) || 'UKENDT';
+    variants.push({ name:f.name, variant:fileVariant });
 
-    // Klassificér varianter
-    const unique = Array.from(new Set(variants.map(v=>v.variant)));
-    const hasLite = unique.includes('LITE');
-    const hasFuld = unique.includes('FULD');
-
-    // Gem tilstand globalt (bruges i merge + KPI)
-    window.__devVariant = (unique.length===1 ? unique[0] : 'MIX');
-
-    // Default-regel:
-    // - Kun LITE -> tilladt
-    // - Kun FULD -> tilladt
-    // - MIX (LITE + FULD):
-    //    - tillad KUN hvis brugeren har slået "devAllowMix" til (vi bruger da kun fælles kategorier)
-    if(window.__devVariant==='MIX'){
-      const allowMix = $('devAllowMix')?.checked;
-      if(!allowMix){
-        const list = variants.map(v=>`• ${v.name} — ${v.variant}`).join('\n');
-        alert('Du har uploadet en blanding af FULD og LITE.\nSlå "Tillad blandede UDV-typer (fælles kategorier)" til for at fortsætte.\n\nFiler:\n\n' + list);
-        return;
-      }
-    }
-
-    // Sortér bølger
-    waves.sort((a,b)=> (a.exported_at||a.meta.file).localeCompare(b.exported_at||b.meta.file));
-
-    // Vis filnavne
-    const htmlList = waves.map((w,i)=>`#${i+1} ${w.project?.title||'—'} • ${w.variant||w.project?.is_lite?'LITE':'FULD'} • ${w.exported_at||w.meta.file}`).join('<br>');
-    if(fileListEl){
-      fileListEl.innerHTML = htmlList;
-    } else {
-      $('udvFileList').innerHTML = htmlList;
-    }
-
-    window.__udvWaves = waves;
-
-    // merge + render som før
-    window.__devState.merged = mergeUdv(waves);
-    hydrateWaveSelects(waves);
-    if(typeof populatePersonList === 'function') populatePersonList();
-    renderDevelopment();
+    waves.push({ meta:{ file:f.name }, ...json });
   }
 
+  if(waves.length < 1){
+    alert('Ingen gyldige UDV-filer');
+    return;
+  }
 
+  // Klassificér
+  const unique = Array.from(new Set(variants.map(v=>v.variant)));
+  window.__devVariant = (unique.length===1 ? unique[0] : 'MIX');
 
-  // Sammenflet bølger (robust ved LITE/FULD og blanding)
-  // - FULD-only: union af alle kategorier
-  // - LITE-only: union (typisk mindre sæt)
-  // - MIX (FULD+LITE): intersection (fælles kategorier i alle filer)
+  // MIX: kræv “Tillad blandede UDV-typer”-checkbox
+  if(window.__devVariant==='MIX'){
+    const allowMix = $('devAllowMix')?.checked;
+    if(!allowMix){
+      const list = variants.map(v=>`• ${v.name} — ${v.variant}`).join('\n');
+      alert('Du har uploadet en blanding af FULD og LITE.\nSlå "Tillad blandede UDV-typer (fælles kategorier)" til for at fortsætte.\n\nFiler:\n\n' + list);
+      return;
+    }
+  }
+
+  // Sortér
+  waves.sort((a,b)=> (a.exported_at||a.meta.file).localeCompare(b.exported_at||b.meta.file));
+
+  // Liste
+  const htmlList = waves.map((w,i)=>`#${i+1} ${w.project?.title||'—'} • ${(w.variant || (w.project?.is_lite?'LITE':'FULD'))} • ${w.exported_at||w.meta.file}`).join('<br>');
+  (fileListEl || $('udvFileList')).innerHTML = htmlList;
+
+  window.__udvWaves = waves;
+
+  // merge + render
+  window.__devState.merged = mergeUdv(waves);
+  hydrateWaveSelects(waves);
+  populatePersonSelect();
+  renderDevelopment();
+
+}
+
+  // Sammenflet bølger (robust ved LITE/FULD og manglende taxonomy)
+  // - Hvis taxonomy findes: brug domæne+kategori-navne som master-nøgle
+  // - Hvis taxonomy mangler: afled taxonomy af scores' category_id (labels "Kategori 1..n")
   function mergeUdv(waves){
     const byKey = (p)=> (p.employee_no && p.employee_no.trim())
       ? `no:${p.employee_no.trim()}`
       : `name:${(p.name||'').trim().toLowerCase()}`;
 
-    // 1) Unik personliste
+    // 1) Unik personliste på tværs af bølger
     const personsMap = new Map();
     waves.forEach((w,wi)=>{
       (w.people||[]).forEach(p=>{
@@ -1983,73 +2255,90 @@ window.showLargeProjectQR = (url, title) => {
     });
     const persons = [...personsMap.values()];
 
-    // 2) MASTER-taxonomi via (domain_name :: category_name)
+    // 2) Forbered kategori-mapping pr. bølge
+    const hasAnyTax = waves.some(w => Array.isArray(w.taxonomy) && w.taxonomy.length);
     const norm = s=> (s||'').trim().toLowerCase();
     const mkKey = (t)=> `${norm(t.domain_name||'') }::${ norm(t.category_name||'') }`;
 
-    const perWaveSets = waves.map(w=>{
-      return new Set((w.taxonomy||[]).map(t=> mkKey(t)));
-    });
+    let waveCatMap = [];     // pr. bølge: Map(category_id -> master_id)
+    let perWaveKeySets = []; // pr. bølge: Set(master_id)
 
-    let masterKeys = new Set();
-    if(window.__devVariant==='MIX'){
-      // intersection
-      masterKeys = perWaveSets.reduce((acc, s, idx)=>{
-        if(idx===0) return new Set(s);
-        return new Set([...acc].filter(k=> s.has(k)));
-      }, new Set());
+    if (hasAnyTax){
+      waveCatMap = waves.map(w=>{
+        const m = new Map();
+        (w.taxonomy||[]).forEach(t=> m.set(t.category_id, mkKey(t)));
+        return m;
+      });
+      perWaveKeySets = waveCatMap.map(m => new Set([...m.values()]));
     } else {
-      // union
-      perWaveSets.forEach(s=> s.forEach(k=> masterKeys.add(k)));
+      // Ingen taxonomy i filerne (typisk LITE) -> brug category_id direkte som master_id
+      waveCatMap = waves.map(w=>{
+        const m = new Map();
+        (w.scores||[]).forEach(s=> m.set(s.category_id, s.category_id));
+        return m;
+      });
+      perWaveKeySets = waveCatMap.map(m => new Set([...m.values()]));
     }
 
-    const masterMap = new Map();
-    // Brug første forekomst for label casing
-    waves.forEach(w=>{
-      (w.taxonomy||[]).forEach(t=>{
-        const k = mkKey(t);
-        if(masterKeys.has(k) && !masterMap.has(k)){
-          masterMap.set(k, {
-            master_id: k,
-            domain_name: t.domain_name || '',
-            category_name: t.category_name || ''
-          });
-        }
-      });
-    });
-    const taxonomy = [...masterMap.values()];
+    // 3) Bestem mastersættet (union normalt; intersection hvis MIX)
+    const variant = window.__devVariant || 'FULD'; // 'FULD' | 'LITE' | 'MIX'
+    let masterKeys;
+    if (variant==='MIX'){
+      // ved FULD+LITE blanding – vis kun fælles kategorier
+      masterKeys = perWaveKeySets.reduce((acc,s,idx)=> idx===0 ? new Set(s) : new Set([...acc].filter(k=> s.has(k))), new Set());
+    } else {
+      // union (alle kategorier)
+      masterKeys = new Set();
+      perWaveKeySets.forEach(s => s.forEach(k => masterKeys.add(k)));
+    }
 
-    // 3) Lokale category_id -> master_id mapping pr. bølge
-    const waveCatMap = waves.map(w=>{
-      const m = new Map();
-      (w.taxonomy||[]).forEach(t=>{
-        const k = mkKey(t);
-        if(masterKeys.has(k)) m.set(t.category_id, k);
+    // 4) Byg visnings-taxonomy
+    let taxonomy;
+    if (hasAnyTax){
+      // brug labels fra den første bølge der har taxonomy
+      const first = waves.find(w => (w.taxonomy||[]).length);
+      const labelMap = new Map();
+      (first?.taxonomy||[]).forEach(t=>{
+        const key = mkKey(t);
+        labelMap.set(key, { domain_name: t.domain_name || '', category_name: t.category_name || '' });
       });
-      return m;
-    });
+      taxonomy = [...masterKeys].map(k => ({
+        master_id: k,
+        category_id: k,                 // bevar også category_id-feltet for bagudkompatibilitet
+        domain_name: labelMap.get(k)?.domain_name || '',
+        category_name: labelMap.get(k)?.category_name || k
+      }));
+    } else {
+      // afledte labels: "Kategori 1..n" i stabil rækkefølge
+      const sorted = [...masterKeys].sort();
+      taxonomy = sorted.map((k, i) => ({
+        master_id: k,
+        category_id: k,                 // så eksisterende kode der bruger tx.category_id også virker
+        domain_name: 'Ukendt',
+        category_name: `Kategori ${i+1}`
+      }));
+    }
 
-    // 4) Scores pr. bølge: personKey -> master_id -> { self,peer,leader }
+    // 5) Scores pr. bølge: personKey -> master_id -> { self,peer,leader }
     const wavesData = waves.map((w,wi)=>{
       const map = new Map();
       const catMap = waveCatMap[wi];
 
       (w.scores||[]).forEach(s=>{
-        // person-key i denne bølge
+        // find person key i denne bølge
         let keyFound = null;
         for(const person of persons){
-          if(person.ids[wi]===s.target_id){ keyFound = person.key; break; }
+          if(person.ids[wi] === s.target_id){ keyFound = person.key; break; }
         }
         if(!keyFound) return;
 
-        // remap lokal category_id -> master_id
-        const masterId = catMap.get(s.category_id);
-        if(!masterId) return;
+        const mid = catMap.get(s.category_id);
+        if(!mid || !masterKeys.has(mid)) return;
 
         if(!map.has(keyFound)) map.set(keyFound, {});
         const byCat = map.get(keyFound);
-        if(!byCat[masterId]) byCat[masterId] = { self:null, peer:null, leader:null };
-        byCat[masterId][s.respondent_type] = s.value===null? null : Number(s.value);
+        if(!byCat[mid]) byCat[mid] = { self:null, peer:null, leader:null };
+        byCat[mid][s.respondent_type] = (s.value===null ? null : Number(s.value));
       });
 
       return map;
@@ -2057,6 +2346,7 @@ window.showLargeProjectQR = (url, title) => {
 
     return { persons, taxonomy, wavesData };
   }
+
 
 
   function hydrateWaveSelects(waves){
@@ -2078,6 +2368,20 @@ window.showLargeProjectQR = (url, title) => {
     ].filter(Boolean);
   }
 
+  function populatePersonSelect(){
+    const merged = window.__devState?.merged;
+    const sel = $('devPersonSelect');
+    if(!merged || !sel) return;
+
+    const persons = [...merged.persons].sort((a,b)=> (a.name||'').localeCompare(b.name||''));
+    sel.innerHTML = `<option value="">— Vælg deltager —</option>` +
+      persons.map(p=> `<option value="${p.key}">${p.name || p.employee_no || '(ukendt)'}</option>`).join('');
+
+    // Auto-vælg første deltager (kan droppes hvis du helst vil have tomt, indtil man vælger)
+    if(persons.length) sel.value = persons[0].key;
+  }
+
+
   function renderDevelopment(){
     const st = window.__devState;
     const merged = st?.merged;
@@ -2086,13 +2390,12 @@ window.showLargeProjectQR = (url, title) => {
     const view = $('devView')?.value || 'team';
     const norm = $('devNorm')?.value || 'none';
     const types = getCheckedTypes();
-    const search = ($('devSearchPerson')?.value||'').trim().toLowerCase();
+    const selectedKey = $('devPersonSelect')?.value || '';
 
-    // Aggreger pr. person -> pr. kategori (pr. bølge)
     const { persons, taxonomy, wavesData } = merged;
 
-    // Udvælg personer (ved “Individ”-view + søgning)
-    const activePersons = persons.filter(p=> view!=='individual' ? true : (p.name||'').toLowerCase().includes(search));
+    const activePersons = persons.filter(p => view!=='individual' ? true : (selectedKey ? p.key === selectedKey : false));
+
 
     // Hjælpe: beregn gennemsnit af valgte typer
     const avgTypes = (obj)=> {
@@ -2142,65 +2445,210 @@ window.showLargeProjectQR = (url, title) => {
     // Linjediagram (team-snit pr. bølge)
     const lineCtx = $('devLine');
     if(lineCtx){
-      const teamPerWave = wavesSeries.map(ws=>{
-        const vals = ws.map(r=>{
-          if(view==='team'){ 
-            // team: snit over kategori-snit
-            const clean = r.perCat.filter(v=>v!=null);
-            return clean.length ? clean.reduce((a,b)=>a+b,0)/clean.length : null;
-          }
-          if(view==='individual'){
-            // individ: snit pr. person (vises i tabel; i linje viser vi snit over personer)
-            const clean = r.perCat.filter(v=>v!=null);
-            return clean.length ? clean.reduce((a,b)=>a+b,0)/clean.length : null;
-          }
-          // domain/category: snit over personer (snit af kategori-snit)
-          const clean = r.perCat.filter(v=>v!=null);
-          return clean.length ? clean.reduce((a,b)=>a+b,0)/clean.length : null;
-        }).filter(v=>v!=null);
-        return vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length) : null;
-      });
-
       const labels = wavesData.map((_,i)=>`Bølge #${i+1}`);
+      let datasetLabel = 'Udvikling (snit)';
+      let seriesData = [];
+
+      if(view === 'individual' && selectedKey){
+        // Udvikling for den valgte person
+        datasetLabel = 'Udvikling (valgt deltager)';
+        seriesData = wavesSeries.map(ws=>{
+          const rec = ws.find(r=> r.person && r.person.key === selectedKey);
+          if(!rec) return null;
+          const clean = rec.perCat.filter(v=>v!=null);
+          return clean.length ? (clean.reduce((a,b)=>a+b,0)/clean.length) : null;
+        });
+      } else if(view === 'team'){
+        // Team-snit pr. bølge
+        seriesData = wavesSeries.map(ws=>{
+          const vals = ws.map(r=>{
+            const clean = r.perCat.filter(v=>v!=null);
+            return clean.length ? (clean.reduce((a,b)=>a+b,0)/clean.length) : null;
+          }).filter(v=>v!=null);
+          return vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length) : null;
+        });
+      } else {
+        // Domæne/Kategori: vis snit over personer (snit af kategori-snit)
+        seriesData = wavesSeries.map(ws=>{
+          const vals = ws.map(r=>{
+            const clean = r.perCat.filter(v=>v!=null);
+            return clean.length ? (clean.reduce((a,b)=>a+b,0)/clean.length) : null;
+          }).filter(v=>v!=null);
+          return vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length) : null;
+        });
+      }
+
       if(st.charts.line){ st.charts.line.destroy(); }
       st.charts.line = new Chart(lineCtx, {
         type:'line',
-        data:{
-          labels,
-          datasets:[{ label:'Udvikling (snit)', data: teamPerWave }]
-        },
+        data:{ labels, datasets:[{ label: datasetLabel, data: seriesData }] },
         options:{ responsive:true, maintainAspectRatio:false, scales:{ y:{ beginAtZero:true } } }
       });
+
     }
 
     // Radar (vælg bølge A/B)
     const a = Number($('devWaveA')?.value ?? 0);
-    const b = Number($('devWaveB')?.value ?? Math.max(1, wavesData.length-1));
-    const radCtx = $('devRadar');
-    if(radCtx && taxonomy.length){
-      // team: kategori-snit pr. bølge
-      const perWaveCat = (wi)=>{
-        const rows = wavesSeries[wi]||[];
-        const byCat = taxonomy.map((_,cIdx)=>{
-          const vals = rows.map(r=> r.perCat[cIdx]).filter(v=>v!=null);
-          return vals.length? (vals.reduce((a,b)=>a+b,0)/vals.length) : null;
-        });
-        return byCat.map(v=> v==null ? 0 : v); // chart.js tåler ikke null i radar
+    const b = Number($('devWaveB')?.value ?? Math.max(1, wavesData.length - 1));
+    const radCanvas = $('devRadar');
+
+    if (radCanvas && taxonomy.length) {
+      // VIGTIG: Brug samme kategori-rækkefølge som Resultater-fanen
+      const orderedCategories = [
+        '', // Tom akse ved 0° (kl. 12)
+        'Fleksibilitet',
+        'Nytænkning', 
+        'Helhedsorientering',
+        'Fremtidsorientering',
+        '', // Tom akse ved 90° (kl. 3)
+        'Håndtering af pres',
+        'Beslutningstagning',
+        'Styring', 
+        'Initiativ',
+        '', // Tom akse ved 180° (kl. 6)
+        'Analytisk tænkning',
+        'Faglighed',
+        'Planlægning',
+        'Ressourcebevidsthed', 
+        '', // Tom akse ved 270° (kl. 9)
+        'Samarbejde',
+        'Udvikling af andre',
+        'Motivere andre',
+        'Kommunikation'
+      ];
+
+      // Kategori-snit pr. bølge med korrekt mapping
+      const perWaveCat = (wi) => {
+        const rows = wavesSeries[wi] || [];
+        
+        // Tjek om vi har rigtige kategori-navne eller afledte "Kategori X" navne
+        const hasRealNames = taxonomy.some(tx => 
+          !((tx.category_name || tx.name || '').startsWith('Kategori '))
+        );
+        
+        let mappedData;
+        
+        if (hasRealNames) {
+          // Brug navne-mapping (eksisterende logik)
+          mappedData = orderedCategories.map(catName => {
+            if (catName === '') return null; // Tom akse
+            
+            // Find kategorien i taxonomy
+            const taxIndex = taxonomy.findIndex(tx => 
+              (tx.competency_name || tx.category_name || tx.name) === catName
+            );
+            
+            if (taxIndex === -1) return null;
+            
+            // Beregn gennemsnit for denne kategori
+            const vals = rows.map(r => r.perCat[taxIndex]).filter(v => v != null);
+            return vals.length ? (vals.reduce((x, y) => x + y, 0) / vals.length) : null;
+          });
+        } else {
+          // Brug positionel mapping når taxonomy er afledt (f.eks. "Kategori 1", "Kategori 2")
+          // Map de første 16 kategorier fra taxonomy til de 16 ikke-tomme pladser i orderedCategories
+          const nonEmptyIndices = [];
+          orderedCategories.forEach((cat, idx) => {
+            if (cat !== '') nonEmptyIndices.push(idx);
+          });
+          
+          mappedData = orderedCategories.map((catName, idx) => {
+            if (catName === '') return null; // Tom akse
+            
+            // Find positionen af denne akse i de ikke-tomme akser
+            const positionInNonEmpty = nonEmptyIndices.indexOf(idx);
+            if (positionInNonEmpty === -1 || positionInNonEmpty >= taxonomy.length) return null;
+            
+            // Brug denne position til at finde data i taxonomy
+            const vals = rows.map(r => r.perCat[positionInNonEmpty]).filter(v => v != null);
+            return vals.length ? (vals.reduce((x, y) => x + y, 0) / vals.length) : null;
+          });
+        }
+        
+        return mappedData; // VIGTIGT: Behold null for tomme akser - spanGaps sørger for sammenhængende cirkel
       };
-      const labels = taxonomy.map(tx=> tx.category_name);
-      if(st.charts.radar){ st.charts.radar.destroy(); }
-      st.charts.radar = new Chart(radCtx, {
-        type:'radar',
-        data:{
-          labels,
-          datasets:[
-            { label:`Bølge #${a+1}`, data: perWaveCat(a) },
-            { label:`Bølge #${b+1}`, data: perWaveCat(b) }
-          ]
+
+      // Farvelogik (ens på tværs): ældre = grå, nyere = blå
+      const older = Math.min(a, b);
+      const newer = Math.max(a, b);
+      const makeDataset = (wi, isOlder) => ({
+        label: `Bølge #${wi + 1}`,
+        data: perWaveCat(wi),
+        borderColor: isOlder ? 'rgba(100, 116, 139, 1)' : 'rgba(59, 130, 246, 1)',
+        backgroundColor: isOlder ? 'rgba(100, 116, 139, 0.12)' : 'rgba(59, 130, 246, 0.12)',
+        borderDash: isOlder ? [4, 3] : undefined,
+        borderWidth: 2,
+        spanGaps: true  // VIGTIGT: Spring over null-værdier (tomme akser)
+      });
+
+      // Kvadrant-baggrund (samme som Resultater-fanen)
+      const quadrantBackgroundPlugin = {
+        id: 'quadrantBackground',
+        beforeDatasetsDraw: (chart) => {
+          const { ctx, scales: { r } } = chart;
+          const cx = r.xCenter, cy = r.yCenter, radius = r.drawingArea;
+          
+          ctx.save();
+          
+          const drawSector = (startAngle, endAngle, color) => {
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.arc(cx, cy, radius, startAngle, endAngle);
+            ctx.closePath();
+            ctx.fillStyle = color;
+            ctx.fill();
+          };
+          
+          const degToRad = (deg) => (deg - 90) * Math.PI / 180;
+          
+          // Samme farver som Resultater-fanen
+          drawSector(degToRad(0), degToRad(90), 'rgba(34, 139, 34, 0.08)');     // Fornyelse
+          drawSector(degToRad(90), degToRad(180), 'rgba(220, 20, 60, 0.08)');   // Resultater  
+          drawSector(degToRad(180), degToRad(270), 'rgba(128, 128, 128, 0.08)'); // Stabilitet
+          drawSector(degToRad(270), degToRad(360), 'rgba(100, 149, 237, 0.08)'); // Relationer
+          
+          ctx.restore();
+        }
+      };
+
+      if (st.charts.radar) st.charts.radar.destroy();
+      const ctx = radCanvas.getContext('2d');
+      st.charts.radar = new Chart(ctx, {
+        type: 'radar',
+        data: { 
+          labels: orderedCategories, 
+          datasets: [ makeDataset(older, true), makeDataset(newer, false) ] 
         },
-        options:{ responsive:true, maintainAspectRatio:false, elements:{ line:{ tension:0.2 } } }
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          elements: {
+            line: { tension: 0.2 },
+            point: { radius: 0, hitRadius: 6 } // Ingen punkter (matcher KOMPAS)
+          },
+          scales: {
+            r: {
+              beginAtZero: true, 
+              min: 0, 
+              max: 5,
+              grid: { circular: true },
+              ticks: { display: false },
+              angleLines: { color: 'rgba(0,0,0,0.08)' },
+              pointLabels: {
+                // Skjul labels for tomme akser (samme som Resultater-fanen)
+                display: function(context) {
+                  return orderedCategories[context.index] !== '';
+                },
+                font: { size: 12, weight: 'bold' }
+              }
+            }
+          },
+          plugins: { legend: { position: 'bottom' } }
+        },
+        plugins: [quadrantBackgroundPlugin]
       });
     }
+
 
     // Panel-matrix (tabel)
     renderDevTable(merged, wavesSeries, types);
@@ -2218,7 +2666,10 @@ window.showLargeProjectQR = (url, title) => {
     </tr>`;
 
     // Rækker: snit pr. person pr. bølge
-    body.innerHTML = merged.persons.map(p=>{
+    const selectedKey = $('devPersonSelect')?.value || '';
+    const peopleList = selectedKey ? merged.persons.filter(p=>p.key===selectedKey) : merged.persons;
+
+    body.innerHTML = peopleList.map(p=>{
       const rowVals = wavesSeries.map(ws=>{
         const rec = ws.find(r=> r.person.key===p.key);
         const clean = (rec?.perCat||[]).filter(v=>v!=null);
@@ -2230,6 +2681,7 @@ window.showLargeProjectQR = (url, title) => {
         ${rowVals}
       </tr>`;
     }).join('');
+
   }
 
   function exportDevCsv(){
@@ -2244,12 +2696,15 @@ window.showLargeProjectQR = (url, title) => {
       const cells = [...tr.querySelectorAll('td')].map(td=> `"${td.textContent.replaceAll('"','""')}"`);
       csv += cells.join(',') + '\n';
     });
-    const blob = new Blob([csv], {type:'text/csv'});
+    // BOM for korrekt encoding i Excel
+    const blob = new Blob(["\ufeff"+csv], {type:'text/csv;charset=utf-8'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = 'udvikling_panel.csv';
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  }
+
+
+    }
 
 
   // Team Building Variables
@@ -2611,17 +3066,24 @@ window.showLargeProjectQR = (url, title) => {
         }]
       },
       options: {
+        responsive: true,
+        maintainAspectRatio: false,                 // fyld wrapperens faste højde
+        elements: {
+          line:  { tension: 0.2 },
+          point: { radius: 0, hitRadius: 6 }       // ingen punkter på kurverne
+        },
         scales: {
           r: {
             beginAtZero: true,
             min: 0,
             max: 5,
-            ticks: { stepSize: 1 },
+            grid: { circular: true },              // runde cirkler (som i KOMPAS)
+            ticks: { display: false },             // ingen “0..5” tal
+            angleLines: { color: 'rgba(0,0,0,0.08)' },
             pointLabels: {
-              display: function(context) {
-                return orderedCategories[context.index] !== '';
-              },
-              font: { size: 11, weight: 'bold' }
+              // vis rigtige kompetencenavne – ingen “Kategori x”
+              callback: (_, i) => labels[i] || '',
+              font: { size: 12, weight: 'bold' }
             }
           }
         },
