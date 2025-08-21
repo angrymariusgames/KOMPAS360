@@ -180,12 +180,13 @@
     thead th{position:sticky;top:0;background:#fff;z-index:2}
     
     /* Project table specific widths */
-    .projects-table th:nth-child(1) { width: 30%; } /* Titel */
-    .projects-table th:nth-child(2) { width: 15%; } /* Åbner */
-    .projects-table th:nth-child(3) { width: 15%; } /* Lukker */
-    .projects-table th:nth-child(4) { width: 10%; } /* Link */
-    .projects-table th:nth-child(5) { width: 10%; } /* QR */
-    .projects-table th:nth-child(6) { width: 20%; } /* Handling */
+    .projects-table th:nth-child(1) { width: 25%; } /* Titel */
+    .projects-table th:nth-child(2) { width: 15%; } /* Status & Svar */
+    .projects-table th:nth-child(3) { width: 12%; } /* Åbner */
+    .projects-table th:nth-child(4) { width: 12%; } /* Lukker */
+    .projects-table th:nth-child(5) { width: 8%; } /* Link */
+    .projects-table th:nth-child(6) { width: 8%; } /* QR */
+    .projects-table th:nth-child(7) { width: 20%; } /* Handling */
 
     /* Status indicators */
     .status-indicator{
@@ -294,6 +295,7 @@
     </div>
 
     <div class="header-tools" id="authArea">
+      <span id="planBadge" class="btn ghost" style="cursor:default"></span>
       <button id="logoutBtn" class="btn ghost">Log ud</button>
     </div>
   </div>
@@ -352,11 +354,14 @@
 
             <div class="grid2">
               <label>Åbn
-                <input id="p-open" class="input" type="datetime-local" style="width:100%">
+                <input id="p-open" class="input" type="datetime-local" style="width:100%" onchange="validateDateRange()">
               </label>
               <label>Luk
-                <input id="p-close" class="input" type="datetime-local" style="width:100%">
+                <input id="p-close" class="input" type="datetime-local" style="width:100%" onchange="validateDateRange()">
               </label>
+            </div>
+            <div id="dateWarning" style="color:var(--error);font-size:0.9rem;margin-top:8px;display:none">
+              ⚠️ Lukke dato må ikke være mere end 14 dage efter åben dato
             </div>
 
             <div class="row" style="margin-top:20px">
@@ -434,6 +439,7 @@
           <thead>
             <tr>
               <th>Titel</th>
+              <th>Status & Svar</th>
               <th>Åbner</th>
               <th>Lukker</th>
               <th>Link</th>
@@ -1306,13 +1312,37 @@ window.addEventListener('load', function() {
       const hasLink = !!linkData;
       const projectUrl = hasLink ? generateProjectUrl(linkData.token) : null;
       
-      // (fjernet) – mini-canvas bruges ikke
-
+      // Get response count
+      const { data: responses } = await supabase.from('responses').select('id', { count: 'exact' }).eq('project_id', p.id);
+      const responseCount = responses?.length || 0;
+      
+      // Calculate deletion date (7 days after close_at)
+      let deletionInfo = 'Ikke sat';
+      if (p.close_at) {
+        const closeDate = new Date(p.close_at);
+        const deletionDate = new Date(closeDate.getTime() + (7 * 24 * 60 * 60 * 1000));
+        deletionInfo = deletionDate.toLocaleString('da-DK');
+      }
+      
+      // Determine if project is currently open
+      const now = new Date();
+      const openAt = p.open_at ? new Date(p.open_at) : null;
+      const closeAt = p.close_at ? new Date(p.close_at) : null;
+      const isOpen = openAt && closeAt && now >= openAt && now <= closeAt;
+      const canToggle = openAt && closeAt; // Can only toggle if dates are set
       
       tr.innerHTML = `
         <td>
           <strong>${p.title}</strong><br>
           <span class="muted">${p.info_text || ''}</span>
+        </td>
+        <td>
+          <div style="margin-bottom:4px">
+            <strong>${responseCount}</strong> svar
+          </div>
+          <div style="font-size:0.8rem;color:var(--muted)">
+            Slettes: ${deletionInfo}
+          </div>
         </td>
         <td>${p.open_at ? new Date(p.open_at).toLocaleString('da-DK') : 'Ikke sat'}</td>
         <td>${p.close_at ? new Date(p.close_at).toLocaleString('da-DK') : 'Ikke sat'}</td>
@@ -1344,18 +1374,18 @@ window.addEventListener('load', function() {
           </div>
         </td>
 
-
         <td style="text-align:right">
-          <button class="btn small" onclick="editProject('${p.id}')" style="background:var(--brand);color:white;border-color:var(--brand);margin-right:8px">Rediger</button>
+          <button class="btn small" onclick="editProject('${p.id}')" style="background:var(--brand);color:white;border-color:var(--brand);margin-right:4px">Rediger</button>
+          ${canToggle ? `
+            <button class="btn small" onclick="toggleProject('${p.id}', ${isOpen})" style="background:${isOpen ? '#dc3545' : '#28a745'};color:white;border-color:${isOpen ? '#dc3545' : '#28a745'};margin-right:4px">
+              ${isOpen ? 'Luk' : 'Åbn'}
+            </button>
+          ` : ''}
           <button class="btn small" onclick="deleteProject('${p.id}', '${p.title.replace(/'/g, '\\\'')}')" style="background:#dc3545;color:white;border-color:#dc3545">Slet</button>
         </td>
       `;
 
-      
       tb.appendChild(tr);
-      
-      // (fjernet) – mini-canvas bruges ikke længere
-
     }
   }
 
@@ -1384,6 +1414,58 @@ window.showLargeProjectQR = (url, title) => {
     }
   };
 
+  // Date validation function
+  window.validateDateRange = () => {
+    const openInput = $('p-open');
+    const closeInput = $('p-close');
+    const warning = $('dateWarning');
+    
+    if (openInput.value && closeInput.value) {
+      const openDate = new Date(openInput.value);
+      const closeDate = new Date(closeInput.value);
+      const diffDays = (closeDate - openDate) / (1000 * 60 * 60 * 24);
+      
+      if (diffDays > 14) {
+        warning.style.display = 'block';
+        closeInput.style.borderColor = 'var(--error)';
+        $('saveProjectBtn').disabled = true;
+        return false;
+      } else {
+        warning.style.display = 'none';
+        closeInput.style.borderColor = '';
+        $('saveProjectBtn').disabled = false;
+        return true;
+      }
+    } else {
+      warning.style.display = 'none';
+      closeInput.style.borderColor = '';
+      $('saveProjectBtn').disabled = false;
+      return true;
+    }
+  };
+
+  // Toggle project open/close
+  window.toggleProject = async (projectId, isCurrentlyOpen) => {
+    const action = isCurrentlyOpen ? 'lukke' : 'åbne';
+    if(!confirm(`Er du sikker på du vil ${action} dette projekt?`)) return;
+    
+    try {
+      const now = new Date().toISOString();
+      const updateData = isCurrentlyOpen ? 
+        { close_at: now } : // Close now
+        { open_at: now, close_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() }; // Open now, close in 14 days
+      
+      const { error } = await supabase.from('projects').update(updateData).eq('id', projectId);
+      if(error) throw error;
+      
+      alert(`✅ Projekt ${isCurrentlyOpen ? 'lukket' : 'åbnet'} succesfuldt`);
+      await loadProjects();
+      
+    } catch(error) {
+      alert(`⚠️ Fejl ved ${action}: ${error.message}`);
+    }
+  };
+
   window.deleteProject = async (projectId, projectTitle) => {
     if(!confirm(`Er du sikker på du vil slette projektet "${projectTitle}"?\n\nDette vil også slette:\n• Alle personer tilknyttet projektet\n• Alle besvarelser\n• Project links\n\nDenne handling kan ikke fortrydes!`)) {
       return;
@@ -1406,7 +1488,7 @@ window.showLargeProjectQR = (url, title) => {
       }
       
     } catch(error) {
-      alert(`⚠ Fejl ved sletning: ${error.message}`);
+      alert(`⚠️ Fejl ved sletning: ${error.message}`);
     }
   };
 
@@ -1448,6 +1530,11 @@ window.showLargeProjectQR = (url, title) => {
         min_group_n: 2 // Fast værdi
       };
       
+      // Validate date range before saving
+      if (!validateDateRange()) {
+        return;
+      }
+
       // Helper function to convert datetime-local to correct ISO string
       function convertToCorrectISO(datetimeLocalValue) {
         if (!datetimeLocalValue || !datetimeLocalValue.trim()) return null;
@@ -3211,11 +3298,66 @@ window.showLargeProjectQR = (url, title) => {
     }
 
     user = data.user;
+    
+    // Load plan badge after user is authenticated (using the initialized supabase)
+    await loadPlanBadgeForUser(user);
+    
     loadAll();
   });
 
+  // Helper function that uses the already initialized supabase
+  async function loadPlanBadgeForUser(user) {
+    try {
+      if (!user) {
+        document.getElementById('planBadge').textContent = 'Ikke logget ind';
+        return;
+      }
+
+      // Use EXACT same RPC as master.html to ensure consistency
+      const { data, error } = await supabase.rpc('get_billing_overview', {
+        p_plan: null,
+        p_has_tokens: null,
+        p_days: 30
+      });
+
+      if (error) {
+        console.error('Plan badge error:', error);
+        document.getElementById('planBadge').textContent = 'Tokens: 0';
+        return;
+      }
+
+      // Find current user in the results
+      const userRecord = (data || []).find(record => record.user_id === user.id);
+      
+      if (!userRecord) {
+        console.log('No billing record found for user');
+        document.getElementById('planBadge').textContent = 'Tokens: 0';
+        return;
+      }
+
+      let text;
+      if (userRecord.plan === 'subscription') {
+        text = 'Abonnent';
+      } else {
+        // Prepaid plan
+        const bal = userRecord.token_balance ?? 0;
+        text = `Tokens: ${bal}`;
+      }
+      
+      document.getElementById('planBadge').textContent = text;
+      
+      console.log('Plan badge loaded:', text, 'for user:', user.email, 'plan:', userRecord.plan);
+      
+    } catch (error) {
+      console.error('Plan badge error:', error);
+      document.getElementById('planBadge').textContent = 'Tokens: 0';
+    }
+  }
   
 });
+</script>
+<script>
+  // This script block is now empty - all logic moved to main window.addEventListener block
 </script>
 </body>
 </html>
