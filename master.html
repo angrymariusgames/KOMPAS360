@@ -57,6 +57,106 @@
     .category-item{background:var(--card);padding:10px;margin:5px 0;border-radius:8px}
     .question-item{background:#fff;border:1px solid var(--line);padding:8px;margin:4px 0;border-radius:6px}
 
+    /* Coaching specific styles */
+    .coaching-category{
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:12px;
+      margin-bottom:20px;
+      overflow:hidden;
+    }
+    
+    .coaching-category-header{
+      background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+      color:white;
+      padding:16px 20px;
+      font-weight:700;
+      font-size:1.1rem;
+      cursor:pointer;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+    }
+    
+    .coaching-category-content{
+      padding:20px;
+      display:none;
+    }
+    
+    .coaching-category-content.active{
+      display:block;
+    }
+    
+    .coaching-section{
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:8px;
+      padding:16px;
+      margin-bottom:16px;
+    }
+    
+    .coaching-section h4{
+      margin-bottom:12px;
+      color:var(--ink);
+      font-size:1rem;
+    }
+    
+    .tip-item{
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:8px;
+      padding:12px;
+      margin-bottom:12px;
+    }
+    
+    .tip-header{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      margin-bottom:8px;
+    }
+    
+    .method-badge{
+      padding:4px 8px;
+      border-radius:12px;
+      font-size:0.75rem;
+      font-weight:600;
+      text-transform:uppercase;
+    }
+    
+    .method-self{background:#e6fffa;color:#234e52}
+    .method-colleague{background:#e0e7ff;color:#3730a3}
+    .method-leader_employee{background:#fef3c7;color:#92400e}
+    .method-group{background:#f0f9ff;color:#0c4a6e}
+    .method-external{background:#fdf2f8;color:#86198f}
+    .method-course{background:#f0fdf4;color:#166534}
+    
+    .array-editor{
+      margin-top:8px;
+    }
+    
+    .array-item{
+      display:flex;
+      gap:8px;
+      margin-bottom:6px;
+      align-items:center;
+    }
+    
+    .array-item input{
+      flex:1;
+    }
+    
+    .textarea{
+      width:100%;
+      min-height:80px;
+      padding:10px 12px;
+      border:1px solid var(--line);
+      border-radius:8px;
+      font-family:inherit;
+      font-size:.95rem;
+      resize:vertical;
+    }
+
     /* Project table specific widths */
     .projects-table th:nth-child(1) { width: 25%; } /* Titel */
     .projects-table th:nth-child(2) { width: 20%; } /* Ejer */
@@ -120,6 +220,25 @@
       table{font-size:.85rem}
       th,td{padding:8px}
     }
+
+    /* Success messages */
+    .success-message{
+      background:#d1fae5;
+      border:1px solid #a7f3d0;
+      color:#065f46;
+      padding:12px 16px;
+      border-radius:8px;
+      margin:12px 0;
+    }
+    
+    .error-message{
+      background:#fef2f2;
+      border:1px solid #fecaca;
+      color:#dc2626;
+      padding:12px 16px;
+      border-radius:8px;
+      margin:12px 0;
+    }
   </style>
 </head>
 <body>
@@ -130,7 +249,7 @@
       <div class="club-logo"><img src="./assets/logo.png" alt="KOMPAS" onerror="this.style.display='none'"></div>
       <div>
         <div class="club-name">KOMPAS — Master Backoffice</div>
-        <div class="club-sub">Skabeloner • Projekter • Brugeradministration</div>
+        <div class="club-sub">Skabeloner • Projekter • Brugeradministration • Coaching</div>
       </div>
     </div>
 
@@ -145,6 +264,7 @@
     <button class="tabbtn active" data-tab="templates">🧩 Skabeloner</button>
     <button class="tabbtn" data-tab="projects">📁 Projekter</button>
     <button class="tabbtn" data-tab="users">👤 Brugere</button>
+    <button class="tabbtn" data-tab="coaching">🎯 Coaching</button>
   </div>
 
   <!-- CONTENT -->
@@ -158,8 +278,6 @@
         <input id="tmplDesc" class="input" placeholder="Beskrivelse">
         <button id="createTemplate" class="btn primary">Opret skabelon</button>
       </div>
-
-
 
       <div id="templateEditor" class="template-editor" style="display:none">
         <h4 id="editorTitle">Rediger skabelon</h4>
@@ -177,7 +295,7 @@
     <!-- Projekter (kun monitoring) -->
     <div id="tab-projects" class="section" style="display:none">
       <h3>📁 Projektoversigt</h3>
-      <p class="muted" style="margin-bottom:20px">Overvåg alle projekter i systemet. Evaluerere kan oprette projekter via deres admin-panel.</p>
+      <p class="muted" style="margin-bottom:20px">Overvåg alle projekter i systemet. Evaluerer kan oprette projekter via deres admin-panel.</p>
       
       <div class="section">
         <table id="projectsTbl" class="projects-table">
@@ -262,6 +380,28 @@
       </div>
     </div>
 
+    <!-- Coaching Administration -->
+    <div id="tab-coaching" class="section" style="display:none">
+      <h3>🎯 Coaching Administration</h3>
+      
+      <!-- Template selector -->
+      <div class="section">
+        <label>Vælg skabelon for coaching administration:
+          <select id="coachingTemplateSelect" class="select" style="margin-left:10px">
+            <option value="">-- Vælg skabelon --</option>
+          </select>
+        </label>
+      </div>
+
+      <!-- Status messages -->
+      <div id="coachingStatus"></div>
+
+      <!-- Coaching categories container -->
+      <div id="coachingCategoriesContainer">
+        <p class="muted" style="text-align:center;padding:40px">Vælg en skabelon for at administrere coaching indhold</p>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -269,6 +409,8 @@
 window.addEventListener('load', function() {
   let user = null;
   let currentTemplate = null;
+  let currentCoachingTemplate = null;
+  let coachingData = {};
 
   const SUPABASE_URL = "https://wsrstyrsuwhcmmlmnbrz.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzcnN0eXJzdXdoY21tbG1uYnJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MTU0NTIsImV4cCI6MjA3MTE5MTQ1Mn0.Rf3Z3bQGjV5CKXKZr6IMOjzPdbhVJCh3SwuvlkpxUD0";
@@ -284,7 +426,7 @@ window.addEventListener('load', function() {
       btn.classList.add('active');
 
       // Hide all sections
-      ['templates', 'projects', 'users'].forEach(name => {
+      ['templates', 'projects', 'users', 'coaching'].forEach(name => {
         const panel = $('tab-' + name);
         if(panel) panel.style.display = 'none';
       });
@@ -292,6 +434,11 @@ window.addEventListener('load', function() {
       // Show selected section
       const target = $('tab-' + btn.dataset.tab);
       if(target) target.style.display = 'block';
+      
+      // Load coaching data when coaching tab is selected
+      if(btn.dataset.tab === 'coaching') {
+        loadCoachingTemplates();
+      }
     };
   });
 
@@ -337,7 +484,7 @@ window.addEventListener('load', function() {
   }
 
   // === TEMPLATES ===
-  async function loadTemplates() {
+  async function loadTemplates(){
     const { data } = await supabase.from('templates').select().order('created_at', {ascending: false});
     
     // List display with edit/delete buttons
@@ -887,6 +1034,452 @@ window.addEventListener('load', function() {
     alert(data.message);
     $('userEmailInput').value = '';
     loadUsers();
+  };
+
+  // === COACHING ADMINISTRATION ===
+  
+  async function loadCoachingTemplates() {
+    try {
+      const { data: templates } = await supabase.from('templates').select('*').order('name');
+      const select = $('coachingTemplateSelect');
+      
+      select.innerHTML = '<option value="">-- Vælg skabelon --</option>';
+      (templates || []).forEach(t => {
+        const option = document.createElement('option');
+        option.value = t.id;
+        option.textContent = `${t.name} v${t.version}`;
+        select.appendChild(option);
+      });
+      
+      select.onchange = () => {
+        if(select.value) {
+          loadCoachingData(select.value);
+        } else {
+          $('coachingCategoriesContainer').innerHTML = '<p class="muted" style="text-align:center;padding:40px">Vælg en skabelon for at administrere coaching indhold</p>';
+        }
+      };
+      
+    } catch(error) {
+      showCoachingStatus('Fejl ved indlæsning af skabeloner: ' + error.message, 'error');
+    }
+  }
+
+  async function loadCoachingData(templateId) {
+    try {
+      currentCoachingTemplate = templateId;
+      showCoachingStatus('Indlæser coaching data...', 'info');
+      
+      // Load categories for this template
+      const { data: categories } = await supabase
+        .from('v_category_path')
+        .select('*')
+        .eq('template_id', templateId)
+        .order('category_sort');
+      
+      if(!categories || categories.length === 0) {
+        $('coachingCategoriesContainer').innerHTML = '<p class="muted" style="text-align:center;padding:40px">Ingen kategorier fundet for denne skabelon</p>';
+        showCoachingStatus('', '');
+        return;
+      }
+      
+      // Load existing coaching data
+      const { data: competencies } = await supabase
+        .from('coaching_competency')
+        .select('*')
+        .in('category_id', categories.map(c => c.category_id));
+      
+      const { data: tips } = await supabase
+        .from('coaching_tip')
+        .select('*')
+        .in('category_id', categories.map(c => c.category_id))
+        .order('sort_order');
+      
+      coachingData = {
+        categories,
+        competencies: competencies || [],
+        tips: tips || []
+      };
+      
+      renderCoachingInterface();
+      showCoachingStatus('Coaching data indlæst succesfuldt', 'success');
+      
+    } catch(error) {
+      console.error('Error loading coaching data:', error);
+      showCoachingStatus('Fejl ved indlæsning: ' + error.message, 'error');
+    }
+  }
+
+  function showCoachingStatus(message, type) {
+    const statusDiv = $('coachingStatus');
+    if(!message) {
+      statusDiv.innerHTML = '';
+      return;
+    }
+    
+    const className = type === 'error' ? 'error-message' : 
+                     type === 'success' ? 'success-message' : 
+                     'muted';
+    
+    statusDiv.innerHTML = `<div class="${className}">${message}</div>`;
+    
+    if(type === 'success' || type === 'info') {
+      setTimeout(() => {
+        statusDiv.innerHTML = '';
+      }, 3000);
+    }
+  }
+
+  function renderCoachingInterface() {
+    const container = $('coachingCategoriesContainer');
+    container.innerHTML = '';
+    
+    coachingData.categories.forEach(category => {
+      const categoryDiv = document.createElement('div');
+      categoryDiv.className = 'coaching-category';
+      
+      const competency = coachingData.competencies.find(c => c.category_id === category.category_id);
+      const categoryTips = coachingData.tips.filter(t => t.category_id === category.category_id);
+      
+      categoryDiv.innerHTML = `
+        <div class="coaching-category-header" onclick="toggleCoachingCategory('${category.category_id}')">
+          <span>${category.domain_name} › ${category.category_name}</span>
+          <span id="toggle-${category.category_id}">▼</span>
+        </div>
+        <div class="coaching-category-content" id="content-${category.category_id}">
+          ${renderCompetencyEditor(category, competency)}
+          ${renderTipsEditor(category, categoryTips)}
+        </div>
+      `;
+      
+      container.appendChild(categoryDiv);
+    });
+  }
+
+  function renderCompetencyEditor(category, competency) {
+    const comp = competency || { synopsis: '', importance: '', why_matters: '' };
+    
+    return `
+      <div class="coaching-section">
+        <h4>📋 Kompetence Oversigt</h4>
+        <div class="grid" style="gap:12px">
+          <label>Synopsis (kort beskrivelse)
+            <textarea class="textarea" id="synopsis-${category.category_id}" placeholder="Evnen til at...">${comp.synopsis}</textarea>
+          </label>
+          <label>Vigtighed (hvorfor er det vigtigt?)
+            <textarea class="textarea" id="importance-${category.category_id}" placeholder="Grundlag for...">${comp.importance}</textarea>
+          </label>
+          <label>Hvorfor det betyder noget
+            <textarea class="textarea" id="why_matters-${category.category_id}" placeholder="Påvirker både...">${comp.why_matters || ''}</textarea>
+          </label>
+          <button class="btn primary" onclick="saveCompetency('${category.category_id}')">Gem kompetence oversigt</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderTipsEditor(category, tips) {
+    let tipsHtml = tips.map((tip, index) => renderSingleTip(category.category_id, tip, index)).join('');
+    
+    return `
+      <div class="coaching-section">
+        <h4>💡 Coaching Tips</h4>
+        <div id="tips-container-${category.category_id}">
+          ${tipsHtml}
+        </div>
+        <button class="btn" onclick="addNewTip('${category.category_id}')">+ Tilføj nyt tip</button>
+      </div>
+    `;
+  }
+
+  function renderSingleTip(categoryId, tip, index) {
+    const methods = ['self', 'leader_employee', 'colleague', 'group', 'external', 'course'];
+    const methodLabels = {
+      'self': 'Selv',
+      'leader_employee': 'Leder/Medarbejder',
+      'colleague': 'Kollega', 
+      'group': 'Gruppe',
+      'external': 'Ekstern',
+      'course': 'Kursus'
+    };
+    
+    return `
+      <div class="tip-item" id="tip-${tip.id || 'new'}">
+        <div class="tip-header">
+          <span class="method-badge method-${tip.method}">${methodLabels[tip.method] || tip.method}</span>
+          <button class="btn small" onclick="deleteTip('${tip.id}', '${categoryId}')" style="background:#dc3545;color:white">Slet</button>
+        </div>
+        
+        <div class="grid2" style="gap:12px;margin-bottom:12px">
+          <label>Metode
+            <select class="select" id="method-${tip.id}">
+              ${methods.map(m => `<option value="${m}" ${tip.method === m ? 'selected' : ''}>${methodLabels[m]}</option>`).join('')}
+            </select>
+          </label>
+          <label>Titel
+            <input class="input" id="title-${tip.id}" value="${tip.title || ''}" placeholder="Kort beskrivende titel">
+          </label>
+        </div>
+        
+        <label>Beskrivelse
+          <textarea class="textarea" id="description-${tip.id}" placeholder="Detaljeret beskrivelse...">${tip.description || ''}</textarea>
+        </label>
+        
+        <div class="grid2" style="gap:12px;margin-top:12px">
+          <label>Impact (1-5)
+            <input type="number" class="input" id="impact-${tip.id}" min="1" max="5" value="${tip.impact || 3}">
+          </label>
+          <label>Effort (1-5)
+            <input type="number" class="input" id="effort-${tip.id}" min="1" max="5" value="${tip.effort || 3}">
+          </label>
+        </div>
+        
+        <label>Tidshorisont
+          <input class="input" id="time_horizon-${tip.id}" value="${tip.time_horizon || ''}" placeholder="2-3 uger">
+        </label>
+        
+        ${renderArrayEditor('Trin', 'steps', tip.id, tip.steps || [])}
+        ${renderArrayEditor('Mikrovaner', 'micro_habits', tip.id, tip.micro_habits || [])}
+        ${renderArrayEditor('Coach spørgsmål', 'prompts', tip.id, tip.prompts || [])}
+        ${renderArrayEditor('Faldgruber', 'pitfalls', tip.id, tip.pitfalls || [])}
+        
+        <button class="btn primary" onclick="saveTip('${tip.id}', '${categoryId}')" style="margin-top:12px">Gem tip</button>
+      </div>
+    `;
+  }
+
+  function renderArrayEditor(label, fieldName, tipId, items) {
+    const itemsHtml = items.map((item, index) => `
+      <div class="array-item">
+        <input class="input" value="${item}" onchange="updateArrayItem('${fieldName}', '${tipId}', ${index}, this.value)">
+        <button class="btn small" onclick="removeArrayItem('${fieldName}', '${tipId}', ${index})" style="background:#dc3545;color:white">×</button>
+      </div>
+    `).join('');
+    
+    return `
+      <div class="array-editor">
+        <label>${label}</label>
+        <div id="${fieldName}-${tipId}">
+          ${itemsHtml}
+        </div>
+        <button class="btn small" onclick="addArrayItem('${fieldName}', '${tipId}')" style="margin-top:4px">+ Tilføj ${label.toLowerCase()}</button>
+      </div>
+    `;
+  }
+
+  // Global functions for coaching management
+  window.toggleCoachingCategory = (categoryId) => {
+    const content = $(`content-${categoryId}`);
+    const toggle = $(`toggle-${categoryId}`);
+    
+    if(content.classList.contains('active')) {
+      content.classList.remove('active');
+      toggle.textContent = '▼';
+    } else {
+      content.classList.add('active');
+      toggle.textContent = '▲';
+    }
+  };
+
+  window.saveCompetency = async (categoryId) => {
+    try {
+      const synopsis = $(`synopsis-${categoryId}`).value.trim();
+      const importance = $(`importance-${categoryId}`).value.trim();
+      const why_matters = $(`why_matters-${categoryId}`).value.trim();
+      
+      if(!synopsis || !importance) {
+        alert('Synopsis og vigtighed er påkrævet');
+        return;
+      }
+      
+      const existingComp = coachingData.competencies.find(c => c.category_id === categoryId);
+      
+      if(existingComp) {
+        // Update existing
+        const { error } = await supabase
+          .from('coaching_competency')
+          .update({ synopsis, importance, why_matters })
+          .eq('id', existingComp.id);
+        
+        if(error) throw error;
+        
+        // Update local data
+        existingComp.synopsis = synopsis;
+        existingComp.importance = importance;
+        existingComp.why_matters = why_matters;
+      } else {
+        // Create new
+        const { data, error } = await supabase
+          .from('coaching_competency')
+          .insert({ category_id: categoryId, synopsis, importance, why_matters })
+          .select()
+          .single();
+        
+        if(error) throw error;
+        
+        coachingData.competencies.push(data);
+      }
+      
+      showCoachingStatus('Kompetence oversigt gemt', 'success');
+      
+    } catch(error) {
+      showCoachingStatus('Fejl ved gem: ' + error.message, 'error');
+    }
+  };
+
+  window.addNewTip = (categoryId) => {
+    const newTip = {
+      id: 'new_' + Date.now(),
+      category_id: categoryId,
+      method: 'self',
+      title: '',
+      description: '',
+      steps: [],
+      micro_habits: [],
+      prompts: [],
+      pitfalls: [],
+      impact: 3,
+      effort: 3,
+      time_horizon: ''
+    };
+    
+    const container = $(`tips-container-${categoryId}`);
+    container.insertAdjacentHTML('beforeend', renderSingleTip(categoryId, newTip, 0));
+  };
+
+  window.saveTip = async (tipId, categoryId) => {
+    try {
+      const method = $(`method-${tipId}`).value;
+      const title = $(`title-${tipId}`).value.trim();
+      const description = $(`description-${tipId}`).value.trim();
+      const impact = parseInt($(`impact-${tipId}`).value);
+      const effort = parseInt($(`effort-${tipId}`).value);
+      const time_horizon = $(`time_horizon-${tipId}`).value.trim();
+      
+      if(!title || !description) {
+        alert('Titel og beskrivelse er påkrævet');
+        return;
+      }
+      
+      // Collect arrays
+      const steps = collectArrayData('steps', tipId);
+      const micro_habits = collectArrayData('micro_habits', tipId);
+      const prompts = collectArrayData('prompts', tipId);
+      const pitfalls = collectArrayData('pitfalls', tipId);
+      
+      const tipData = {
+        category_id: categoryId,
+        method,
+        title,
+        description,
+        steps,
+        micro_habits,
+        prompts,
+        pitfalls,
+        impact,
+        effort,
+        time_horizon
+      };
+      
+      if(tipId.startsWith('new_')) {
+        // Create new tip
+        const { data, error } = await supabase
+          .from('coaching_tip')
+          .insert(tipData)
+          .select()
+          .single();
+        
+        if(error) throw error;
+        
+        // Update the tip element with real ID
+        const tipElement = $(`tip-${tipId}`);
+        tipElement.id = `tip-${data.id}`;
+        
+        coachingData.tips.push(data);
+      } else {
+        // Update existing tip
+        const { error } = await supabase
+          .from('coaching_tip')
+          .update(tipData)
+          .eq('id', tipId);
+        
+        if(error) throw error;
+        
+        // Update local data
+        const existingTip = coachingData.tips.find(t => t.id === tipId);
+        if(existingTip) {
+          Object.assign(existingTip, tipData);
+        }
+      }
+      
+      showCoachingStatus('Tip gemt succesfuldt', 'success');
+      
+    } catch(error) {
+      showCoachingStatus('Fejl ved gem af tip: ' + error.message, 'error');
+    }
+  };
+
+  window.deleteTip = async (tipId, categoryId) => {
+    if(!confirm('Er du sikker på du vil slette dette tip?')) return;
+    
+    try {
+      if(!tipId.startsWith('new_')) {
+        const { error } = await supabase
+          .from('coaching_tip')
+          .delete()
+          .eq('id', tipId);
+        
+        if(error) throw error;
+        
+        // Remove from local data
+        coachingData.tips = coachingData.tips.filter(t => t.id !== tipId);
+      }
+      
+      // Remove from DOM
+      const tipElement = $(`tip-${tipId}`);
+      if(tipElement) tipElement.remove();
+      
+      showCoachingStatus('Tip slettet', 'success');
+      
+    } catch(error) {
+      showCoachingStatus('Fejl ved sletning: ' + error.message, 'error');
+    }
+  };
+
+  function collectArrayData(fieldName, tipId) {
+    const container = $(`${fieldName}-${tipId}`);
+    if(!container) return [];
+    
+    const inputs = container.querySelectorAll('input');
+    return Array.from(inputs)
+      .map(input => input.value.trim())
+      .filter(value => value.length > 0);
+  }
+
+  window.addArrayItem = (fieldName, tipId) => {
+    const container = $(`${fieldName}-${tipId}`);
+    const newIndex = container.children.length;
+    
+    const itemHtml = `
+      <div class="array-item">
+        <input class="input" value="" onchange="updateArrayItem('${fieldName}', '${tipId}', ${newIndex}, this.value)">
+        <button class="btn small" onclick="removeArrayItem('${fieldName}', '${tipId}', ${newIndex})" style="background:#dc3545;color:white">×</button>
+      </div>
+    `;
+    
+    container.insertAdjacentHTML('beforeend', itemHtml);
+  };
+
+  window.removeArrayItem = (fieldName, tipId, index) => {
+    const container = $(`${fieldName}-${tipId}`);
+    const items = container.querySelectorAll('.array-item');
+    if(items[index]) {
+      items[index].remove();
+    }
+  };
+
+  window.updateArrayItem = (fieldName, tipId, index, value) => {
+    // This function is called when array items are changed
+    // The actual collection happens in collectArrayData when saving
   };
 
 });
