@@ -2124,14 +2124,74 @@ window.showLargeProjectQR = (url, title) => {
   };
 
   function openDoc(url){ window.open(url,'_blank'); }
-  $('btnPdf').onclick = ()=>{ 
-    const pid=$('selProject2').value, tid=$('selTarget').value; 
-    openDoc(`http://localhost:8000/pdf?project_id=${pid}&target_id=${tid}`); 
-  };
-  $('btnZip').onclick = ()=>{ 
-    const pid=$('selProject2').value; 
-    openDoc(`http://localhost:8000/zip?project_id=${pid}`); 
-  };
+  $('btnPdf').onclick = () => { 
+  const pid = $('selProject2').value;
+  const tid = $('selTarget').value;
+  
+  if (!pid) {
+    alert('Vælg et projekt først');
+    return;
+  }
+  
+  if (!tid) {
+    alert('Vælg en målperson først');
+    return;
+  }
+  
+  // Test om endpoint er tilgængeligt før download
+  const url = `http://localhost:8000/pdf?project_id=${pid}&target_id=${tid}`;
+  
+  // Vis loading state
+  const originalText = $('btnPdf').textContent;
+  $('btnPdf').textContent = 'Genererer PDF...';
+  $('btnPdf').disabled = true;
+  
+  // Prøv at downloade
+  try {
+    window.open(url, '_blank');
+  } catch (error) {
+    console.error('PDF download fejl:', error);
+    alert('Fejl ved PDF generering. Kontroller at PDF servicen kører.');
+  } finally {
+    // Gendan knap efter 2 sekunder
+    setTimeout(() => {
+      $('btnPdf').textContent = originalText;
+      $('btnPdf').disabled = false;
+    }, 2000);
+  }
+};
+  $('btnZip').onclick = () => { 
+  const pid = $('selProject2').value;
+  
+  if (!pid) {
+    alert('Vælg et projekt først');
+    return;
+  }
+  
+  // Bekræft action da ZIP kan være stor
+  const confirmed = confirm('Dette vil generere PDF\'er for alle personer i projektet. Fortsæt?');
+  if (!confirmed) return;
+  
+  const url = `http://localhost:8000/zip?project_id=${pid}`;
+  
+  // Vis loading state
+  const originalText = $('btnZip').textContent;
+  $('btnZip').textContent = 'Genererer ZIP...';
+  $('btnZip').disabled = true;
+  
+  try {
+    window.open(url, '_blank');
+  } catch (error) {
+    console.error('ZIP download fejl:', error);
+    alert('Fejl ved ZIP generering. Kontroller at PDF servicen kører.');
+  } finally {
+    // Gendan knap efter 5 sekunder (ZIP tager længere tid)
+    setTimeout(() => {
+      $('btnZip').textContent = originalText;
+      $('btnZip').disabled = false;
+    }, 5000);
+  }
+};
 
   // ----- Download UDV (hele undersøgelsen) -----
   $('btnUdvSurvey').onclick = async () => {
@@ -3270,15 +3330,55 @@ window.showLargeProjectQR = (url, title) => {
   };
 
   $('btnDownloadTeamPDF').onclick = () => {
-    const pid = $('selProject3').value;
-    if (!pid) {
-      alert('Vælg et projekt først');
-      return;
-    }
+  const pid = $('selProject3').value;
+  if (!pid) {
+    alert('Vælg et projekt først');
+    return;
+  }
+  
+  // Samle ID'er på valgte teammedlemmer
+  const selectedPeople = teamData.filter(person => person.selected);
+  
+  if (selectedPeople.length === 0) {
+    // Hvis ingen er valgt, download for hele teamet
+    const confirmed = confirm('Ingen teammedlemmer er valgt. Vil du generere en rapport for hele teamet?');
+    if (!confirmed) return;
     
-    // For now, open the individual PDF endpoint - you'll need to create a team PDF endpoint
+    // Download for hele teamet
     window.open(`http://localhost:8000/team-pdf?project_id=${pid}`, '_blank');
-  };
+  } else {
+    // Download kun for valgte medlemmer
+    const peopleIds = selectedPeople.map(p => p.id).join(',');
+    window.open(`http://localhost:8000/team-pdf?project_id=${pid}&people_ids=${peopleIds}`, '_blank');
+  }
+};
+
+// Tilføj også denne hjælpefunktion til at opdatere knappens tekst:
+function updateTeamPdfButton() {
+  const btn = $('btnDownloadTeamPDF');
+  const selectedCount = teamData.filter(p => p.selected).length;
+  
+  if (selectedCount === 0) {
+    btn.textContent = '📥 Download Team PDF (Alle)';
+    btn.className = 'btn primary';
+  } else {
+    btn.textContent = `📥 Download Team PDF (${selectedCount} valgte)`;
+    btn.className = 'btn success';
+  }
+}
+
+// Tilføj denne funktion til at håndtere person selection:
+function togglePersonSelection(personId) {
+  const person = teamData.find(p => p.id === personId);
+  if (person) {
+    person.selected = !person.selected;
+    const selectedCount = teamData.filter(p => p.selected).length;
+    $('selectedCount').textContent = selectedCount;
+    
+    updateTeamRadar();
+    updateTeamPdfButton();
+  }
+}
 
   // Session check + rolleadskillelse
   supabase.auth.getUser().then(async ({data})=>{
@@ -3357,7 +3457,54 @@ window.showLargeProjectQR = (url, title) => {
 });
 </script>
 <script>
-  // This script block is now empty - all logic moved to main window.addEventListener block
+  
+  // PDF Service hjælpefunktioner
+  function checkPdfServiceHealth() {
+    return fetch('http://localhost:8000/health')
+      .then(response => response.json())
+      .then(data => {
+        console.log('PDF Service status:', data);
+        return data.status === 'healthy';
+      })
+      .catch(error => {
+        console.error('PDF Service ikke tilgængelig:', error);
+        return false;
+      });
+  }
+
+  async function validatePdfTemplates() {
+    try {
+      const health = await fetch('http://localhost:8000/health').then(r => r.json());
+      const requiredTemplates = ['templates_report.html', 'templates_team_report.html'];
+      const missingTemplates = requiredTemplates.filter(template => 
+        !health.templates.includes(template)
+      );
+      
+      if (missingTemplates.length > 0) {
+        console.warn('Manglende PDF templates:', missingTemplates);
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error('Kunne ikke validere PDF templates:', error);
+      return false;
+    }
+  }
+
+  // Kald denne funktion når siden loader:
+  document.addEventListener('DOMContentLoaded', async () => {
+    const serviceHealthy = await checkPdfServiceHealth();
+    const templatesValid = await validatePdfTemplates();
+    
+    if (!serviceHealthy) {
+      console.warn('PDF Service er ikke tilgængelig');
+    }
+    
+    if (!templatesValid) {
+      console.warn('PDF Templates mangler eller er ugyldige');
+    }
+  });
+</script>
 </script>
 </body>
 </html>
