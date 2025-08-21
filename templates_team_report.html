@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ project.title }} - Team Rapport</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+            @top-center {
+                content: "{{ project.title }} - Team Rapport";
+                font-family: Arial, sans-serif;
+                font-size: 10pt;
+                color: #666;
+            }
+            @bottom-center {
+                content: "Side " counter(page) " af " counter(pages);
+                font-family: Arial, sans-serif;
+                font-size: 10pt;
+                color: #666;
+            }
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 2rem;
+            margin: -2cm -2cm 2rem -2cm;
+            border-radius: 0 0 1rem 1rem;
+        }
+        
+        .header h1 {
+            margin: 0 0 0.5rem 0;
+            font-size: 2.2rem;
+            font-weight: 300;
+        }
+        
+        .header .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin: 0;
+        }
+        
+        .team-info {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        
+        .team-info h2 {
+            margin: 0 0 0.5rem 0;
+            font-size: 1.8rem;
+            font-weight: 400;
+        }
+        
+        .team-info .team-description {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+        
+        .chart-container {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 2rem;
+            margin: 2rem 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .chart-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+        
+        .radar-placeholder {
+            width: 100%;
+            height: 450px;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            border-radius: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            font-size: 1.1rem;
+            border: 2px dashed #cbd5e1;
+            text-align: center;
+        }
+        
+        .categories-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+        
+        .category-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        
+        .category-card.top-strength {
+            border-left: 4px solid #10b981;
+            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+        }
+        
+        .category-name {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 0.8rem;
+            font-size: 0.95rem;
+        }
+        
+        .category-scores {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .score-badge {
+            padding: 0.3rem 0.6rem;
+            border-radius: 0.3rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: white;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        
+        .score-self { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+        .score-peer { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
+        .score-leader { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); }
+        .score-none { background-color: #94a3b8; color: #475569; }
+        
+        .max-indicator {
+            background: #fbbf24;
+            color: #92400e;
+            font-size: 0.7rem;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.2rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin: 1.5rem 0;
+            flex-wrap: wrap;
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        .legend-color {
+            width: 1rem;
+            height: 1rem;
+            border-radius: 0.25rem;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        
+        .team-summary {
+            background: linear-gradient(135deg, #fef3c7 0%, #fbbf24 20%, #f59e0b 100%);
+            border-radius: 0.5rem;
+            padding: 2rem;
+            margin: 2rem 0;
+            color: #92400e;
+        }
+        
+        .team-summary h3 {
+            margin: 0 0 1rem 0;
+            font-size: 1.3rem;
+            color: #78350f;
+        }
+        
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .summary-card {
+            background: rgba(255, 255, 255, 0.3);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            text-align: center;
+        }
+        
+        .summary-number {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #78350f;
+        }
+        
+        .summary-label {
+            font-size: 0.8rem;
+            color: #92400e;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .strengths-section {
+            background: #ecfdf5;
+            border: 1px solid #a7f3d0;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin: 2rem 0;
+        }
+        
+        .strengths-section h3 {
+            color: #065f46;
+            margin: 0 0 1rem 0;
+            font-size: 1.2rem;
+        }
+        
+        .strengths-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .strengths-list li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #a7f3d0;
+            color: #047857;
+        }
+        
+        .strengths-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .footer {
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid #e2e8f0;
+            text-align: center;
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+        
+        @media print {
+            .header {
+                margin: -2cm -2cm 1rem -2cm;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>{{ project.title }}</h1>
+        <p class="subtitle">🎯 Team Kompetencerapport</p>
+    </div>
+    
+    <div class="team-info">
+        <h2>{{ target.full_name }}</h2>
+        <div class="team-description">
+            Aggregeret kompetenceprofil baseret på maksimale værdier<br>
+            <strong>Rapport genereret:</strong> {{ moment().format('DD. MMMM YYYY [kl.] HH:mm') }}
+        </div>
+    </div>
+    
+    <div class="chart-container">
+        <h3 class="chart-title">🏆 Team Kompetencehjul (Max Værdier)</h3>
+        
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color score-self"></div>
+                <span>{{ labels_text.self or 'Selvvurdering' }}</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color score-peer"></div>
+                <span>{{ labels_text.peer or 'Kollegavurdering' }}</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color score-leader"></div>
+                <span>{{ labels_text.leader or 'Ledervurdering' }}</span>
+            </div>
+        </div>
+        
+        <div class="radar-placeholder">
+            📊 Team Kompetencehjul<br>
+            <small>Viser de højeste scores fra teammedlemmerne for hver kategori</small><br>
+            <small>(Kræver Chart.js integration for PDF generering)</small>
+        </div>
+    </div>
+    
+    {% set all_scores = [] %}
+    {% for type_scores in [series.self, series.peer, series.leader] %}
+        {% for score in type_scores %}
+            {% if score is not none %}
+                {% set _ = all_scores.append(score) %}
+            {% endif %}
+        {% endfor %}
+    {% endfor %}
+    
+    {% set top_categories = [] %}
+    {% for cat in cats %}
+        {% set cat_index = loop.index0 %}
+        {% set cat_max = [series.self[cat_index], series.peer[cat_index], series.leader[cat_index]]|select('!=', none)|list|max if [series.self[cat_index], series.peer[cat_index], series.leader[cat_index]]|select('!=', none)|list else 0 %}
+        {% if cat_max >= 4.0 %}
+            {% set _ = top_categories.append({'name': cat.name, 'score': cat_max}) %}
+        {% endif %}
+    {% endfor %}
+    
+    <div class="categories-grid">
+        {% for cat in cats %}
+        {% set cat_index = loop.index0 %}
+        {% set cat_scores = [series.self[cat_index], series.peer[cat_index], series.leader[cat_index]] %}
+        {% set cat_max = cat_scores|select('!=', none)|list|max if cat_scores|select('!=', none)|list else 0 %}
+        
+        <div class="category-card {% if cat_max >= 4.0 %}top-strength{% endif %}">
+            <div class="category-name">
+                {{ cat.name }}
+                {% if cat_max >= 4.0 %}
+                <span class="max-indicator">Top Styrke</span>
+                {% endif %}
+            </div>
+            <div class="category-scores">
+                {% if series.self[cat_index] is not none %}
+                <span class="score-badge score-self">
+                    Selv: {{ "%.1f"|format(series.self[cat_index]) }}
+                </span>
+                {% endif %}
+                
+                {% if series.peer[cat_index] is not none %}
+                <span class="score-badge score-peer">
+                    Kollega: {{ "%.1f"|format(series.peer[cat_index]) }}
+                </span>
+                {% endif %}
+                
+                {% if series.leader[cat_index] is not none %}
+                <span class="score-badge score-leader">
+                    Leder: {{ "%.1f"|format(series.leader[cat_index]) }}
+                </span>
+                {% endif %}
+                
+                {% if series.self[cat_index] is none and series.peer[cat_index] is none and series.leader[cat_index] is none %}
+                <span class="score-badge score-none">Ingen data</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    {% if top_categories %}
+    <div class="strengths-section">
+        <h3>🏆 Team Styrker (Score ≥ 4.0)</h3>
+        <ul class="strengths-list">
+            {% for strength in top_categories|sort(attribute='score', reverse=true) %}
+            <li><strong>{{ strength.name }}</strong> - {{ "%.1f"|format(strength.score) }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+    
+    <div class="team-summary">
+        <h3>📊 Team Statistik</h3>
+        
+        <div class="summary-grid">
+            {% if all_scores %}
+            <div class="summary-card">
+                <div class="summary-number">{{ "%.1f"|format(all_scores|sum / all_scores|length) }}</div>
+                <div class="summary-label">Gennemsnit</div>
+            </div>
+            
+            <div class="summary-card">
+                <div class="summary-number">{{ "%.1f"|format(all_scores|max) }}</div>
+                <div class="summary-label">Højeste Score</div>
+            </div>
+            
+            <div class="summary-card">
+                <div class="summary-number">{{ "%.1f"|format(all_scores|min) }}</div>
+                <div class="summary-label">Laveste Score</div>
+            </div>
+            
+            <div class="summary-card">
+                <div class="summary-number">{{ all_scores|length }}</div>
+                <div class="summary-label">Total Vurderinger</div>
+            </div>
+            {% endif %}
+            
+            <div class="summary-card">
+                <div class="summary-number">{{ top_categories|length }}</div>
+                <div class="summary-label">Styrkeområder</div>
+            </div>
+            
+            <div class="summary-card">
+                <div class="summary-number">{{ cats|length }}</div>
+                <div class="summary-label">Kategorier</div>
+            </div>
+        </div>
+        
+        <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(146, 64, 14, 0.3);">
+            <p style="margin: 0; font-size: 0.9rem; line-height: 1.5;">
+                <strong>📌 Note:</strong> Denne rapport viser de højeste scores fra alle teammedlemmer for hver kompetencekategori. 
+                Dette giver et overblik over teamets samlede potentiale og styrkeområder.
+            </p>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p><strong>Genereret af KOMPAS PDF Service</strong></p>
+        <p>Team rapport baseret på aggregerede maksimale værdier</p>
+    </div>
+</body>
+</html>

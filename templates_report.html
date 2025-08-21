@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ project.title }} - {{ target.full_name }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+            @top-center {
+                content: "{{ project.title }}";
+                font-family: Arial, sans-serif;
+                font-size: 10pt;
+                color: #666;
+            }
+            @bottom-center {
+                content: "Side " counter(page) " af " counter(pages);
+                font-family: Arial, sans-serif;
+                font-size: 10pt;
+                color: #666;
+            }
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            margin: -2cm -2cm 2rem -2cm;
+            border-radius: 0 0 1rem 1rem;
+        }
+        
+        .header h1 {
+            margin: 0 0 0.5rem 0;
+            font-size: 2.2rem;
+            font-weight: 300;
+        }
+        
+        .header .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin: 0;
+        }
+        
+        .person-info {
+            background: #f8fafc;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            margin-bottom: 2rem;
+            border-left: 4px solid #667eea;
+        }
+        
+        .person-info h2 {
+            margin: 0 0 0.5rem 0;
+            color: #1e293b;
+            font-size: 1.5rem;
+        }
+        
+        .person-info .details {
+            color: #64748b;
+            font-size: 0.95rem;
+        }
+        
+        .chart-container {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 2rem;
+            margin: 2rem 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .chart-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+        
+        .radar-placeholder {
+            width: 100%;
+            height: 400px;
+            background: #f1f5f9;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            font-size: 1rem;
+            border: 2px dashed #cbd5e1;
+        }
+        
+        .categories-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+        
+        .category-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .category-name {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+            font-size: 0.95rem;
+        }
+        
+        .category-scores {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .score-badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: white;
+        }
+        
+        .score-self { background-color: #10b981; }
+        .score-peer { background-color: #3b82f6; }
+        .score-leader { background-color: #8b5cf6; }
+        .score-none { background-color: #94a3b8; color: #475569; }
+        
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin: 1.5rem 0;
+            flex-wrap: wrap;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+        
+        .legend-color {
+            width: 1rem;
+            height: 1rem;
+            border-radius: 0.25rem;
+        }
+        
+        .summary {
+            background: #fefce8;
+            border: 1px solid #fbbf24;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin: 2rem 0;
+        }
+        
+        .summary h3 {
+            color: #92400e;
+            margin: 0 0 1rem 0;
+            font-size: 1.2rem;
+        }
+        
+        .summary-content {
+            color: #78350f;
+            line-height: 1.6;
+        }
+        
+        .footer {
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid #e2e8f0;
+            text-align: center;
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+        
+        .page-break {
+            page-break-before: always;
+        }
+        
+        @media print {
+            .header {
+                margin: -2cm -2cm 1rem -2cm;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>{{ project.title }}</h1>
+        <p class="subtitle">Personlig kompetencerapport</p>
+    </div>
+    
+    <div class="person-info">
+        <h2>{{ target.full_name }}</h2>
+        <div class="details">
+            {% if target.employee_no %}
+            <p><strong>Medarbejdernummer:</strong> {{ target.employee_no }}</p>
+            {% endif %}
+            <p><strong>Rapport genereret:</strong> {{ moment().format('DD. MMMM YYYY [kl.] HH:mm') }}</p>
+        </div>
+    </div>
+    
+    <div class="chart-container">
+        <h3 class="chart-title">Kompetenceprofil</h3>
+        
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color score-self"></div>
+                <span>{{ labels_text.self or 'Selvvurdering' }}</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color score-peer"></div>
+                <span>{{ labels_text.peer or 'Kollegavurdering' }}</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color score-leader"></div>
+                <span>{{ labels_text.leader or 'Ledervurdering' }}</span>
+            </div>
+        </div>
+        
+        <div class="radar-placeholder">
+            📊 Kompetencehjul vil blive vist her<br>
+            (Kræver Chart.js integration for PDF generering)
+        </div>
+    </div>
+    
+    <div class="categories-grid">
+        {% for cat in cats %}
+        <div class="category-card">
+            <div class="category-name">{{ cat.name }}</div>
+            <div class="category-scores">
+                {% set cat_index = loop.index0 %}
+                
+                {% if series.self[cat_index] is not none %}
+                <span class="score-badge score-self">
+                    Selv: {{ "%.1f"|format(series.self[cat_index]) }}
+                </span>
+                {% endif %}
+                
+                {% if series.peer[cat_index] is not none %}
+                <span class="score-badge score-peer">
+                    Kollega: {{ "%.1f"|format(series.peer[cat_index]) }}
+                </span>
+                {% endif %}
+                
+                {% if series.leader[cat_index] is not none %}
+                <span class="score-badge score-leader">
+                    Leder: {{ "%.1f"|format(series.leader[cat_index]) }}
+                </span>
+                {% endif %}
+                
+                {% if series.self[cat_index] is none and series.peer[cat_index] is none and series.leader[cat_index] is none %}
+                <span class="score-badge score-none">Ingen data</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <div class="summary">
+        <h3>📋 Sammenfatning</h3>
+        <div class="summary-content">
+            <p>Denne rapport viser kompetenceprofilen for <strong>{{ target.full_name }}</strong> baseret på vurderinger i projektet "{{ project.title }}".</p>
+            
+            {% set total_scores = [] %}
+            {% for type_scores in [series.self, series.peer, series.leader] %}
+                {% for score in type_scores %}
+                    {% if score is not none %}
+                        {% set _ = total_scores.append(score) %}
+                    {% endif %}
+                {% endfor %}
+            {% endfor %}
+            
+            {% if total_scores %}
+            <p>
+                <strong>Gennemsnitsscore:</strong> {{ "%.1f"|format(total_scores|sum / total_scores|length) }}<br>
+                <strong>Antal vurderinger:</strong> {{ total_scores|length }}<br>
+                <strong>Højeste score:</strong> {{ "%.1f"|format(total_scores|max) }}<br>
+                <strong>Laveste score:</strong> {{ "%.1f"|format(total_scores|min) }}
+            </p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p>Genereret af KOMPAS PDF Service</p>
+        <p>For mere information, kontakt din systemadministrator.</p>
+    </div>
+</body>
+</html>
