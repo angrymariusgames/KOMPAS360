@@ -2122,57 +2122,146 @@ window.showLargeProjectQR = (url, title) => {
     }
   };
 
-  // Frontend PDF generation functions
-  async function generatePDFFromHTML(htmlContent, filename) {
-    try {
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = htmlContent;
-      tempDiv.style.cssText = 'position:absolute;top:-9999px;left:-9999px;width:750px;background:white;font-family:Arial,sans-serif;padding:10px;box-sizing:border-box;';
-      document.body.appendChild(tempDiv);
-      
-      const canvas = await html2canvas(tempDiv, { 
-        scale: 1.5, 
-        useCORS: true, 
-        allowTaint: true, 
-        backgroundColor: '#ffffff',
-        height: 1000 // Begrænser højden
-      });
-      document.body.removeChild(tempDiv);
-      
-      const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgData = canvas.toDataURL('image/png');
-      const pdfWidth = 210;
-      const pdfHeight = 297;
-      const imgWidth = pdfWidth - 20; // 10mm margin på hver side
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      
-      // Hvis billedet er for højt, skal vi skalere ned så det passer på 1 side
-      if (imgHeight > pdfHeight - 20) {
-        const scale = (pdfHeight - 20) / imgHeight;
-        const scaledWidth = imgWidth * scale;
-        const scaledHeight = imgHeight * scale;
-        const xOffset = (pdfWidth - scaledWidth) / 2;
-        pdf.addImage(imgData, 'PNG', xOffset, 10, scaledWidth, scaledHeight);
-      } else {
-        pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
+  // Funktion til at generere SVG KOMPAS hjul
+function generateKOMPASSVG(data, width = 300, height = 300) {
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const radius = Math.min(width, height) / 2 - 40;
+  
+  // KOMPAS kategorier i korrekt rækkefølge (som på dit billede)
+  const categories = [
+    'Kommunikation', 'Fleksibilitet', 'Nytænkning', 'Helhedsorientering',
+    'Fremtidsorientering', 'Håndtering af pres', 'Beslutningstagning', 'Styring', 
+    'Initiativ', 'Analytisk tænkning', 'Faglighed', 'Planlægning',
+    'Ressourcebevidsthed', 'Samarbejde', 'Udvikling af andre', 'Motivere andre'
+  ];
+  
+  // Map data til kategorier
+  const values = categories.map(catName => {
+    if (data.categories) {
+      const cat = data.categories.find(c => c.name === catName || c.category_name === catName);
+      if (cat) {
+        return cat.max !== undefined ? cat.max : 
+               Math.max(cat.self || 0, cat.peer || 0, cat.leader || 0);
       }
-      
-      pdf.save(filename);
-      return true;
-    } catch (error) {
-      console.error('PDF Error:', error);
-      alert('Fejl ved PDF generering: ' + error.message);
-      return false;
     }
+    return 0;
+  });
+  
+  // Generer radar points
+  const points = values.map((value, index) => {
+    const angle = (index * 2 * Math.PI / 16) - Math.PI / 2; // Start top
+    const r = (value / 5) * radius; // Scale til radius
+    return {
+      x: centerX + r * Math.cos(angle),
+      y: centerY + r * Math.sin(angle)
+    };
+  });
+  
+  // Generer label positioner
+  const labelPoints = categories.map((_, index) => {
+    const angle = (index * 2 * Math.PI / 16) - Math.PI / 2;
+    const labelRadius = radius + 25;
+    return {
+      x: centerX + labelRadius * Math.cos(angle),
+      y: centerY + labelRadius * Math.sin(angle),
+      angle: angle
+    };
+  });
+  
+  let svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">`;
+  
+  // Baggrund cirkler (grid)
+  for (let i = 1; i <= 5; i++) {
+    const r = (i / 5) * radius;
+    svg += `<circle cx="${centerX}" cy="${centerY}" r="${r}" fill="none" stroke="#e5e7eb" stroke-width="1"/>`;
   }
+  
+  // Akser (16 linjer fra center)
+  for (let i = 0; i < 16; i++) {
+    const angle = (i * 2 * Math.PI / 16) - Math.PI / 2;
+    const x2 = centerX + radius * Math.cos(angle);
+    const y2 = centerY + radius * Math.sin(angle);
+    svg += `<line x1="${centerX}" y1="${centerY}" x2="${x2}" y2="${y2}" stroke="#e5e7eb" stroke-width="1"/>`;
+  }
+  
+  // Kvadrant farver (baggrund)
+  svg += `<defs>
+    <clipPath id="circle-clip">
+      <circle cx="${centerX}" cy="${centerY}" r="${radius}"/>
+    </clipPath>
+  </defs>`;
+  
+  // 4 kvadranter
+  const quadrants = [
+    { start: 0, end: 90, color: 'rgba(34, 139, 34, 0.1)' },
+    { start: 90, end: 180, color: 'rgba(220, 20, 60, 0.1)' },
+    { start: 180, end: 270, color: 'rgba(128, 128, 128, 0.1)' },
+    { start: 270, end: 360, color: 'rgba(100, 149, 237, 0.1)' }
+  ];
+  
+  quadrants.forEach(quad => {
+    const startAngle = (quad.start - 90) * Math.PI / 180;
+    const endAngle = (quad.end - 90) * Math.PI / 180;
+    const x1 = centerX + radius * Math.cos(startAngle);
+    const y1 = centerY + radius * Math.sin(startAngle);
+    const x2 = centerX + radius * Math.cos(endAngle);
+    const y2 = centerY + radius * Math.sin(endAngle);
+    
+    svg += `<path d="M ${centerX} ${centerY} L ${x1} ${y1} A ${radius} ${radius} 0 0 1 ${x2} ${y2} Z" 
+            fill="${quad.color}" clip-path="url(#circle-clip)"/>`;
+  });
+  
+  // Data polygon (grøn fyldt område)
+  if (points.length > 0) {
+    const pathData = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ') + ' Z';
+    svg += `<path d="${pathData}" fill="rgba(34, 197, 94, 0.2)" stroke="rgba(34, 197, 94, 1)" stroke-width="2"/>`;
+    
+    // Data points
+    points.forEach(point => {
+      svg += `<circle cx="${point.x}" cy="${point.y}" r="3" fill="rgba(34, 197, 94, 1)"/>`;
+    });
+  }
+  
+  // Labels
+  labelPoints.forEach((point, index) => {
+    const text = categories[index];
+    let textAnchor = 'middle';
+    let dy = '0.3em';
+    
+    // Justér text position baseret på vinkel
+    if (point.x > centerX + 10) textAnchor = 'start';
+    else if (point.x < centerX - 10) textAnchor = 'end';
+    
+    if (point.y < centerY - 10) dy = '0.8em';
+    else if (point.y > centerY + 10) dy = '-0.2em';
+    
+    svg += `<text x="${point.x}" y="${point.y}" text-anchor="${textAnchor}" dy="${dy}" 
+            font-family="Arial" font-size="9" font-weight="bold" fill="#333">${text}</text>`;
+  });
+  
+  svg += '</svg>';
+  return svg;
+}
 
 function generatePersonReportHTML(project, person, categories, series, labels) {
   const currentDate = new Date().toLocaleDateString('da-DK', { 
     year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' 
   });
   
-  // Kompakte kategorikort - 4 kolonner i stedet for 2
+  // Forbered data til KOMPAS hjul
+  const chartData = {
+    categories: categories.map((cat, index) => ({
+      name: cat.category_name,
+      self: series.self[index],
+      peer: series.peer[index],
+      leader: series.leader[index]
+    }))
+  };
+  
+  // Generer SVG hjul
+  const kompasSVG = generateKOMPASSVG(chartData);
+  
   const categoryCards = categories.map((cat, index) => {
     const selfScore = series.self[index];
     const peerScore = series.peer[index];
@@ -2228,13 +2317,10 @@ function generatePersonReportHTML(project, person, categories, series, labels) {
       </div>` : ''}
     </div>
     
-    <!-- KOMPAS Hjul Placeholder -->
-    <div style="text-align:center;background:#f8fafc;border:2px dashed #cbd5e1;border-radius:8px;padding:15px;margin-bottom:12px">
-      <div style="font-size:12px;color:#64748b;margin-bottom:6px">🎯 KOMPAS Kompetencehjul</div>
-      <div style="font-size:9px;color:#94a3b8">
-        Radar chart ville være synligt her i web-versionen<br>
-        Viser de 16 kompetencer fordelt på 4 domæner
-      </div>
+    <!-- KOMPAS Hjul - SVG CHART -->
+    <div style="text-align:center;background:white;border:1px solid #e2e8f0;border-radius:8px;padding:15px;margin-bottom:12px">
+      <div style="font-size:12px;color:#64748b;margin-bottom:10px;font-weight:600">🎯 KOMPAS Kompetencehjul</div>
+      ${kompasSVG}
     </div>
     
     <!-- Kompetencer i 4 kolonner -->
@@ -3642,6 +3728,21 @@ $('btnZip').onclick = () => {
       </div>`;
     }).join('');
     
+    // Forbered team chart data
+    const teamSVGData = {
+      categories: cats.map((cat, index) => ({
+        name: cat.category_name,
+        max: Math.max(
+          teamSeries.self[index] || 0,
+          teamSeries.peer[index] || 0,
+          teamSeries.leader[index] || 0
+        )
+      }))
+    };
+    
+    // Generer team SVG hjul
+    const teamKompasSVG = generateKOMPASSVG(teamSVGData);
+
     const htmlContent = `<div style="font-family:Arial,sans-serif;line-height:1.2;color:#333;max-width:750px;font-size:11px">
       <!-- Kompakt Team Header -->
       <div style="background:linear-gradient(135deg,#f093fb 0%,#f5576c 100%);color:white;padding:15px;margin-bottom:12px;border-radius:6px;text-align:center">
@@ -3654,10 +3755,10 @@ $('btnZip').onclick = () => {
         <div style="font-size:9px;opacity:0.9">Aggregeret kompetenceprofil baseret på maksimale værdier</div>
       </div>
       
-      <!-- Team KOMPAS Hjul - RIGTIG CHART -->
-      <div class="chart-placeholder" style="text-align:center;background:white;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin-bottom:12px">
-        <div style="font-size:12px;color:#64748b;margin-bottom:10px">🎯 Team KOMPAS Kompetencehjul</div>
-        <div style="font-size:9px;color:#94a3b8">Genererer team chart...</div>
+      <!-- Team KOMPAS Hjul - SVG CHART -->
+      <div style="text-align:center;background:white;border:1px solid #e2e8f0;border-radius:8px;padding:15px;margin-bottom:12px">
+        <div style="font-size:12px;color:#64748b;margin-bottom:10px;font-weight:600">🎯 Team KOMPAS Kompetencehjul</div>
+        ${teamKompasSVG}
       </div>
       
       <!-- Team Kompetencer i 4 kolonner -->
@@ -3673,20 +3774,7 @@ $('btnZip').onclick = () => {
       </div>
     </div>`;
     
-    // Forbered team chart data
-    const teamChartData = {
-      categories: cats.map((cat, index) => ({
-        name: cat.category_name,
-        max: Math.max(
-          teamSeries.self[index] || 0,
-          teamSeries.peer[index] || 0,
-          teamSeries.leader[index] || 0
-        )
-      }))
-    };
-
-    const filename = `${project.title.replace(/ /g, '_')}-Team_Rapport.pdf`;
-    await generatePDFFromHTML(htmlContent, filename, teamChartData);
+   await generatePDFFromHTML(htmlContent, filename);
     
     $('btnDownloadTeamPDF').textContent = originalText;
     $('btnDownloadTeamPDF').disabled = false;
