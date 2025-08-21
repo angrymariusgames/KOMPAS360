@@ -304,6 +304,8 @@
       <button class="tabbtn active" data-tab="projects">📂 Projekter</button>
       <button class="tabbtn" data-tab="results">📈 Resultater</button>
       <button class="tabbtn" data-tab="teambuilding">🤝 Team Building</button>
+      <button class="tabbtn" data-tab="development">📈 Udvikling</button>
+
     </div>
     <div style="padding:16px 0">
       <button id="createNewProjectBtn" class="btn primary">+ Opret nyt projekt</button>
@@ -459,12 +461,80 @@
       <div class="row" style="margin-bottom:10px">
         <button id="btnPdf" class="btn">Download PDF</button>
         <button id="btnZip" class="btn">Download alle (ZIP)</button>
+        <button id="btnUdvSurvey" class="btn primary">Download UDV (hele undersøgelsen)</button>
       </div>
+
       <div class="section" style="background:#fff">
         <canvas id="radar" height="360"></canvas>
       </div>
       <div id="resultNote" class="muted" style="margin-top:6px"></div>
     </div>
+
+    <!-- Udvikling -->
+    <div id="tab-development" class="section" style="display:none">
+      <div class="section" style="margin-bottom:16px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div>
+            <label style="display:block;margin-bottom:8px;font-weight:600">Upload UDV-filer (2–10 bølger)</label>
+            <div id="udvDrop" style="border:2px dashed var(--line);padding:16px;border-radius:12px;background:#fff;cursor:pointer">
+              <strong>Slip filer her</strong> eller klik for at vælge
+              <input id="udvFiles" type="file" accept=".udv,.json,.zip" multiple style="display:none">
+            </div>
+            <div id="udvFileList" class="muted" style="margin-top:8px;font-size:0.9rem"></div>
+
+            <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+              <label><input type="checkbox" id="devTypeSelf" checked> Selv</label>
+              <label><input type="checkbox" id="devTypePeer" checked> Kollega</label>
+              <label><input type="checkbox" id="devTypeLeader" checked> Fører</label>
+              <select id="devView" class="select">
+                <option value="team">Team (samlet)</option>
+                <option value="domain">Domæner</option>
+                <option value="category">Kategorier</option>
+                <option value="individual">Individ</option>
+              </select>
+              <select id="devNorm" class="select" title="Sammenligningsmetode">
+                <option value="none">Ingen normalisering (0–5)</option>
+                <option value="zscore">Z-score pr. kategori (over tid)</option>
+              </select>
+              <input id="devSearchPerson" class="input" placeholder="Søg deltager (til Individ)" style="flex:1;min-width:180px">
+            </div>
+          </div>
+          <div>
+            <div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px">
+              <h4 style="margin-bottom:8px">📊 KPI-overblik</h4>
+              <div id="devKpi" class="muted" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section" style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:16px">
+        <canvas id="devLine" height="320"></canvas>
+      </div>
+
+      <div class="section" style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:16px">
+        <h4 style="margin-bottom:10px">Radar — “dengang vs. nu”</h4>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+          <select id="devWaveA" class="select"></select>
+          <select id="devWaveB" class="select"></select>
+        </div>
+        <canvas id="devRadar" height="320"></canvas>
+      </div>
+
+      <div class="section" style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px">
+        <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <h4 style="margin:0">Panel-matrix</h4>
+          <button id="btnExportDevCsv" class="btn small">📊 Eksporter tabel data</button>
+        </div>
+        <div style="max-height:350px;overflow:auto">
+          <table id="devTbl" style="width:100%;font-size:0.9rem;border-collapse:collapse">
+            <thead id="devTblHead"></thead>
+            <tbody id="devTblBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
 
     <!-- Team Building -->
     <div id="tab-teambuilding" class="section" style="display:none">
@@ -537,15 +607,25 @@
             <canvas id="teamRadar" height="400"></canvas>
           </div>
           
-          <div style="display:flex;flex-direction:column;gap:8px">
-            <button id="btnDownloadTeamPDF" class="btn primary">📥 Download Team PDF</button>
-            <div style="background:var(--card);padding:12px;border-radius:8px;font-size:0.9rem">
+          <div style="display:flex;flex-direction:column;gap:12px;width:200px">
+            <div style="background:var(--card);padding:12px;border-radius:8px;border:1px solid var(--line)">
+              <h5 style="margin-bottom:12px;color:var(--ink)">🎯 Domæne Balance</h5>
+              <div id="domainPercentages" style="font-size:0.85rem">
+                <!-- Domain percentages will be populated here -->
+              </div>
+            </div>
+            
+            <div style="background:var(--card);padding:12px;border-radius:8px;font-size:0.85rem;color:var(--muted);border:1px solid var(--line)">
               <strong>Team Fokushjul:</strong><br>
               Viser højeste score fra<br>
               valgte medlemmer for<br>
               hver af de 16 kategorier
             </div>
           </div>
+        </div>
+        
+        <div style="margin-top:16px;text-align:center">
+          <button id="btnDownloadTeamPDF" class="btn primary">📥 Download Team PDF</button>
         </div>
       </div>
     </div>
@@ -575,8 +655,8 @@ window.addEventListener('load', function() {
       document.querySelectorAll('.tabbtn').forEach(x=>x.classList.remove('active'));
       btn.classList.add('active');
 
-      // skjul alle sektioner
-      ['projects','results','teambuilding'].forEach(name=>{
+      // skjul alle sektioner (inkl. development)
+      ['projects','results','teambuilding','development'].forEach(name=>{
         const panel = $('tab-'+name);
         if(panel) panel.style.display = 'none';
       });
@@ -1055,7 +1135,11 @@ window.addEventListener('load', function() {
     await loadTemplates(); 
     await loadProjects(); 
     await loadProjectsInto(['selProject2', 'selProject3']); 
+
+    // Udvikling-fanen (drag/drop + events)
+    setupDevelopmentTab();
   }
+
   
   // Templates (læs-only for evaluatorer)
   async function loadTemplates(){
@@ -1672,6 +1756,403 @@ window.showLargeProjectQR = (url, title) => {
     openDoc(`http://localhost:8000/zip?project_id=${pid}`); 
   };
 
+  // ----- Download UDV (hele undersøgelsen) -----
+  $('btnUdvSurvey').onclick = async () => {
+    const projectId = $('selProject2').value;
+    if (!projectId) { alert('Vælg et projekt først'); return; }
+    try {
+      const udv = await buildSurveyUDV(projectId);
+      const blob = new Blob([JSON.stringify(udv, null, 2)], { type: 'application/kompas-udv+json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      const title = (await supabase.from('projects').select('title').eq('id', projectId).single()).data?.title || 'survey';
+      const d = new Date().toISOString().slice(0,10).replaceAll('-','');
+      a.download = `${title}_${d}_survey.udv`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+    } catch (e) {
+      console.error(e);
+      alert('Kunne ikke generere UDV: ' + e.message);
+    }
+  };
+
+  // ======= UDV SURVEY EXPORT v2.0 (hele undersøgelsen) =======
+  // Samler målpersoner, domæner/kategorier og sikre gennemsnit fra v_kompas_series.
+  // Robust over manglende data og nye medarbejdere mellem bølger.
+  async function buildSurveyUDV(projectId){
+    // Projekt
+    const { data: proj } = await supabase
+      .from('projects')
+      .select('id, title, template_id, settings, is_anonymous, created_at, first_response_at, close_at')
+      .eq('id', projectId).single();
+
+    // Personer i projektet
+    const { data: people } = await supabase
+      .from('project_people')
+      .select('id, full_name, employee_no')
+      .eq('project_id', projectId)
+      .order('full_name');
+
+    // Kategori-sti til labels (domæner/kategorier)
+    const { data: cats } = await supabase
+      .from('v_category_path')
+      .select('*')
+      .eq('template_id', proj.template_id)
+      .order('domain_sort, category_sort');
+
+    // Sikker gennemsnit pr. kategori/respondent-type
+    const { data: series } = await supabase
+      .from('v_kompas_series')
+      .select('*')
+      .eq('project_id', projectId);
+
+    // Pak til kompakt UDV
+    return {
+      udv_version: '2.0',
+      exported_at: new Date().toISOString(),
+      project: {
+        id: proj.id, title: proj.title, template_id: proj.template_id,
+        is_anonymous: proj.is_anonymous ?? true,
+        settings: proj.settings ?? {},
+        first_response_at: proj.first_response_at, close_at: proj.close_at
+      },
+      people: (people||[]).map(p=>({
+        id: p.id, name: p.full_name, employee_no: p.employee_no || null
+      })),
+      taxonomy: (cats||[]).map(c=>({
+        domain_id: c.domain_id, domain_name: c.domain_name,
+        category_id: c.category_id, category_name: c.category_name
+      })),
+      // Matrix: target_id x category_id x respondent_type -> safe_avg
+      scores: (series||[]).map(s=>({
+        target_id: s.target_id,
+        category_id: s.category_id,
+        respondent_type: s.respondent_type, // self|peer|leader
+        value: (s.safe_avg===null ? null : Number(s.safe_avg))
+      }))
+    };
+  }
+
+  // ======= UDV IMPORT + UDVIKLING (over tid) =======
+  function setupDevelopmentTab(){
+    const drop = $('udvDrop');
+    const input = $('udvFiles');
+    const fileList = $('udvFileList');
+
+    // Klik på boksen åbner file picker
+    drop.onclick = () => input.click();
+
+    // Drag/drop styling
+    ['dragenter','dragover'].forEach(evt=>{
+      drop.addEventListener(evt, e=>{e.preventDefault(); drop.style.background='#f8fafc';});
+    });
+    ['dragleave','drop'].forEach(evt=>{
+      drop.addEventListener(evt, e=>{e.preventDefault(); drop.style.background='#fff';});
+    });
+
+    // Håndtér filer
+    drop.addEventListener('drop', async e=>{
+      e.preventDefault();
+      const files=[...e.dataTransfer.files];
+      await handleUdvFiles(files, fileList);
+    });
+    input.onchange = async (e)=>{
+      const files=[...e.target.files];
+      await handleUdvFiles(files, fileList);
+    };
+
+
+    // UI events
+    ['devTypeSelf','devTypePeer','devTypeLeader','devView','devNorm','devWaveA','devWaveB']
+      .forEach(id=>$(id)?.addEventListener('change', renderDevelopment));
+    $('devSearchPerson')?.addEventListener('input', renderDevelopment);
+    $('devSearchPerson')?.addEventListener('change', renderDevelopment);
+
+
+    $('btnExportDevCsv').onclick = exportDevCsv;
+
+    // Lokale state på window (enkelt at debugg’e)
+    window.__udvWaves = [];   // [{meta, people[], taxonomy[], scores[]}, ...]
+    window.__devState = { merged:null, charts:{ line:null, radar:null } };
+  }
+
+  // Parse + vis filnavne og render
+  async function handleUdvFiles(files, fileListEl){
+    const waves=[];
+    for(const f of files){
+      if(!f) continue;
+      const text = await f.text();
+      let json=null;
+      try{ json = JSON.parse(text); }catch{ /* prøv .udv som JSON */ }
+      if(!json || !json.udv_version){ alert(`Ugyldig UDV: ${f.name}`); continue; }
+      waves.push({ meta:{ file:f.name }, ...json });
+    }
+    if(waves.length<2){ alert('Upload mindst 2 UDV-filer'); return; }
+
+    // Sortér bølger kronologisk efter exported_at (fallback = filnavn)
+    waves.sort((a,b)=> (a.exported_at||a.meta.file).localeCompare(b.exported_at||b.meta.file));
+
+    // Skriv liste
+    $('udvFileList').innerHTML = waves.map((w,i)=>`#${i+1} ${w.project?.title||'—'} • ${w.exported_at||w.meta.file}`).join('<br>');
+
+    window.__udvWaves = waves;
+    window.__devState.merged = mergeUdv(waves);
+    hydrateWaveSelects(waves);
+    renderDevelopment();
+  }
+
+  // Sammenflet bølger (robust over nye/manglende personer)
+  function mergeUdv(waves){
+    const byKey = (p)=> (p.employee_no && p.employee_no.trim()) ? `no:${p.employee_no.trim()}` : `name:${(p.name||'').trim().toLowerCase()}`;
+    // Unik personliste på tværs
+    const personsMap = new Map();
+    waves.forEach((w,wi)=>{
+      (w.people||[]).forEach(p=>{
+        const key = byKey(p);
+        if(!personsMap.has(key)){
+          personsMap.set(key, { key, name:p.name, employee_no:p.employee_no||null, ids: {} });
+        }
+        personsMap.get(key).ids[wi] = p.id; // original id pr. bølge
+      });
+    });
+    const persons = [...personsMap.values()];
+
+    // Taxonomi (brug første bølge som master)
+    const taxonomy = (waves[0]?.taxonomy||[]).map(t=>({
+      domain_id:t.domain_id, domain_name:t.domain_name,
+      category_id:t.category_id, category_name:t.category_name
+    }));
+
+    // Scores per bølge -> personKey -> category -> types
+    const wavesData = waves.map((w,wi)=>{
+      const map = new Map(); // key -> {catId->{self,peer,leader}}
+      (w.scores||[]).forEach(s=>{
+        // map target_id i denne bølge til personKey
+        let keyFound = null;
+        for(const person of persons){
+          if(person.ids[wi]===s.target_id){ keyFound = person.key; break; }
+        }
+        if(!keyFound) return; // person ikke med i denne bølge
+        if(!map.has(keyFound)) map.set(keyFound, {});
+        const byCat = map.get(keyFound);
+        if(!byCat[s.category_id]) byCat[s.category_id] = { self:null, peer:null, leader:null };
+        byCat[s.category_id][s.respondent_type] = s.value===null? null : Number(s.value);
+      });
+      return map;
+    });
+
+    return { persons, taxonomy, wavesData };
+  }
+
+  function hydrateWaveSelects(waves){
+    const a=$('devWaveA'), b=$('devWaveB');
+    if(!a||!b) return;
+    const opts = waves.map((w,i)=>({i, label:`#${i+1} • ${w.project?.title||'Projekt'} • ${w.exported_at?.slice(0,10)||w.meta.file}`}));
+    [a,b].forEach(sel=>{
+      sel.innerHTML = opts.map(o=>`<option value="${o.i}">${o.label}</option>`).join('');
+    });
+    a.selectedIndex = 0;
+    b.selectedIndex = Math.max(1, opts.length-1);
+  }
+
+  function getCheckedTypes(){
+    return [
+      $('devTypeSelf')?.checked ? 'self' : null,
+      $('devTypePeer')?.checked ? 'peer' : null,
+      $('devTypeLeader')?.checked ? 'leader' : null
+    ].filter(Boolean);
+  }
+
+  function renderDevelopment(){
+    const st = window.__devState;
+    const merged = st?.merged;
+    if(!merged){ return; }
+
+    const view = $('devView')?.value || 'team';
+    const norm = $('devNorm')?.value || 'none';
+    const types = getCheckedTypes();
+    const search = ($('devSearchPerson')?.value||'').trim().toLowerCase();
+
+    // Aggreger pr. person -> pr. kategori (pr. bølge)
+    const { persons, taxonomy, wavesData } = merged;
+
+    // Udvælg personer (ved “Individ”-view + søgning)
+    const activePersons = persons.filter(p=> view!=='individual' ? true : (p.name||'').toLowerCase().includes(search));
+
+    // Hjælpe: beregn gennemsnit af valgte typer
+    const avgTypes = (obj)=> {
+      const vals = types.map(t=> obj?.[t]).filter(v=> v!==null && v!==undefined);
+      return vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length) : null;
+    };
+
+    // Matrix: waveIndex -> [værdier pr. person] eller pr. kategori
+    const wavesSeries = wavesData.map((wd, wi)=>{
+      return activePersons.map(person=>{
+        // pr. person -> gennemsnit over alle kategorier (team), eller per kategori (domain/category)
+        const byCat = wd.get(person.key) || {};
+        const perCat = taxonomy.map(tx=> avgTypes(byCat[tx.category_id]||null));
+        const clean = perCat.filter(v=> v!==null);
+        const teamAvg = clean.length ? clean.reduce((a,b)=>a+b,0)/clean.length : null;
+        return { person, perCat, teamAvg };
+      });
+    });
+
+    // Normalisering over tid (z-score pr. kategori)
+    if(norm==='zscore'){
+      taxonomy.forEach((tx, cIdx)=>{
+        // saml alle værdier pr. bølge for denne kategori (team: brug bølge-gennemsnit)
+        const vals = [];
+        wavesSeries.forEach(ws=>{
+          ws.forEach(row=>{
+            if(view==='team'){
+              if(row.perCat[cIdx]!=null) vals.push(row.perCat[cIdx]); // team bruger kategori-snit til senere snit
+            } else {
+              if(row.perCat[cIdx]!=null) vals.push(row.perCat[cIdx]);
+            }
+          });
+        });
+        if(vals.length<2) return;
+        const mean = vals.reduce((a,b)=>a+b,0)/vals.length;
+        const sd = Math.sqrt(vals.reduce((a,b)=>a+(b-mean)*(b-mean),0)/vals.length) || 1;
+        wavesSeries.forEach(ws=>{
+          ws.forEach(row=>{
+            if(row.perCat[cIdx]!=null) row.perCat[cIdx] = (row.perCat[cIdx]-mean)/sd;
+          });
+        });
+      });
+    }
+
+    // KPI (fx deltagelse / datadækning)
+    const kpiEl = $('devKpi');
+    if(kpiEl){
+      const coverage = wavesSeries.map(ws=>{
+        const values = ws.flatMap(r=>r.perCat).filter(v=>v!=null);
+        const personsWithAny = ws.filter(r=> r.perCat.some(v=>v!=null)).length;
+        const cov = values.length / Math.max(1, ws.length*taxonomy.length);
+        return { personsWithAny, cov };
+      });
+      kpiEl.innerHTML = coverage.map((c, i)=>`
+        <div style="background:#f8fafc;border:1px solid var(--line);padding:8px;border-radius:8px">
+          <div style="font-weight:600">Bølge #${i+1}</div>
+          <div class="muted">Dækning: ${(c.cov*100).toFixed(0)}% • Personer m. data: ${c.personsWithAny}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Linjediagram (team-snit pr. bølge)
+    const lineCtx = $('devLine');
+    if(lineCtx){
+      const teamPerWave = wavesSeries.map(ws=>{
+        const vals = ws.map(r=>{
+          if(view==='team'){ 
+            // team: snit over kategori-snit
+            const clean = r.perCat.filter(v=>v!=null);
+            return clean.length ? clean.reduce((a,b)=>a+b,0)/clean.length : null;
+          }
+          if(view==='individual'){
+            // individ: snit pr. person (vises i tabel; i linje viser vi snit over personer)
+            const clean = r.perCat.filter(v=>v!=null);
+            return clean.length ? clean.reduce((a,b)=>a+b,0)/clean.length : null;
+          }
+          // domain/category: snit over personer (snit af kategori-snit)
+          const clean = r.perCat.filter(v=>v!=null);
+          return clean.length ? clean.reduce((a,b)=>a+b,0)/clean.length : null;
+        }).filter(v=>v!=null);
+        return vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length) : null;
+      });
+
+      const labels = wavesData.map((_,i)=>`Bølge #${i+1}`);
+      if(st.charts.line){ st.charts.line.destroy(); }
+      st.charts.line = new Chart(lineCtx, {
+        type:'line',
+        data:{
+          labels,
+          datasets:[{ label:'Udvikling (snit)', data: teamPerWave }]
+        },
+        options:{ responsive:true, maintainAspectRatio:false, scales:{ y:{ beginAtZero:true } } }
+      });
+    }
+
+    // Radar (vælg bølge A/B)
+    const a = Number($('devWaveA')?.value ?? 0);
+    const b = Number($('devWaveB')?.value ?? Math.max(1, wavesData.length-1));
+    const radCtx = $('devRadar');
+    if(radCtx && taxonomy.length){
+      // team: kategori-snit pr. bølge
+      const perWaveCat = (wi)=>{
+        const rows = wavesSeries[wi]||[];
+        const byCat = taxonomy.map((_,cIdx)=>{
+          const vals = rows.map(r=> r.perCat[cIdx]).filter(v=>v!=null);
+          return vals.length? (vals.reduce((a,b)=>a+b,0)/vals.length) : null;
+        });
+        return byCat.map(v=> v==null ? 0 : v); // chart.js tåler ikke null i radar
+      };
+      const labels = taxonomy.map(tx=> tx.category_name);
+      if(st.charts.radar){ st.charts.radar.destroy(); }
+      st.charts.radar = new Chart(radCtx, {
+        type:'radar',
+        data:{
+          labels,
+          datasets:[
+            { label:`Bølge #${a+1}`, data: perWaveCat(a) },
+            { label:`Bølge #${b+1}`, data: perWaveCat(b) }
+          ]
+        },
+        options:{ responsive:true, maintainAspectRatio:false, elements:{ line:{ tension:0.2 } } }
+      });
+    }
+
+    // Panel-matrix (tabel)
+    renderDevTable(merged, wavesSeries, types);
+  }
+
+  function renderDevTable(merged, wavesSeries, types){
+    const head=$('devTblHead'), body=$('devTblBody');
+    if(!head||!body) return;
+
+    // Header
+    const waveCols = wavesSeries.map((_,i)=>`<th style="padding:6px 8px;text-align:center">Bølge #${i+1}</th>`).join('');
+    head.innerHTML = `<tr>
+      <th style="padding:6px 8px;position:sticky;left:0;background:#fff;z-index:1;text-align:left">Person</th>
+      ${waveCols}
+    </tr>`;
+
+    // Rækker: snit pr. person pr. bølge
+    body.innerHTML = merged.persons.map(p=>{
+      const rowVals = wavesSeries.map(ws=>{
+        const rec = ws.find(r=> r.person.key===p.key);
+        const clean = (rec?.perCat||[]).filter(v=>v!=null);
+        const avg = clean.length ? (clean.reduce((a,b)=>a+b,0)/clean.length) : null;
+        return `<td style="padding:6px 8px;text-align:center">${avg==null? '—' : avg.toFixed(2)}</td>`;
+      }).join('');
+      return `<tr>
+        <td style="padding:6px 8px;position:sticky;left:0;background:#fff">${p.name}</td>
+        ${rowVals}
+      </tr>`;
+    }).join('');
+  }
+
+  function exportDevCsv(){
+    const bodyRows = [...$('devTblBody').querySelectorAll('tr')];
+    if(!bodyRows.length){ alert('Ingen data at eksportere'); return; }
+    let csv = '';
+    // header
+    const headCells = [...$('devTblHead').querySelectorAll('th')].map(th=>th.textContent.trim());
+    csv += headCells.join(',') + '\n';
+    // rows
+    bodyRows.forEach(tr=>{
+      const cells = [...tr.querySelectorAll('td')].map(td=> `"${td.textContent.replaceAll('"','""')}"`);
+      csv += cells.join(',') + '\n';
+    });
+    const blob = new Blob([csv], {type:'text/csv'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'udvikling_panel.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  }
+
+
   // Team Building Variables
   let teamRadar = null;
   let teamData = [];
@@ -1881,6 +2362,65 @@ window.showLargeProjectQR = (url, title) => {
     }
   }
 
+  function calculateDomainPercentages() {
+    const selectedMembers = teamData.filter(p => p.selected);
+    if (selectedMembers.length === 0) return { relationer: 0, stabilitet: 0, fornyelse: 0, resultater: 0 };
+
+    // Map categories to domains
+    const domainMap = {
+      'Samarbejde': 'relationer',
+      'Udvikling af andre': 'relationer', 
+      'Motivere andre': 'relationer',
+      'Kommunikation': 'relationer',
+      'Analytisk tænkning': 'stabilitet',
+      'Faglighed': 'stabilitet',
+      'Planlægning': 'stabilitet', 
+      'Ressourcebevidsthed': 'stabilitet',
+      'Fleksibilitet': 'fornyelse',
+      'Nytænkning': 'fornyelse',
+      'Helhedsorientering': 'fornyelse',
+      'Fremtidsorientering': 'fornyelse',
+      'Håndtering af pres': 'resultater',
+      'Beslutningstagning': 'resultater',
+      'Styring': 'resultater',
+      'Initiativ': 'resultater'
+    };
+
+    let domainTotals = { relationer: 0, stabilitet: 0, fornyelse: 0, resultater: 0 };
+    let totalSum = 0;
+
+    // Calculate average values for each domain across selected members
+    Object.keys(domainTotals).forEach(domain => {
+      const domainCategories = categories.filter(cat => domainMap[cat.category_name] === domain);
+      let domainSum = 0;
+      let domainCount = 0;
+
+      selectedMembers.forEach(person => {
+        domainCategories.forEach(cat => {
+          const avg = calculateAverage(person, cat.category_id);
+          if (avg !== null) {
+            domainSum += avg;
+            domainCount++;
+          }
+        });
+      });
+
+      if (domainCount > 0) {
+        domainTotals[domain] = domainSum / domainCount;
+        totalSum += domainTotals[domain];
+      }
+    });
+
+    // Convert to percentages
+    if (totalSum > 0) {
+      Object.keys(domainTotals).forEach(domain => {
+        domainTotals[domain] = (domainTotals[domain] / totalSum * 100);
+      });
+    }
+
+    return domainTotals;
+  }
+
   function generateTeamRadar() {
     const selectedMembers = teamData.filter(p => p.selected);
     if (selectedMembers.length === 0) return;
@@ -1912,6 +2452,47 @@ window.showLargeProjectQR = (url, title) => {
       const catIndex = categories.findIndex(c => c.category_id === cat.category_id);
       return maxValues[catIndex];
     });
+
+    // Plugin til at tegne kvadrant baggrunde (samme som resultater)
+    const quadrantBackgroundPlugin = {
+      id: 'quadrantBackground',
+      beforeDatasetsDraw: (chart) => {
+        const {ctx, chartArea: {top, bottom, left, right}, scales: {r}} = chart;
+        const centerX = r.xCenter;
+        const centerY = r.yCenter;
+        const radius = r.drawingArea;
+        
+        ctx.save();
+        
+        // Funktion til at tegne en sektor
+        const drawSector = (startAngle, endAngle, color) => {
+          ctx.beginPath();
+          ctx.moveTo(centerX, centerY);
+          ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+          ctx.closePath();
+          ctx.fillStyle = color;
+          ctx.fill();
+        };
+        
+        // Konverter grader til radianer (Chart.js bruger -90° som start)
+        const degToRad = (deg) => (deg - 90) * Math.PI / 180;
+        
+        // Tegn de 4 kvadrant baggrunde
+        // Fornyelse (øverst højre) - støvet grøn  
+        drawSector(degToRad(0), degToRad(90), 'rgba(34, 139, 34, 0.08)');
+        
+        // Resultater (nederst højre) - støvet rød
+        drawSector(degToRad(90), degToRad(180), 'rgba(220, 20, 60, 0.08)');
+        
+        // Stabilitet (nederst venstre) - støvet grå
+        drawSector(degToRad(180), degToRad(270), 'rgba(128, 128, 128, 0.08)');
+        
+        // Relationer (øverst venstre) - støvet blå
+        drawSector(degToRad(270), degToRad(360), 'rgba(100, 149, 237, 0.08)');
+        
+        ctx.restore();
+      }
+    };
 
     const ctx = $('teamRadar').getContext('2d');
     if (teamRadar) teamRadar.destroy();
@@ -1948,8 +2529,34 @@ window.showLargeProjectQR = (url, title) => {
         plugins: {
           legend: { position: 'bottom' }
         }
-      }
+      },
+      plugins: [quadrantBackgroundPlugin]
     });
+
+    // Update domain percentages display
+    updateDomainPercentages();
+  }
+
+  function updateDomainPercentages() {
+    const percentages = calculateDomainPercentages();
+    const container = document.getElementById('domainPercentages');
+    
+    if (container) {
+      container.innerHTML = `
+        <div style="background:rgba(100, 149, 237, 0.1);padding:8px;border-radius:6px;margin-bottom:8px;border-left:4px solid rgba(100, 149, 237, 0.8)">
+          <strong>Relationer:</strong> ${percentages.relationer.toFixed(1)}%
+        </div>
+        <div style="background:rgba(128, 128, 128, 0.1);padding:8px;border-radius:6px;margin-bottom:8px;border-left:4px solid rgba(128, 128, 128, 0.8)">
+          <strong>Stabilitet:</strong> ${percentages.stabilitet.toFixed(1)}%
+        </div>
+        <div style="background:rgba(34, 139, 34, 0.1);padding:8px;border-radius:6px;margin-bottom:8px;border-left:4px solid rgba(34, 139, 34, 0.8)">
+          <strong>Fornyelse:</strong> ${percentages.fornyelse.toFixed(1)}%
+        </div>
+        <div style="background:rgba(220, 20, 60, 0.1);padding:8px;border-radius:6px;margin-bottom:8px;border-left:4px solid rgba(220, 20, 60, 0.8)">
+          <strong>Resultater:</strong> ${percentages.resultater.toFixed(1)}%
+        </div>
+      `;
+    }
   }
 
   // Global functions for team building
