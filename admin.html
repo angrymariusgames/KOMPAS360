@@ -2336,6 +2336,81 @@ function generatePersonReportHTML(project, person, categories, series, labels) {
   </div>`;
 }
 
+// Optimeret PDF generator funktion
+async function generatePDFFromHTML(htmlContent, filename) {
+  // Opret temporary container
+  const tempDiv = document.createElement('div');
+  tempDiv.style.position = 'fixed';
+  tempDiv.style.left = '-9999px';
+  tempDiv.style.width = '794px'; // A4 bredde ved 96 DPI
+  tempDiv.style.background = 'white';
+  tempDiv.innerHTML = htmlContent;
+  document.body.appendChild(tempDiv);
+
+  try {
+    // Konverter HTML til canvas med optimerede indstillinger
+    const canvas = await html2canvas(tempDiv, {
+      scale: 2, // God kvalitet men ikke for høj
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+      width: 794,
+      height: 1123, // A4 højde
+      windowWidth: 794,
+      windowHeight: 1123,
+      imageTimeout: 0, // Vigtig for SVG rendering
+      onclone: (clonedDoc) => {
+        // Sikr at SVG'er er synlige i klonen
+        const svgs = clonedDoc.querySelectorAll('svg');
+        svgs.forEach(svg => {
+          svg.setAttribute('width', svg.getBoundingClientRect().width);
+          svg.setAttribute('height', svg.getBoundingClientRect().height);
+        });
+      }
+    });
+
+    // Opret PDF med optimerede indstillinger
+    const pdf = new window.jspdf.jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+      compress: true // Vigtig for filstørrelse
+    });
+
+    // Beregn dimensioner for at passe på én side
+    const imgWidth = 210; // A4 bredde i mm
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    
+    // Hvis højden overstiger A4, skaler ned
+    const maxHeight = 297; // A4 højde i mm
+    let finalWidth = imgWidth;
+    let finalHeight = imgHeight;
+    
+    if (imgHeight > maxHeight) {
+      const scaleFactor = maxHeight / imgHeight;
+      finalWidth = imgWidth * scaleFactor;
+      finalHeight = maxHeight;
+    }
+
+    // Tilføj billedet centreret på siden
+    const xOffset = (210 - finalWidth) / 2;
+    const yOffset = 0;
+    
+    // Konverter canvas til JPEG for mindre filstørrelse
+    const imgData = canvas.toDataURL('image/jpeg', 0.8); // 0.8 kvalitet = god balance
+    
+    pdf.addImage(imgData, 'JPEG', xOffset, yOffset, finalWidth, finalHeight);
+    
+    // Download PDF
+    pdf.save(filename);
+    
+  } finally {
+    // Ryd op
+    document.body.removeChild(tempDiv);
+  }
+}
+
 $('btnPdf').onclick = async () => {
   const pid = $('selProject2').value, tid = $('selTarget').value;
   if (!pid || !tid) { alert('Vælg projekt og målperson først'); return; }
@@ -2350,7 +2425,7 @@ $('btnPdf').onclick = async () => {
     const { data: cats } = await supabase.from('v_category_path').select('*').eq('template_id', project.template_id).order('category_sort');
     const { data: series } = await supabase.from('v_kompas_series').select('*').eq('project_id', pid).eq('target_id', tid);
     
-    const labels = project.settings?.labels || { self: 'Vurdering af sig selv', peer: 'Vurdering af kollega', leader: 'Fører vurdering' };
+    const labels = project.settings?.labels || { self: 'Vurdering af sig selv', peer: 'Vurdering af kollega', leader: 'Føre vurdering' };
     const seriesData = { self: [], peer: [], leader: [] };
     cats.forEach(cat => {
       ['self', 'peer', 'leader'].forEach(type => {
