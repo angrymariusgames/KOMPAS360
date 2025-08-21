@@ -1767,7 +1767,8 @@ window.showLargeProjectQR = (url, title) => {
       a.href = URL.createObjectURL(blob);
       const title = (await supabase.from('projects').select('title').eq('id', projectId).single()).data?.title || 'survey';
       const d = new Date().toISOString().slice(0,10).replaceAll('-','');
-      a.download = `${title}_${d}_survey.udv`;
+      const variant = udv.variant || (udv.project?.is_lite ? 'LITE' : 'FULD');
+      a.download = `${title}_${variant}_${d}_survey.udv`;
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       URL.revokeObjectURL(a.href);
     } catch (e) {
@@ -1783,7 +1784,7 @@ window.showLargeProjectQR = (url, title) => {
     // Projekt
     const { data: proj } = await supabase
       .from('projects')
-      .select('id, title, template_id, settings, is_anonymous, created_at, first_response_at, close_at')
+      .select('id, title, template_id, is_lite, settings, is_anonymous, created_at, first_response_at, close_at')
       .eq('id', projectId).single();
 
     // Personer i projektet
@@ -1811,11 +1812,17 @@ window.showLargeProjectQR = (url, title) => {
       udv_version: '2.0',
       exported_at: new Date().toISOString(),
       project: {
-        id: proj.id, title: proj.title, template_id: proj.template_id,
+        id: proj.id,
+        title: proj.title,
+        template_id: proj.template_id,
+        is_lite: !!proj.is_lite,
         is_anonymous: proj.is_anonymous ?? true,
         settings: proj.settings ?? {},
-        first_response_at: proj.first_response_at, close_at: proj.close_at
+        first_response_at: proj.first_response_at,
+        close_at: proj.close_at
       },
+      variant: (!!proj.is_lite ? 'LITE' : 'FULD'),
+
       people: (people||[]).map(p=>({
         id: p.id, name: p.full_name, employee_no: p.employee_no || null
       })),
@@ -1876,30 +1883,67 @@ window.showLargeProjectQR = (url, title) => {
     window.__devState = { merged:null, charts:{ line:null, radar:null } };
   }
 
-  // Parse + vis filnavne og render
   async function handleUdvFiles(files, fileListEl){
     const waves=[];
+    const variants=[];
+
     for(const f of files){
       if(!f) continue;
       const text = await f.text();
       let json=null;
-      try{ json = JSON.parse(text); }catch{ /* prøv .udv som JSON */ }
-      if(!json || !json.udv_version){ alert(`Ugyldig UDV: ${f.name}`); continue; }
+      try{ json = JSON.parse(text); }catch{}
+      if(!json || !json.udv_version){
+        alert(`Ugyldig UDV: ${f.name}`);
+        continue;
+      }
+
+      // Aflæs variant – både nye og gamle UDV'er understøttes
+      const fileVariant = json.variant || (json.project && (json.project.is_lite ? 'LITE' : 'FULD')) || 'UKENDT';
+      variants.push({ name:f.name, variant:fileVariant });
+
       waves.push({ meta:{ file:f.name }, ...json });
     }
-    if(waves.length<2){ alert('Upload mindst 2 UDV-filer'); return; }
 
-    // Sortér bølger kronologisk efter exported_at (fallback = filnavn)
+    if(waves.length < 1){
+      alert('Ingen gyldige UDV-filer');
+      return;
+    }
+
+    // 1) Afvis LITE i Udvikling
+    const hasLite = variants.some(v => v.variant === 'LITE');
+    if(hasLite){
+      const list = variants.filter(v=>v.variant==='LITE').map(v=>`• ${v.name}`).join('\n');
+      alert('UDV-typen er LITE i følgende filer — Udviklingsfanen understøtter kun FULD:\n\n' + list);
+      return;
+    }
+
+    // 2) Afvis blandede varianter (FULD/LITE/UKENDT)
+    const unique = Array.from(new Set(variants.map(v=>v.variant)));
+    if(unique.length > 1 && !unique.every(v => v==='FULD' || v==='UKENDT')){
+      const list = variants.map(v=>`• ${v.name} — ${v.variant}`).join('\n');
+      alert('Blandede UDV-typer fundet. Alle filer skal være samme type (FULD). Filer:\n\n' + list);
+      return;
+    }
+
+    // Sortér bølger
     waves.sort((a,b)=> (a.exported_at||a.meta.file).localeCompare(b.exported_at||b.meta.file));
 
-    // Skriv liste
-    $('udvFileList').innerHTML = waves.map((w,i)=>`#${i+1} ${w.project?.title||'—'} • ${w.exported_at||w.meta.file}`).join('<br>');
+    // Vis filnavne
+    if(fileListEl){
+      fileListEl.innerHTML = waves.map((w,i)=>`#${i+1} ${w.project?.title||'—'} • ${w.exported_at||w.meta.file}`).join('<br>');
+    } else {
+      $('udvFileList').innerHTML = waves.map((w,i)=>`#${i+1} ${w.project?.title||'—'} • ${w.exported_at||w.meta.file}`).join('<br>');
+    }
 
     window.__udvWaves = waves;
+
+    // merge + render som før
     window.__devState.merged = mergeUdv(waves);
     hydrateWaveSelects(waves);
+    if(typeof populatePersonList === 'function') populatePersonList();
     renderDevelopment();
   }
+
 
   // Sammenflet bølger (robust over nye/manglende personer)
   function mergeUdv(waves){
