@@ -303,12 +303,12 @@
     <div style="display:flex;align-items:center;flex:1">
       <button class="tabbtn active" data-tab="projects">📂 Projekter</button>
       <button class="tabbtn" data-tab="results">📈 Resultater</button>
+      <button class="tabbtn" data-tab="teambuilding">🤝 Team Building</button>
     </div>
     <div style="padding:16px 0">
       <button id="createNewProjectBtn" class="btn primary">+ Opret nyt projekt</button>
     </div>
   </div>
-
   <!-- MAIN CONTENT -->
   <div class="content">
 
@@ -466,6 +466,90 @@
       <div id="resultNote" class="muted" style="margin-top:6px"></div>
     </div>
 
+    <!-- Team Building -->
+    <div id="tab-teambuilding" class="section" style="display:none">
+      <!-- Project & Settings -->
+      <div class="section" style="margin-bottom:20px">
+        <div style="margin-bottom:16px">
+          <label style="display:block;margin-bottom:8px;font-weight:600">Projekt</label>
+          <select id="selProject3" class="select" style="width:100%"></select>
+        </div>
+        
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:16px">
+          <div>
+            <label style="display:block;margin-bottom:8px;font-weight:600">
+              <input type="checkbox" id="showValues" checked style="margin-right:8px">
+              Vis værdier numerisk
+            </label>
+          </div>
+          <div>
+            <label style="display:block;margin-bottom:8px;font-weight:600">Tilbagemeldingstyper</label>
+            <div style="display:flex;gap:16px">
+              <label><input type="checkbox" id="typeSelf" checked style="margin-right:4px">Selv</label>
+              <label><input type="checkbox" id="typePeer" checked style="margin-right:4px">Kollega</label>
+              <label><input type="checkbox" id="typeLeader" checked style="margin-right:4px">Fører</label>
+            </div>
+          </div>
+        </div>
+        
+        <div style="margin-bottom:16px">
+          <label style="display:block;margin-bottom:8px;font-weight:600">Farveskala</label>
+          <div style="display:flex;gap:16px">
+            <label><input type="radio" name="colorScale" value="none" checked style="margin-right:4px">Ingen</label>
+            <label><input type="radio" name="colorScale" value="row" style="margin-right:4px">Per række (rød→gul→grøn)</label>
+            <label><input type="radio" name="colorScale" value="global" style="margin-right:4px">Samlet (rød→gul→grøn)</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Team Overview Table -->
+      <div class="section" style="margin-bottom:20px">
+        <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+          <label style="font-weight:600">
+            <input type="checkbox" id="selectAllMembers" style="margin-right:8px">
+            Vælg alle teammedlemmer
+          </label>
+          <div style="display:flex;gap:8px">
+            <button id="btnExportTeamData" class="btn small">📊 Eksporter tabel data</button>
+            <button id="btnUpdateTeamView" class="btn small primary">Opdater visning</button>
+          </div>
+        </div>
+        
+        <div style="overflow-x:auto;max-height:400px;border:1px solid var(--line);border-radius:8px">
+          <table id="teamTable" style="width:100%;min-width:1200px;font-size:0.85rem">
+            <thead style="background:var(--card);position:sticky;top:0;z-index:10">
+              <tr id="teamTableHeader">
+                <th style="padding:8px;border-bottom:1px solid var(--line);width:150px;position:sticky;left:0;background:var(--card);z-index:11">Navn</th>
+              </tr>
+            </thead>
+            <tbody id="teamTableBody">
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Team Focus Wheel -->
+      <div id="teamFocusSection" class="section" style="display:none">
+        <h4 style="margin-bottom:16px">🎯 Team Kompetence Hjul (<span id="selectedCount">0</span> valgte medlemmer)</h4>
+        
+        <div style="display:grid;grid-template-columns:1fr auto;gap:20px;align-items:start">
+          <div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:16px">
+            <canvas id="teamRadar" height="400"></canvas>
+          </div>
+          
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <button id="btnDownloadTeamPDF" class="btn primary">📥 Download Team PDF</button>
+            <div style="background:var(--card);padding:12px;border-radius:8px;font-size:0.9rem">
+              <strong>Team Fokushjul:</strong><br>
+              Viser højeste score fra<br>
+              valgte medlemmer for<br>
+              hver af de 16 kategorier
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -492,7 +576,7 @@ window.addEventListener('load', function() {
       btn.classList.add('active');
 
       // skjul alle sektioner
-      ['projects','results'].forEach(name=>{
+      ['projects','results','teambuilding'].forEach(name=>{
         const panel = $('tab-'+name);
         if(panel) panel.style.display = 'none';
       });
@@ -970,7 +1054,7 @@ window.addEventListener('load', function() {
   async function loadAll(){ 
     await loadTemplates(); 
     await loadProjects(); 
-    await loadProjectsInto(['selProject2']); 
+    await loadProjectsInto(['selProject2', 'selProject3']); 
   }
   
   // Templates (læs-only for evaluatorer)
@@ -1586,6 +1670,359 @@ window.showLargeProjectQR = (url, title) => {
   $('btnZip').onclick = ()=>{ 
     const pid=$('selProject2').value; 
     openDoc(`http://localhost:8000/zip?project_id=${pid}`); 
+  };
+
+  // Team Building Variables
+  let teamRadar = null;
+  let teamData = [];
+  let categories = [];
+
+  // Team Building Functions
+  async function loadTeamBuildingData() {
+    const projectId = $('selProject3').value;
+    if (!projectId) return;
+
+    try {
+      // Load people for this project
+      const { data: people } = await supabase
+        .from('project_people')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('full_name');
+
+      // Load categories for this project's template
+      const { data: project } = await supabase
+        .from('projects')
+        .select('template_id')
+        .eq('id', projectId)
+        .single();
+
+      const { data: cats } = await supabase
+        .from('v_category_path')
+        .select('*')
+        .eq('template_id', project.template_id)
+        .order('category_sort');
+
+      categories = cats || [];
+
+      // Load all responses for this project
+      const { data: responses } = await supabase
+        .from('v_kompas_series')
+        .select('*')
+        .eq('project_id', projectId);
+
+      // Process data for team view
+      teamData = (people || []).map(person => {
+        const personData = { 
+          id: person.id, 
+          name: person.full_name, 
+          selected: false,
+          categories: {}
+        };
+
+        categories.forEach(cat => {
+          const catResponses = responses.filter(r => 
+            r.target_id === person.id && 
+            r.category_id === cat.category_id
+          );
+
+          const self = catResponses.find(r => r.respondent_type === 'self')?.safe_avg || null;
+          const peer = catResponses.find(r => r.respondent_type === 'peer')?.safe_avg || null;
+          const leader = catResponses.find(r => r.respondent_type === 'leader')?.safe_avg || null;
+
+          personData.categories[cat.category_id] = { self, peer, leader };
+        });
+
+        return personData;
+      });
+
+      renderTeamTable();
+
+    } catch (error) {
+      console.error('Error loading team building data:', error);
+    }
+  }
+
+  function getSelectedTypes() {
+    const types = [];
+    if ($('typeSelf').checked) types.push('self');
+    if ($('typePeer').checked) types.push('peer');
+    if ($('typeLeader').checked) types.push('leader');
+    return types;
+  }
+
+  function calculateAverage(person, categoryId) {
+    const types = getSelectedTypes();
+    if (types.length === 0) return null;
+
+    const catData = person.categories[categoryId];
+    const values = types.map(type => catData[type]).filter(v => v !== null);
+    
+    if (values.length === 0) return null;
+    return values.reduce((sum, val) => sum + val, 0) / values.length;
+  }
+
+  function getColorForValue(value, min, max, colorMode) {
+    if (value === null || colorMode === 'none') return '';
+    
+    const ratio = max > min ? (value - min) / (max - min) : 0.5;
+    
+    let r, g, b;
+    if (ratio < 0.5) {
+      // Softened Red to Yellow
+      r = 240;
+      g = 120 + Math.round(120 * (ratio * 2));  // 120-240
+      b = 120;
+    } else {
+      // Softened Yellow to Green
+      r = 240 - Math.round(120 * ((ratio - 0.5) * 2));  // 240-120
+      g = 240;
+      b = 120;
+    }
+    
+    return `rgba(${r}, ${g}, ${b}, 0.4)`;
+  }
+
+  function renderTeamTable() {
+    const header = $('teamTableHeader');
+    const tbody = $('teamTableBody');
+    const showValues = $('showValues').checked;
+    const colorMode = document.querySelector('input[name="colorScale"]:checked').value;
+
+    // Build header
+    header.innerHTML = '<th style="padding:8px;border-bottom:1px solid var(--line);width:150px;position:sticky;left:0;background:var(--card);z-index:11">Navn</th>';
+    categories.forEach(cat => {
+      header.innerHTML += `<th style="padding:8px;border-bottom:1px solid var(--line);width:60px;text-align:center;font-size:0.75rem">${cat.category_name}</th>`;
+    });
+
+    // Calculate all values for global color scaling
+    let allValues = [];
+    if (colorMode === 'global') {
+      teamData.forEach(person => {
+        categories.forEach(cat => {
+          const avg = calculateAverage(person, cat.category_id);
+          if (avg !== null) allValues.push(avg);
+        });
+      });
+    }
+    
+    const globalMin = allValues.length > 0 ? Math.min(...allValues) : 0;
+    const globalMax = allValues.length > 0 ? Math.max(...allValues) : 5;
+
+    // Build rows
+    tbody.innerHTML = '';
+    teamData.forEach(person => {
+      const tr = document.createElement('tr');
+      
+      // Calculate person's values for row color scaling
+      let personValues = [];
+      if (colorMode === 'row') {
+        categories.forEach(cat => {
+          const avg = calculateAverage(person, cat.category_id);
+          if (avg !== null) personValues.push(avg);
+        });
+      }
+      
+      const rowMin = personValues.length > 0 ? Math.min(...personValues) : 0;
+      const rowMax = personValues.length > 0 ? Math.max(...personValues) : 5;
+
+      // Name column with checkbox
+      const nameCell = document.createElement('td');
+      nameCell.style.cssText = 'padding:8px;border-bottom:1px solid var(--line);position:sticky;left:0;background:var(--card);z-index:10';
+      nameCell.innerHTML = `
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" ${person.selected ? 'checked' : ''} onchange="togglePersonSelection('${person.id}')">
+          ${person.name}
+        </label>
+      `;
+      tr.appendChild(nameCell);
+
+      // Category columns
+      categories.forEach(cat => {
+        const avg = calculateAverage(person, cat.category_id);
+        const cell = document.createElement('td');
+        cell.style.cssText = 'padding:8px;border-bottom:1px solid var(--line);text-align:center;font-size:0.8rem';
+        
+        if (avg !== null) {
+          // Apply color
+          if (colorMode === 'row') {
+            cell.style.backgroundColor = getColorForValue(avg, rowMin, rowMax, colorMode);
+          } else if (colorMode === 'global') {
+            cell.style.backgroundColor = getColorForValue(avg, globalMin, globalMax, colorMode);
+          }
+          
+          // Add value if enabled
+          if (showValues) {
+            cell.textContent = avg.toFixed(1);
+          }
+        } else {
+          cell.textContent = showValues ? '—' : '';
+          cell.style.color = 'var(--muted)';
+        }
+        
+        tr.appendChild(cell);
+      });
+
+      tbody.appendChild(tr);
+    });
+
+    updateTeamSelection();
+  }
+
+  function updateTeamSelection() {
+    const selectedMembers = teamData.filter(p => p.selected);
+    $('selectedCount').textContent = selectedMembers.length;
+    
+    if (selectedMembers.length > 0) {
+      $('teamFocusSection').style.display = 'block';
+      generateTeamRadar();
+    } else {
+      $('teamFocusSection').style.display = 'none';
+    }
+  }
+
+  function generateTeamRadar() {
+    const selectedMembers = teamData.filter(p => p.selected);
+    if (selectedMembers.length === 0) return;
+
+    // Calculate max values per category across selected members
+    const maxValues = categories.map(cat => {
+      let maxVal = 0;
+      selectedMembers.forEach(person => {
+        const avg = calculateAverage(person, cat.category_id);
+        if (avg !== null && avg > maxVal) {
+          maxVal = avg;
+        }
+      });
+      return maxVal || null;
+    });
+
+    // Same radar structure as results but with team max values
+    const orderedCategories = [
+      '', 'Fleksibilitet', 'Nytænkning', 'Helhedsorientering', 'Fremtidsorientering',
+      '', 'Håndtering af pres', 'Beslutningstagning', 'Styring', 'Initiativ',
+      '', 'Analytisk tænkning', 'Faglighed', 'Planlægning', 'Ressourcebevidsthed',
+      '', 'Samarbejde', 'Udvikling af andre', 'Motivere andre', 'Kommunikation'
+    ];
+
+    const teamMaxData = orderedCategories.map(catName => {
+      if (catName === '') return null;
+      const cat = categories.find(c => c.category_name === catName);
+      if (!cat) return null;
+      const catIndex = categories.findIndex(c => c.category_id === cat.category_id);
+      return maxValues[catIndex];
+    });
+
+    const ctx = $('teamRadar').getContext('2d');
+    if (teamRadar) teamRadar.destroy();
+
+    teamRadar = new Chart(ctx, {
+      type: 'radar',
+      data: {
+        labels: orderedCategories,
+        datasets: [{
+          label: 'Team Maximum',
+          data: teamMaxData,
+          borderColor: 'rgba(34, 197, 94, 1)',
+          backgroundColor: 'rgba(34, 197, 94, 0.15)',
+          pointBackgroundColor: 'rgba(34, 197, 94, 1)',
+          borderWidth: 3,
+          spanGaps: true
+        }]
+      },
+      options: {
+        scales: {
+          r: {
+            beginAtZero: true,
+            min: 0,
+            max: 5,
+            ticks: { stepSize: 1 },
+            pointLabels: {
+              display: function(context) {
+                return orderedCategories[context.index] !== '';
+              },
+              font: { size: 11, weight: 'bold' }
+            }
+          }
+        },
+        plugins: {
+          legend: { position: 'bottom' }
+        }
+      }
+    });
+  }
+
+  // Global functions for team building
+  window.togglePersonSelection = (personId) => {
+    const person = teamData.find(p => p.id === personId);
+    if (person) {
+      person.selected = !person.selected;
+      updateTeamSelection();
+    }
+  };
+
+  // Event Listeners for Team Building
+  $('selProject3').onchange = loadTeamBuildingData;
+  $('btnUpdateTeamView').onclick = renderTeamTable;
+  
+  ['typeSelf', 'typePeer', 'typeLeader', 'showValues'].forEach(id => {
+    $(id).onchange = renderTeamTable;
+  });
+  
+  document.querySelectorAll('input[name="colorScale"]').forEach(radio => {
+    radio.onchange = renderTeamTable;
+  });
+
+  $('selectAllMembers').onchange = (e) => {
+    teamData.forEach(person => {
+      person.selected = e.target.checked;
+    });
+    renderTeamTable();
+  };
+
+  $('btnExportTeamData').onclick = () => {
+    if (teamData.length === 0) {
+      alert('Ingen team data at eksportere');
+      return;
+    }
+
+    // Create CSV data
+    let csvContent = 'Navn';
+    categories.forEach(cat => {
+      csvContent += ',' + cat.category_name;
+    });
+    csvContent += '\n';
+
+    teamData.forEach(person => {
+      csvContent += person.name;
+      categories.forEach(cat => {
+        const avg = calculateAverage(person, cat.category_id);
+        csvContent += ',' + (avg !== null ? avg.toFixed(1) : '');
+      });
+      csvContent += '\n';
+    });
+
+    // Download CSV
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'team_data.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  $('btnDownloadTeamPDF').onclick = () => {
+    const pid = $('selProject3').value;
+    if (!pid) {
+      alert('Vælg et projekt først');
+      return;
+    }
+    
+    // For now, open the individual PDF endpoint - you'll need to create a team PDF endpoint
+    window.open(`http://localhost:8000/team-pdf?project_id=${pid}`, '_blank');
   };
 
   // Session check + rolleadskillelse
