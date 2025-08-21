@@ -15,7 +15,7 @@
       --bg1:#667eea; --bg2:#764ba2; --ink:#2d3748; --muted:#718096;
       --card:#f8fafc; --line:#e2e8f0; --brand:#667eea; --radius:16px;
       --master-bg1:#e53e3e; --master-bg2:#d53f8c; /* Røde toner for master */
-      --success:#48bb78; --error:#f56565;
+      --success:#48bb78; --error:#f56565; --warning:#ed8936;
     }
     body{font-family:"Segoe UI",Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,var(--master-bg1) 0%,var(--master-bg2) 100%);min-height:100vh;padding:20px;color:var(--ink)}
     .app{max-width:1400px;margin:0 auto;background:#fff;border-radius:20px;box-shadow:0 20px 40px rgba(0,0,0,.15);overflow:hidden}
@@ -31,8 +31,11 @@
     .input, .select{border:1px solid var(--line);background:#fff;color:#111;padding:10px 12px;border-radius:10px;font-size:.95rem}
     .btn{cursor:pointer;font-weight:700;border:1px solid var(--line);background:#fff;color:#111;padding:10px 14px;border-radius:10px;transition:.25s}
     .btn.primary{background:var(--master-bg1);border-color:var(--master-bg1);color:#fff}
+    .btn.success{background:var(--success);border-color:var(--success);color:#fff}
+    .btn.warning{background:var(--warning);border-color:var(--warning);color:#fff}
     .btn.ghost{background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.35)}
     .btn.small{padding:6px 10px;font-size:.85rem}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
 
     /* Tabs */
     .tabbar{background:var(--card);border-bottom:1px solid var(--line);padding:0 20px;display:flex;gap:0;position:sticky;top:120px;z-index:20}
@@ -43,13 +46,41 @@
     .section{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin-bottom:20px}
     .grid{display:grid;gap:16px}
     .grid2{display:grid;gap:10px;grid-template-columns:1fr 1fr}
+    .grid3{display:grid;gap:10px;grid-template-columns:1fr 1fr 1fr}
+    .grid4{display:grid;gap:10px;grid-template-columns:1fr 1fr 1fr 1fr}
     .row{display:flex;gap:8px;align-items:center}
     .muted{color:var(--muted);font-size:.92rem}
 
     /* Tables */
     table{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed}
     th,td{padding:12px;border-bottom:1px solid var(--line);text-align:left;font-size:.95rem;overflow:hidden;text-overflow:ellipsis}
-    thead th{position:sticky;top:0;background:#fff;z-index:2;font-weight:700}
+    thead th{position:sticky;top:0;background:#fff;z-index:2;font-weight:700;cursor:pointer}
+    thead th:hover{background:#f1f5f9}
+    thead th.sorted-asc::after{content:" ↑";color:var(--brand)}
+    thead th.sorted-desc::after{content:" ↓";color:var(--brand)}
+
+    /* Search and Filter Controls */
+    .controls-row{display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+    .search-box{flex:1;min-width:200px}
+    .filter-group{display:flex;gap:8px;align-items:center}
+
+    /* Stats Dashboard */
+    .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px}
+    .stat-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center}
+    .stat-number{font-size:2rem;font-weight:800;color:var(--brand);margin-bottom:4px}
+    .stat-label{color:var(--muted);font-size:.9rem}
+    .stat-trend{font-size:.8rem;margin-top:4px}
+    .trend-up{color:var(--success)}
+    .trend-down{color:var(--error)}
+
+    /* Bulk Operations */
+    .bulk-controls{background:#f8fafc;border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:16px;display:none}
+    .bulk-controls.active{display:flex;align-items:center;gap:12px}
+    .selection-count{font-weight:600}
+
+    /* Progress Indicators */
+    .progress-bar{background:#e2e8f0;border-radius:8px;height:8px;overflow:hidden;margin:8px 0}
+    .progress-fill{background:var(--success);height:100%;transition:width .3s ease}
 
     /* Template editor */
     .template-editor{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-top:10px}
@@ -158,13 +189,14 @@
     }
 
     /* Project table specific widths */
-    .projects-table th:nth-child(1) { width: 25%; } /* Titel */
-    .projects-table th:nth-child(2) { width: 20%; } /* Ejer */
-    .projects-table th:nth-child(3) { width: 15%; } /* Åbner */
-    .projects-table th:nth-child(4) { width: 15%; } /* Lukker */
-    .projects-table th:nth-child(5) { width: 10%; } /* Personer */
-    .projects-table th:nth-child(6) { width: 10%; } /* Svar */
-    .projects-table th:nth-child(7) { width: 5%; } /* Link */
+    .projects-table th:nth-child(1) { width: 20%; } /* Titel */
+    .projects-table th:nth-child(2) { width: 15%; } /* Ejer */
+    .projects-table th:nth-child(3) { width: 12%; } /* Status & Svar */
+    .projects-table th:nth-child(4) { width: 12%; } /* Åbner */
+    .projects-table th:nth-child(5) { width: 12%; } /* Lukker */
+    .projects-table th:nth-child(6) { width: 8%; } /* Personer */
+    .projects-table th:nth-child(7) { width: 8%; } /* Link */
+    .projects-table th:nth-child(8) { width: 13%; } /* Handling */
 
     /* Status indicators */
     .status-badge{
@@ -182,10 +214,10 @@
     .status-draft{background:#e6fffa;color:#234e52}
 
     /* Users table */
-    .users-table th:nth-child(1) { width: 35%; } /* Email */
+    .users-table th:nth-child(1) { width: 30%; } /* Email */
     .users-table th:nth-child(2) { width: 15%; } /* Rolle */
     .users-table th:nth-child(3) { width: 20%; } /* Oprettet */
-    .users-table th:nth-child(4) { width: 30%; } /* Handling */
+    .users-table th:nth-child(4) { width: 35%; } /* Handling */
 
     /* Key generation result */
     .key-result{
@@ -217,8 +249,11 @@
     /* Responsive */
     @media(max-width:1100px){
       .grid2{grid-template-columns:1fr}
+      .grid3{grid-template-columns:1fr 1fr}
+      .grid4{grid-template-columns:1fr 1fr}
       table{font-size:.85rem}
       th,td{padding:8px}
+      .stats-grid{grid-template-columns:1fr 1fr}
     }
 
     /* Success messages */
@@ -239,6 +274,44 @@
       border-radius:8px;
       margin:12px 0;
     }
+
+    .warning-message{
+      background:#fef3c7;
+      border:1px solid #fde047;
+      color:#92400e;
+      padding:12px 16px;
+      border-radius:8px;
+      margin:12px 0;
+    }
+
+    /* Modal */
+    .modal{
+      position:fixed;
+      top:0;left:0;right:0;bottom:0;
+      background:rgba(0,0,0,0.8);
+      z-index:1000;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    
+    .modal-content{
+      background:white;
+      padding:24px;
+      border-radius:12px;
+      max-width:90vw;
+      max-height:90vh;
+      overflow-y:auto;
+    }
+
+    /* Checkboxes */
+    .checkbox-cell{
+      width:40px;
+      text-align:center;
+    }
+    .checkbox-cell input[type="checkbox"]{
+      cursor:pointer;
+    }
   </style>
 </head>
 <body>
@@ -249,7 +322,7 @@
       <div class="club-logo"><img src="./assets/logo.png" alt="KOMPAS" onerror="this.style.display='none'"></div>
       <div>
         <div class="club-name">KOMPAS — Master Backoffice</div>
-        <div class="club-sub">Skabeloner • Projekter • Brugeradministration • Coaching</div>
+        <div class="club-sub">System Administration • Templates • Users • Projects • Analytics</div>
       </div>
     </div>
 
@@ -261,22 +334,85 @@
 
   <!-- TABS -->
   <div class="tabbar">
-    <button class="tabbtn active" data-tab="templates">🧩 Skabeloner</button>
+    <button class="tabbtn active" data-tab="dashboard">📊 Dashboard</button>
+    <button class="tabbtn" data-tab="templates">🧩 Skabeloner</button>
     <button class="tabbtn" data-tab="projects">📁 Projekter</button>
     <button class="tabbtn" data-tab="users">👤 Brugere</button>
     <button class="tabbtn" data-tab="coaching">🎯 Coaching</button>
+    <button class="tabbtn" data-tab="maintenance">🔧 Vedligeholdelse</button>
+    <button class="tabbtn" data-tab="tokens">🔑 Tokens</button>
+
   </div>
 
   <!-- CONTENT -->
   <div class="content">
 
-    <!-- Skabeloner (default synlig) -->
-    <div id="tab-templates" class="section" style="display:block">
+    <!-- Dashboard (new default) -->
+    <div id="tab-dashboard" class="section" style="display:block">
+      <h3>📊 System Dashboard</h3>
+      
+      <!-- System Statistics -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-number" id="stat-projects">0</div>
+          <div class="stat-label">Aktive Projekter</div>
+          <div class="stat-trend" id="stat-projects-trend"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="stat-users">0</div>
+          <div class="stat-label">Registrerede Brugere</div>
+          <div class="stat-trend" id="stat-users-trend"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="stat-responses">0</div>
+          <div class="stat-label">Samlede Besvarelser</div>
+          <div class="stat-trend" id="stat-responses-trend"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="stat-keys">0</div>
+          <div class="stat-label">Ubrugte Nøgler</div>
+          <div class="stat-trend" id="stat-keys-trend"></div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="section">
+        <h4>🚀 Hurtige Handlinger</h4>
+        <div class="grid4" style="margin-top:12px">
+          <button class="btn success" onclick="quickCleanupKeys()">🗑️ Ryd Brugte Nøgler</button>
+          <button class="btn warning" onclick="quickPurgeOldProjects()">📁 Ryd Gamle Projekter</button>
+          <button class="btn primary" onclick="exportSystemStats()">📊 Eksporter Statistik</button>
+          <button class="btn" onclick="systemHealthCheck()">🔍 System Sundhed</button>
+        </div>
+      </div>
+
+      <!-- Recent Activity -->
+      <div class="section">
+        <h4>📈 Seneste Aktivitet</h4>
+        <div id="recentActivity" style="margin-top:12px">
+          <div class="muted">Indlæser aktivitet...</div>
+        </div>
+      </div>
+
+      <!-- System Health -->
+      <div class="section">
+        <h4>💡 System Status</h4>
+        <div id="systemHealth" style="margin-top:12px">
+          <div class="muted">Indlæser system status...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Skabeloner -->
+    <div id="tab-templates" class="section" style="display:none">
       <h3>🧩 Skabelon Administration</h3>
+      
+      <!-- Template Actions -->
       <div class="row" style="margin:16px 0">
         <input id="tmplName" class="input" placeholder="Navn på skabelon">
         <input id="tmplDesc" class="input" placeholder="Beskrivelse">
         <button id="createTemplate" class="btn primary">Opret skabelon</button>
+        <button id="backupTemplates" class="btn warning">💾 Backup Alle</button>
       </div>
 
       <div id="templateEditor" class="template-editor" style="display:none">
@@ -285,6 +421,7 @@
         <div class="row" style="margin-top:16px">
           <button id="saveTemplate" class="btn primary">Gem ændringer</button>
           <button id="cancelTemplate" class="btn">Annuller</button>
+          <button id="versionTemplate" class="btn warning">💾 Gem Version</button>
         </div>
       </div>
 
@@ -292,22 +429,38 @@
       <ul id="tmplList" style="list-style:none;display:grid;gap:8px;margin-top:8px"></ul>
     </div>
 
-    <!-- Projekter (kun monitoring) -->
+    <!-- Projekter (udvidet monitoring + administration) -->
     <div id="tab-projects" class="section" style="display:none">
-      <h3>📁 Projektoversigt</h3>
-      <p class="muted" style="margin-bottom:20px">Overvåg alle projekter i systemet. Evaluerer kan oprette projekter via deres admin-panel.</p>
+      <h3>📁 Projektoversigt og Administration</h3>
+      
+      <!-- Project Controls -->
+      <div class="controls-row">
+        <input type="text" id="projectSearch" class="input search-box" placeholder="🔍 Søg i projekter (titel, ejer, info...)">
+        <div class="filter-group">
+          <select id="projectStatusFilter" class="select">
+            <option value="">Alle status</option>
+            <option value="draft">Kladde</option>
+            <option value="open">Åben</option>
+            <option value="closed">Lukket</option>
+            <option value="expired">Udløbet</option>
+          </select>
+          <button id="refreshProjects" class="btn small">🔄 Opdater</button>
+          <button id="cleanupProjects" class="btn small warning">🗑️ Ryd Op</button>
+        </div>
+      </div>
       
       <div class="section">
         <table id="projectsTbl" class="projects-table">
           <thead>
             <tr>
-              <th>Titel</th>
-              <th>Ejer</th>
-              <th>Åbner</th>
-              <th>Lukker</th>
-              <th>Personer</th>
-              <th>Svar</th>
+              <th onclick="sortProjects('title')">Titel</th>
+              <th onclick="sortProjects('owner_email')">Ejer</th>
+              <th onclick="sortProjects('responses')">Status & Svar</th>
+              <th onclick="sortProjects('open_at')">Åbner</th>
+              <th onclick="sortProjects('close_at')">Lukker</th>
+              <th onclick="sortProjects('people_count')">Personer</th>
               <th>Link</th>
+              <th style="text-align:right">Handling</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -315,8 +468,9 @@
       </div>
     </div>
 
-    <!-- Brugere -->
+    <!-- Brugere (udvidet med søgning og bulk operationer) -->
     <div id="tab-users" class="section" style="display:none">
+      <!-- Activation Keys Section -->
       <h3>🔑 Generer aktiveringsnøgle</h3>
       <div class="row" style="margin:16px 0">
         <input id="keyEmail" class="input" placeholder="Email til evaluator" type="email">
@@ -336,16 +490,38 @@
 
       <hr style="border:0;border-top:1px solid var(--line);margin:24px 0">
 
+      <!-- Activation Keys Management -->
       <h3>📋 Aktiveringsnøgler</h3>
+      <div class="controls-row">
+        <input type="text" id="keySearch" class="input search-box" placeholder="🔍 Søg i nøgler (nøgle, email, note...)">
+        <div class="filter-group">
+          <select id="keyStatusFilter" class="select">
+            <option value="">Alle nøgler</option>
+            <option value="used">Kun brugte</option>
+            <option value="unused">Kun ubrugte</option>
+          </select>
+          <button id="cleanupUsedKeys" class="btn small warning">🗑️ Ryd Brugte</button>
+          <button id="bulkDeleteKeys" class="btn small" style="background:#dc3545;color:white">❌ Slet Valgte</button>
+        </div>
+      </div>
+
+      <!-- Bulk selection for keys -->
+      <div id="keyBulkControls" class="bulk-controls">
+        <span class="selection-count">0 nøgler valgt</span>
+        <button class="btn small warning" onclick="bulkDeleteSelectedKeys()">Slet valgte</button>
+        <button class="btn small" onclick="clearKeySelection()">Ryd valg</button>
+      </div>
+      
       <div class="section">
         <table id="keysTbl">
           <thead>
             <tr>
-              <th>Nøgle</th>
-              <th>Email</th>
-              <th>Status</th>
-              <th>Oprettet</th>
-              <th>Brugt</th>
+              <th class="checkbox-cell"><input type="checkbox" id="selectAllKeys" onchange="toggleAllKeys()"></th>
+              <th onclick="sortKeys('key_code')">Nøgle</th>
+              <th onclick="sortKeys('email')">Email</th>
+              <th onclick="sortKeys('used')">Status</th>
+              <th onclick="sortKeys('created_at')">Oprettet</th>
+              <th onclick="sortKeys('used_at')">Brugt</th>
               <th>Note</th>
             </tr>
           </thead>
@@ -355,7 +531,8 @@
 
       <hr style="border:0;border-top:1px solid var(--line);margin:24px 0">
       
-      <h3>👤 Eksisterende brugere</h3>
+      <!-- User Management -->
+      <h3>👤 Brugeradministration</h3>
       <div class="row" style="margin:16px 0">
         <input id="userEmailInput" class="input" placeholder="Email adresse">
         <select id="userRole" class="select">
@@ -365,13 +542,47 @@
         <button id="addUser" class="btn primary">Tilføj rolle direkte</button>
       </div>
 
+      <!-- User Search and Filters -->
+      <div class="controls-row">
+        <input type="text" id="userSearch" class="input search-box" placeholder="🔍 Søg brugere (email, rolle...)">
+        <div class="filter-group">
+          <select id="userRoleFilter" class="select">
+            <option value="">Alle roller</option>
+            <option value="programmer">Programmører</option>
+            <option value="evaluator">Evaluatorer</option>
+            <option value="none">Ingen rolle</option>
+          </select>
+          <select id="userSortBy" class="select">
+            <option value="email">Sortér efter email</option>
+            <option value="created_at">Sortér efter oprettelse</option>
+            <option value="role">Sortér efter rolle</option>
+          </select>
+          <button id="exportUsers" class="btn small success">📊 Eksporter Liste</button>
+        </div>
+      </div>
+
+      <!-- Bulk User Operations -->
+      <div id="userBulkControls" class="bulk-controls">
+        <span class="selection-count">0 brugere valgt</span>
+        <select id="bulkRoleChange" class="select">
+          <option value="">Skift rolle...</option>
+          <option value="evaluator">Til Evaluator</option>
+          <option value="programmer">Til Programmør</option>
+          <option value="remove">Fjern rolle</option>
+        </select>
+        <button class="btn small primary" onclick="applyBulkRoleChange()">Anvend</button>
+        <button class="btn small warning" onclick="bulkDeleteUsers()">Slet valgte</button>
+        <button class="btn small" onclick="clearUserSelection()">Ryd valg</button>
+      </div>
+
       <div class="section">
         <table id="usersTbl" class="users-table">
           <thead>
             <tr>
-              <th>Email</th>
-              <th>Rolle</th>
-              <th>Oprettet</th>
+              <th class="checkbox-cell"><input type="checkbox" id="selectAllUsers" onchange="toggleAllUsers()"></th>
+              <th onclick="sortUsers('email')">Email</th>
+              <th onclick="sortUsers('role')">Rolle</th>
+              <th onclick="sortUsers('created_at')">Oprettet</th>
               <th style="text-align:right">Handling</th>
             </tr>
           </thead>
@@ -384,13 +595,14 @@
     <div id="tab-coaching" class="section" style="display:none">
       <h3>🎯 Coaching Administration</h3>
       
-      <!-- Template selector -->
-      <div class="section">
-        <label>Vælg skabelon for coaching administration:
-          <select id="coachingTemplateSelect" class="select" style="margin-left:10px">
-            <option value="">-- Vælg skabelon --</option>
-          </select>
-        </label>
+      <!-- Coaching Controls -->
+      <div class="row" style="margin:16px 0">
+        <select id="coachingTemplateSelect" class="select">
+          <option value="">-- Vælg skabelon --</option>
+        </select>
+        <button id="backupCoaching" class="btn warning">💾 Backup Coaching Data</button>
+        <button id="importCoaching" class="btn success">📥 Import Coaching Data</button>
+        <input type="file" id="coachingFileInput" accept=".json" style="display:none">
       </div>
 
       <!-- Status messages -->
@@ -399,6 +611,162 @@
       <!-- Coaching categories container -->
       <div id="coachingCategoriesContainer">
         <p class="muted" style="text-align:center;padding:40px">Vælg en skabelon for at administrere coaching indhold</p>
+      </div>
+    </div>
+
+    <div id="tab-tokens" class="section" style="display:none">
+      <h3>🔑 Token & Abonnement</h3>
+
+      <!-- Filtre -->
+      <div class="section" style="background:#fff; margin-top:10px;">
+        <div style="display:grid; grid-template-columns: repeat(3, minmax(180px, 1fr)); gap:12px;">
+          <label>Plan
+            <select id="flt-plan" class="select">
+              <option value="">Alle</option>
+              <option value="subscription">Abonnement (ubegrænset)</option>
+              <option value="prepaid">Forudbetalt (tokens)</option>
+            </select>
+          </label>
+          <label>Saldo
+            <select id="flt-balance" class="select">
+              <option value="">Alle</option>
+              <option value="positive">Har tokens (&gt; 0)</option>
+              <option value="zero">Ingen tokens (= 0)</option>
+              <option value="negative">I minus (&lt; 0)</option>
+            </select>
+          </label>
+          <label>Periode for forbrug (dage)
+            <input id="flt-days" class="input" type="number" min="1" value="30">
+          </label>
+        </div>
+        <div style="margin-top:10px;">
+          <button id="btn-load-overview" class="btn">Opdater</button>
+          <button id="btn-export-csv" class="btn ghost">Export CSV</button>
+        </div>
+        <div id="overview-summary" class="muted" style="margin-top:8px"></div>
+      </div>
+
+      <!-- Oversigtstabel -->
+      <div class="section" style="background:#fff; margin-top:10px; overflow:auto;">
+        <table id="overview-table" class="table" style="width:100%; border-collapse:collapse;">
+          <thead>
+            <tr>
+              <th style="text-align:left; padding:6px;">Email</th>
+              <th style="text-align:left; padding:6px;">Plan</th>
+              <th style="text-align:right; padding:6px;">Saldo</th>
+              <th style="text-align:right; padding:6px;">Forbrug (periode)</th>
+              <th style="text-align:left; padding:6px;">Sidste forbrug</th>
+              <th style="text-align:left; padding:6px;">Hurtig tildeling</th>
+              <th style="text-align:left; padding:6px;">Detaljer</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <!-- Dine eksisterende bokse: Skift plan / Tildel tokens -->
+      <div class="grid2" style="margin-top:12px">
+        <div class="section" style="background:#fff">
+          <h4>Skift plan</h4>
+          <label>Email
+            <input id="tok-email" class="input" placeholder="bruger@domæne.dk">
+          </label>
+          <label>Plan
+            <select id="tok-plan" class="select">
+              <option value="subscription">Abonnement (ubegrænset)</option>
+              <option value="prepaid">Forudbetalt (tokens)</option>
+            </select>
+          </label>
+          <label>Start-saldo (kun ved forudbetalt)
+            <input id="tok-start" class="input" type="number" value="0">
+          </label>
+          <button id="tok-save" class="btn primary">Gem plan</button>
+          <div id="tok-plan-msg" class="muted" style="margin-top:8px"></div>
+        </div>
+
+        <div class="section" style="background:#fff">
+          <h4>Tildel tokens</h4>
+          <label>Email
+            <input id="grant-email" class="input" placeholder="bruger@domæne.dk">
+          </label>
+          <label>Antal tokens
+            <input id="grant-qty" class="input" type="number" value="5">
+          </label>
+          <label>Note
+            <input id="grant-note" class="input" placeholder="fx 'Kampagne'">
+          </label>
+          <button id="grant-save" class="btn success">Tildel</button>
+          <div id="grant-msg" class="muted" style="margin-top:8px"></div>
+        </div>
+      </div>
+
+      <!-- Ledger-dialog -->
+      <dialog id="dlg-ledger" style="width:min(860px,95vw); border:0; border-radius:12px; padding:16px;">
+        <h4>Ledger for <span id="dlg-email"></span></h4>
+        <div id="ledger-wrap" style="max-height:60vh; overflow:auto; margin-top:8px;"></div>
+        <div style="margin-top:12px; text-align:right;">
+          <button id="dlg-close" class="btn">Luk</button>
+        </div>
+      </dialog>
+    </div>
+
+
+
+    <!-- Maintenance (new tab) -->
+    <div id="tab-maintenance" class="section" style="display:none">
+      <h3>🔧 System Vedligeholdelse</h3>
+      
+      <!-- Database Cleanup -->
+      <div class="section">
+        <h4>🗑️ Database Oprydning</h4>
+        <div class="grid3" style="margin-top:12px">
+          <button class="btn warning" onclick="purgeExpiredProjects()">Ryd Udløbne Projekter</button>
+          <button class="btn warning" onclick="cleanupOrphanedData()">Ryd Forældreløse Data</button>
+          <button class="btn warning" onclick="compactDatabase()">Kompaktér Database</button>
+        </div>
+        <div id="cleanupProgress" style="margin-top:12px;display:none">
+          <div class="progress-bar">
+            <div class="progress-fill" id="cleanupProgressFill"></div>
+          </div>
+          <div class="muted" id="cleanupProgressText">Behandler...</div>
+        </div>
+      </div>
+
+      <!-- Backup & Export -->
+      <div class="section">
+        <h4>💾 Backup & Export</h4>
+        <div class="grid3" style="margin-top:12px">
+          <button class="btn success" onclick="exportFullSystem()">📦 Fuld System Export</button>
+          <button class="btn success" onclick="exportTemplates()">🧩 Eksporter Skabeloner</button>
+          <button class="btn success" onclick="exportCoachingData()">🎯 Eksporter Coaching Data</button>
+        </div>
+      </div>
+
+      <!-- Content Versioning -->
+      <div class="section">
+        <h4>📚 Content Versionering</h4>
+        <div class="controls-row">
+          <select id="versionTypeFilter" class="select">
+            <option value="">Alle typer</option>
+            <option value="template">Skabeloner</option>
+            <option value="coaching">Coaching</option>
+            <option value="system">System</option>
+          </select>
+          <button class="btn small primary" onclick="createSystemSnapshot()">📸 Opret Snapshot</button>
+          <button class="btn small" onclick="loadVersionHistory()">🔄 Opdater Liste</button>
+        </div>
+        
+        <div id="versionHistory" style="margin-top:16px">
+          <div class="muted">Indlæser versionshistorik...</div>
+        </div>
+      </div>
+
+      <!-- System Monitoring -->
+      <div class="section">
+        <h4>📊 System Monitoring</h4>
+        <div id="systemMetrics" style="margin-top:12px">
+          <div class="muted">Indlæser system metrics...</div>
+        </div>
       </div>
     </div>
 
@@ -411,6 +779,8 @@ window.addEventListener('load', function() {
   let currentTemplate = null;
   let currentCoachingTemplate = null;
   let coachingData = {};
+  let currentSort = { column: null, direction: 'asc' };
+  let filteredData = { projects: [], users: [], keys: [] };
 
   const SUPABASE_URL = "https://wsrstyrsuwhcmmlmnbrz.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzcnN0eXJzdXdoY21tbG1uYnJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MTU0NTIsImV4cCI6MjA3MTE5MTQ1Mn0.Rf3Z3bQGjV5CKXKZr6IMOjzPdbhVJCh3SwuvlkpxUD0";
@@ -426,18 +796,22 @@ window.addEventListener('load', function() {
       btn.classList.add('active');
 
       // Hide all sections
-      ['templates', 'projects', 'users', 'coaching'].forEach(name => {
+      ['dashboard', 'templates', 'projects', 'users', 'coaching', 'maintenance', 'tokens'].forEach(name => {
         const panel = $('tab-' + name);
         if(panel) panel.style.display = 'none';
       });
+
 
       // Show selected section
       const target = $('tab-' + btn.dataset.tab);
       if(target) target.style.display = 'block';
       
-      // Load coaching data when coaching tab is selected
+      // Load data when coaching or maintenance tab is selected
       if(btn.dataset.tab === 'coaching') {
         loadCoachingTemplates();
+      } else if(btn.dataset.tab === 'maintenance') {
+        loadVersionHistory();
+        loadSystemMetrics();
       }
     };
   });
@@ -478,14 +852,326 @@ window.addEventListener('load', function() {
   guard();
 
   async function loadAll() { 
+    await loadDashboard();
     await loadTemplates(); 
     await loadProjects(); 
     await loadUsers();
+    setupSearchAndFilters();
+  }
+
+  // === DASHBOARD FUNCTIONS ===
+  async function loadDashboard() {
+    try {
+      // Load basic statistics
+      const [
+        { data: projects, count: projectCount },
+        { data: users, count: userCount },
+        { data: responses, count: responseCount },
+        { data: keys }
+      ] = await Promise.all([
+        supabase.from('projects').select('*', { count: 'exact' }),
+        supabase.from('user_roles').select('*', { count: 'exact' }),
+        supabase.from('responses').select('id', { count: 'exact' }),
+        supabase.from('v_activation_keys').select('*').eq('used', false)
+      ]);
+
+      // Update stat cards
+      $('stat-projects').textContent = projectCount || 0;
+      $('stat-users').textContent = userCount || 0;
+      $('stat-responses').textContent = responseCount || 0;
+      $('stat-keys').textContent = keys?.length || 0;
+
+      // Calculate trends (simplified)
+      const activeProjects = projects?.filter(p => {
+        const now = new Date();
+        const openAt = p.open_at ? new Date(p.open_at) : null;
+        const closeAt = p.close_at ? new Date(p.close_at) : null;
+        return openAt && closeAt && now >= openAt && now <= closeAt;
+      }).length || 0;
+
+      $('stat-projects-trend').innerHTML = `<span class="trend-up">▲ ${activeProjects} aktive</span>`;
+
+      // Load recent activity
+      await loadRecentActivity();
+      
+      // Load system health
+      await loadSystemHealth();
+
+    } catch (error) {
+      console.error('Dashboard load error:', error);
+    }
+  }
+
+  async function loadRecentActivity() {
+    try {
+      const { data: recentProjects } = await supabase
+        .from('projects')
+        .select('title, created_at, owner')
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      const { data: recentKeys } = await supabase
+        .from('v_activation_keys')
+        .select('email, created_at, used_at')
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      let activityHtml = '<div style="max-height:200px;overflow-y:auto">';
+      
+      if (recentProjects && recentProjects.length > 0) {
+        activityHtml += '<h5>📁 Seneste Projekter:</h5>';
+        recentProjects.forEach(p => {
+          const date = new Date(p.created_at).toLocaleDateString('da-DK');
+          activityHtml += `<div style="margin:4px 0;padding:4px 0;border-bottom:1px solid var(--line)">
+            <strong>${p.title}</strong> oprettet ${date}
+          </div>`;
+        });
+      }
+
+      if (recentKeys && recentKeys.length > 0) {
+        activityHtml += '<h5 style="margin-top:12px">🔑 Seneste Nøgler:</h5>';
+        recentKeys.forEach(k => {
+          const date = new Date(k.created_at).toLocaleDateString('da-DK');
+          const status = k.used_at ? 'brugt' : 'ubrugt';
+          activityHtml += `<div style="margin:4px 0;padding:4px 0;border-bottom:1px solid var(--line)">
+            Nøgle til <strong>${k.email}</strong> ${status} (${date})
+          </div>`;
+        });
+      }
+
+      activityHtml += '</div>';
+      $('recentActivity').innerHTML = activityHtml;
+
+    } catch (error) {
+      $('recentActivity').innerHTML = '<div class="error-message">Fejl ved indlæsning af aktivitet</div>';
+    }
+  }
+
+  async function loadSystemHealth() {
+    try {
+      // Check for various system health indicators
+      const healthChecks = [];
+
+      // Check for old unused keys
+      const { data: oldKeys } = await supabase
+        .from('v_activation_keys')
+        .select('*')
+        .eq('used', false)
+        .lt('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
+
+      if (oldKeys && oldKeys.length > 0) {
+        healthChecks.push({
+          type: 'warning',
+          message: `${oldKeys.length} ubrugte nøgler er ældre end 30 dage`,
+          action: 'cleanupOldKeys'
+        });
+      }
+
+      // Check for projects without responses
+      const { data: emptyProjects } = await supabase
+        .from('projects')
+        .select(`
+          id, title,
+          responses(id)
+        `)
+        .eq('responses.id', null);
+
+      if (emptyProjects && emptyProjects.length > 0) {
+        healthChecks.push({
+          type: 'info',
+          message: `${emptyProjects.length} projekter uden besvarelser`,
+          action: null
+        });
+      }
+
+      // Display health status
+      let healthHtml = '';
+      if (healthChecks.length === 0) {
+        healthHtml = '<div style="color:var(--success)">✅ System status: Alt fungerer normalt</div>';
+      } else {
+        healthChecks.forEach(check => {
+          const icon = check.type === 'warning' ? '⚠️' : 'ℹ️';
+          const color = check.type === 'warning' ? 'var(--warning)' : 'var(--brand)';
+          healthHtml += `<div style="color:${color};margin:4px 0">${icon} ${check.message}</div>`;
+        });
+      }
+
+      $('systemHealth').innerHTML = healthHtml;
+
+    } catch (error) {
+      $('systemHealth').innerHTML = '<div class="error-message">Fejl ved system sundhedstjek</div>';
+    }
+  }
+
+  // Quick action functions
+  window.quickCleanupKeys = async () => {
+    if (!confirm('Slet alle brugte aktiveringsnøgler? Dette kan ikke fortrydes.')) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('activation_keys')
+        .delete()
+        .eq('used', true);
+
+      if (error) throw error;
+      
+      alert('✅ Brugte nøgler slettet');
+      await loadDashboard();
+      await loadUsers();
+    } catch (error) {
+      alert('❌ Fejl: ' + error.message);
+    }
+  };
+
+  window.quickPurgeOldProjects = async () => {
+    if (!confirm('Ryd alle udløbne projekter? Dette sletter projekter hvor purge_at dato er overskredet.')) return;
+    
+    try {
+      const { data, error } = await supabase.rpc('purge_expired_projects');
+      if (error) throw error;
+      
+      alert('✅ Gamle projekter ryddet');
+      await loadDashboard();
+      await loadProjects();
+    } catch (error) {
+      alert('❌ Fejl: ' + error.message);
+    }
+  };
+
+  window.exportSystemStats = async () => {
+    try {
+      const [
+        { data: projects },
+        { data: users },
+        { data: responses },
+        { data: keys }
+      ] = await Promise.all([
+        supabase.from('projects').select('*'),
+        supabase.from('v_users_with_roles').select('*'),
+        supabase.from('responses').select('*'),
+        supabase.from('v_activation_keys').select('*')
+      ]);
+
+      const stats = {
+        export_date: new Date().toISOString(),
+        projects: {
+          total: projects?.length || 0,
+          active: projects?.filter(p => {
+            const now = new Date();
+            const openAt = p.open_at ? new Date(p.open_at) : null;
+            const closeAt = p.close_at ? new Date(p.close_at) : null;
+            return openAt && closeAt && now >= openAt && now <= closeAt;
+          }).length || 0
+        },
+        users: {
+          total: users?.length || 0,
+          programmers: users?.filter(u => u.role === 'programmer').length || 0,
+          evaluators: users?.filter(u => u.role === 'evaluator').length || 0
+        },
+        responses: {
+          total: responses?.length || 0
+        },
+        keys: {
+          total: keys?.length || 0,
+          used: keys?.filter(k => k.used).length || 0,
+          unused: keys?.filter(k => !k.used).length || 0
+        }
+      };
+
+      const blob = new Blob([JSON.stringify(stats, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `kompas_system_stats_${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+    } catch (error) {
+      alert('❌ Fejl ved eksport: ' + error.message);
+    }
+  };
+
+  window.systemHealthCheck = async () => {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `
+      <div class="modal-content">
+        <h3>🔍 System Sundhedstjek</h3>
+        <div id="healthCheckResults" style="margin-top:16px">
+          <div>Kører sundhedstjek...</div>
+        </div>
+        <button class="btn" onclick="this.parentElement.parentElement.remove()" style="margin-top:16px">Luk</button>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    try {
+      const results = [];
+
+      // Check database integrity
+      const { data: orphanedResponses } = await supabase
+        .from('responses')
+        .select('id')
+        .not('project_id', 'in', '(SELECT id FROM projects)');
+
+      if (orphanedResponses && orphanedResponses.length > 0) {
+        results.push(`⚠️ ${orphanedResponses.length} forældreløse besvarelser fundet`);
+      }
+
+      // Check for projects without links
+      const { data: projectsWithoutLinks } = await supabase
+        .from('projects')
+        .select('id, title')
+        .not('id', 'in', '(SELECT project_id FROM project_link)');
+
+      if (projectsWithoutLinks && projectsWithoutLinks.length > 0) {
+        results.push(`ℹ️ ${projectsWithoutLinks.length} projekter mangler links`);
+      }
+
+      const resultsHtml = results.length > 0 
+        ? results.map(r => `<div style="margin:8px 0">${r}</div>`).join('')
+        : '<div style="color:var(--success)">✅ Ingen problemer fundet</div>';
+
+      $('healthCheckResults').innerHTML = resultsHtml;
+
+    } catch (error) {
+      $('healthCheckResults').innerHTML = `<div class="error-message">Fejl: ${error.message}</div>`;
+    }
+  };
+
+  // === SEARCH AND FILTER SETUP ===
+  function setupSearchAndFilters() {
+    // Project search
+    $('projectSearch')?.addEventListener('input', debounce(filterProjects, 300));
+    $('projectStatusFilter')?.addEventListener('change', filterProjects);
+
+    // User search
+    $('userSearch')?.addEventListener('input', debounce(filterUsers, 300));
+    $('userRoleFilter')?.addEventListener('change', filterUsers);
+    $('userSortBy')?.addEventListener('change', filterUsers);
+
+    // Key search
+    $('keySearch')?.addEventListener('input', debounce(filterKeys, 300));
+    $('keyStatusFilter')?.addEventListener('change', filterKeys);
+  }
+
+  function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
   }
 
   // === TEMPLATES ===
   async function loadTemplates(){
-    const { data } = await supabase.from('templates').select().order('created_at', {ascending: false});
+    const { data } = await supabase.from('templates').select().order('created_at',{ascending:false});
     
     // List display with edit/delete buttons
     const ul = $('tmplList'); 
@@ -503,6 +1189,7 @@ window.addEventListener('load', function() {
         </div>
         <div class="row">
           <button class="btn small" onclick="editTemplate('${t.id}')" style="background:var(--brand);color:white;border-color:var(--brand)">Rediger</button>
+          <button class="btn small warning" onclick="versionTemplate('${t.id}')">💾 Version</button>
           <button class="btn small" onclick="deleteTemplate('${t.id}', '${t.name.replace(/'/g, '\\\'')}')" style="background:#dc3545;color:white;border-color:#dc3545">Slet</button>
         </div>
       `; 
@@ -528,6 +1215,49 @@ window.addEventListener('load', function() {
     alert('Skabelon oprettet!');
   };
 
+  // Backup templates
+  $('backupTemplates').onclick = async () => {
+    try {
+      const { data: templates } = await supabase.from('templates').select(`
+        *,
+        domains(*, categories(*, questions(*)))
+      `);
+
+      const backup = {
+        backup_date: new Date().toISOString(),
+        backup_type: 'templates',
+        data: templates
+      };
+
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `kompas_templates_backup_${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+    } catch (error) {
+      alert('❌ Backup fejlede: ' + error.message);
+    }
+  };
+
+  // Version template
+  window.versionTemplate = async (templateId) => {
+    const comment = prompt('Versionskommentar:');
+    if (!comment) return;
+
+    try {
+      // This would need a versions table to be implemented
+      alert('✅ Template version gemt (funktionalitet skal implementeres)');
+    } catch (error) {
+      alert('❌ Fejl: ' + error.message);
+    }
+  };
+
+  // [Rest of template functions remain the same as in original]
   // Template editor - direct edit mode
   window.editTemplate = async (templateId) => {
     // Load full template structure
@@ -883,64 +1613,242 @@ window.addEventListener('load', function() {
     }
   };
 
-  // === PROJECTS (monitoring only) ===
+  // === PROJECTS (enhanced monitoring) ===
   async function loadProjects() {
-    const { data } = await supabase.from('v_all_projects_with_owners').select('*').limit(1000);
-    const tb = $('projectsTbl').querySelector('tbody'); 
+    try {
+      const { data } = await supabase.from('v_all_projects_with_owners').select('*').limit(1000);
+      
+      // Get response counts and deletion dates
+      for (const p of (data || [])) {
+        // Get response count
+        const { data: responses } = await supabase.from('responses').select('id', { count: 'exact' }).eq('project_id', p.id);
+        p.response_count = responses?.length || 0;
+        
+        // Calculate deletion date (7 days after close_at)
+        if (p.close_at) {
+          const closeDate = new Date(p.close_at);
+          const deletionDate = new Date(closeDate.getTime() + (7 * 24 * 60 * 60 * 1000));
+          p.deletion_date = deletionDate;
+        }
+      }
+      
+      filteredData.projects = data || [];
+      filterProjects();
+    } catch (error) {
+      console.error('Projects load error:', error);
+    }
+  }
+
+  function filterProjects() {
+    const searchTerm = $('projectSearch')?.value.toLowerCase() || '';
+    const statusFilter = $('projectStatusFilter')?.value || '';
+    
+    let filtered = filteredData.projects.filter(p => {
+      const matchesSearch = !searchTerm || 
+        p.title.toLowerCase().includes(searchTerm) ||
+        (p.owner_email || '').toLowerCase().includes(searchTerm) ||
+        (p.info_text || '').toLowerCase().includes(searchTerm);
+      
+      let matchesStatus = true;
+      if (statusFilter) {
+        const now = new Date();
+        const openAt = p.open_at ? new Date(p.open_at) : null;
+        const closeAt = p.close_at ? new Date(p.close_at) : null;
+        
+        switch (statusFilter) {
+          case 'draft':
+            matchesStatus = !openAt || !closeAt;
+            break;
+          case 'open':
+            matchesStatus = openAt && closeAt && now >= openAt && now <= closeAt;
+            break;
+          case 'closed':
+            matchesStatus = closeAt && now > closeAt;
+            break;
+          case 'expired':
+            matchesStatus = p.deletion_date && now > p.deletion_date;
+            break;
+        }
+      }
+      
+      return matchesSearch && matchesStatus;
+    });
+    
+    renderProjectsTable(filtered);
+  }
+
+  function renderProjectsTable(projects) {
+    const tb = $('projectsTbl').querySelector('tbody');
     tb.innerHTML = '';
     
-    (data || []).forEach(p => {
+    projects.forEach(p => {
       const tr = document.createElement('tr');
       
-      // Determine status
+      // Status determination
       const now = new Date();
       const openAt = p.open_at ? new Date(p.open_at) : null;
       const closeAt = p.close_at ? new Date(p.close_at) : null;
       
       let statusBadge = '<span class="status-badge status-draft">Kladde</span>';
-      if(openAt && closeAt) {
-        if(now < openAt) {
+      if (openAt && closeAt) {
+        if (now < openAt) {
           statusBadge = '<span class="status-badge status-draft">Ikke åbnet</span>';
-        } else if(now > closeAt) {
+        } else if (now > closeAt) {
           statusBadge = '<span class="status-badge status-closed">Lukket</span>';
         } else {
           statusBadge = '<span class="status-badge status-open">Åben</span>';
         }
       }
       
+      const deletionInfo = p.deletion_date ? 
+        p.deletion_date.toLocaleString('da-DK') : 'Ikke sat';
+      
       tr.innerHTML = `
         <td>
           <strong>${p.title}</strong><br>
-          <span class="muted">${p.info_text || ''}</span><br>
-          ${statusBadge}
+          <span class="muted">${p.info_text || ''}</span>
         </td>
         <td>
           ${p.owner_email || 'N/A'}<br>
           <span class="muted">${p.owner_role || 'ingen rolle'}</span>
         </td>
+        <td>
+          ${statusBadge}<br>
+          <strong>${p.response_count || 0}</strong> svar<br>
+          <div style="font-size:0.8rem;color:var(--muted)">
+            Slettes: ${deletionInfo}
+          </div>
+        </td>
         <td>${openAt ? openAt.toLocaleDateString('da-DK') : 'Ikke sat'}</td>
         <td>${closeAt ? closeAt.toLocaleDateString('da-DK') : 'Ikke sat'}</td>
         <td style="text-align:center">${p.people_count || 0}</td>
-        <td style="text-align:center">${p.responses_count || 0}</td>
         <td style="text-align:center">${p.link_url ? '✅' : '—'}</td>
+        <td style="text-align:right">
+          <button class="btn small" onclick="viewProject('${p.id}')" style="background:var(--brand);color:white;border-color:var(--brand);margin-right:4px">Se</button>
+          <button class="btn small warning" onclick="purgeProject('${p.id}', '${p.title.replace(/'/g, '\\\'')}')" title="Slet projekt nu">🗑️</button>
+        </td>
       `;
+      
       tb.appendChild(tr);
     });
   }
 
-  // === USERS ===
-  async function loadUsers() {
-    // Load activation keys
-    const { data: keys } = await supabase.from('v_activation_keys').select('*').order('created_at', {ascending: false});
-    const ktb = $('keysTbl').querySelector('tbody'); 
-    ktb.innerHTML = '';
+  window.sortProjects = (column) => {
+    const direction = currentSort.column === column && currentSort.direction === 'asc' ? 'desc' : 'asc';
+    currentSort = { column, direction };
     
-    (keys || []).forEach(k => {
+    filteredData.projects.sort((a, b) => {
+      let aVal = a[column];
+      let bVal = b[column];
+      
+      if (column === 'open_at' || column === 'close_at') {
+        aVal = aVal ? new Date(aVal) : new Date(0);
+        bVal = bVal ? new Date(bVal) : new Date(0);
+      }
+      
+      if (aVal < bVal) return direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+    
+    // Update header styling
+    document.querySelectorAll('#projectsTbl th').forEach(th => {
+      th.className = '';
+    });
+    event.target.className = `sorted-${direction}`;
+    
+    filterProjects();
+  }
+
+  window.viewProject = (projectId) => {
+    // Switch to admin view for this project (could open in new window)
+    window.open(`admin.html?project=${projectId}`, '_blank');
+  };
+
+  window.purgeProject = async (projectId, projectTitle) => {
+    if (!confirm(`ADVARSEL: Slet projektet "${projectTitle}" permanent?\n\nDette sletter:\n• Projektet\n• Alle besvarelser\n• Alle data\n\nDenne handling kan IKKE fortrydes!`)) return;
+    
+    try {
+      const { error } = await supabase.from('projects').delete().eq('id', projectId);
+      if (error) throw error;
+      
+      alert(`✅ Projekt "${projectTitle}" er permanent slettet`);
+      await loadProjects();
+      await loadDashboard();
+    } catch (error) {
+      alert(`❌ Fejl ved sletning: ${error.message}`);
+    }
+  };
+
+  // Project cleanup
+  $('refreshProjects').onclick = loadProjects;
+  
+  $('cleanupProjects').onclick = async () => {
+    if (!confirm('Ryd alle udløbne projekter? Dette kan ikke fortrydes.')) return;
+    
+    try {
+      const { data, error } = await supabase.rpc('purge_expired_projects');
+      if (error) throw error;
+      
+      alert('✅ Gamle projekter ryddet');
+      await loadProjects();
+      await loadDashboard();
+    } catch (error) {
+      alert('❌ Fejl: ' + error.message);
+    }
+  };
+
+  // === USERS (enhanced with search and bulk operations) ===
+  async function loadUsers() {
+    try {
+      // Load activation keys
+      const { data: keys } = await supabase.from('v_activation_keys').select('*').order('created_at', {ascending: false});
+      filteredData.keys = keys || [];
+      
+      // Load existing users
+      const { data } = await supabase.from('v_users_with_roles').select('*').order('created_at', {ascending: false});
+      filteredData.users = data || [];
+      
+      filterKeys();
+      filterUsers();
+    } catch (error) {
+      console.error('Users load error:', error);
+    }
+  }
+
+  function filterKeys() {
+    const searchTerm = $('keySearch')?.value.toLowerCase() || '';
+    const statusFilter = $('keyStatusFilter')?.value || '';
+    
+    let filtered = filteredData.keys.filter(k => {
+      const matchesSearch = !searchTerm || 
+        k.key_code.toLowerCase().includes(searchTerm) ||
+        k.email.toLowerCase().includes(searchTerm) ||
+        (k.notes || '').toLowerCase().includes(searchTerm);
+      
+      let matchesStatus = true;
+      if (statusFilter === 'used') matchesStatus = k.used;
+      if (statusFilter === 'unused') matchesStatus = !k.used;
+      
+      return matchesSearch && matchesStatus;
+    });
+    
+    renderKeysTable(filtered);
+  }
+
+  function renderKeysTable(keys) {
+    const tb = $('keysTbl').querySelector('tbody');
+    tb.innerHTML = '';
+    
+    keys.forEach(k => {
       const tr = document.createElement('tr');
       const status = k.used ? `<span style="color:var(--success)">Brugt</span>` : `<span style="color:var(--brand)">Aktiv</span>`;
       const usedInfo = k.used ? `${new Date(k.used_at).toLocaleDateString()}<br><span class="muted">${k.used_by_email}</span>` : '-';
       
       tr.innerHTML = `
+        <td class="checkbox-cell">
+          <input type="checkbox" value="${k.id}" onchange="updateKeySelection()">
+        </td>
         <td style="font-family:monospace;font-weight:bold">${k.key_code}</td>
         <td>${k.email}</td>
         <td>${status}</td>
@@ -948,17 +1856,53 @@ window.addEventListener('load', function() {
         <td>${usedInfo}</td>
         <td>${k.notes || '-'}</td>
       `;
-      ktb.appendChild(tr);
+      tb.appendChild(tr);
     });
+  }
 
-    // Load existing users
-    const { data } = await supabase.from('v_users_with_roles').select('*').order('created_at', {ascending: false});
-    const tb = $('usersTbl').querySelector('tbody'); 
+  function filterUsers() {
+    const searchTerm = $('userSearch')?.value.toLowerCase() || '';
+    const roleFilter = $('userRoleFilter')?.value || '';
+    const sortBy = $('userSortBy')?.value || 'email';
+    
+    let filtered = filteredData.users.filter(u => {
+      const matchesSearch = !searchTerm || 
+        (u.email || '').toLowerCase().includes(searchTerm) ||
+        (u.role || '').toLowerCase().includes(searchTerm);
+      
+      let matchesRole = true;
+      if (roleFilter === 'none') matchesRole = !u.role;
+      else if (roleFilter) matchesRole = u.role === roleFilter;
+      
+      return matchesSearch && matchesRole;
+    });
+    
+    // Sort
+    filtered.sort((a, b) => {
+      let aVal = a[sortBy] || '';
+      let bVal = b[sortBy] || '';
+      
+      if (sortBy === 'created_at') {
+        aVal = new Date(aVal);
+        bVal = new Date(bVal);
+      }
+      
+      return aVal.toString().localeCompare(bVal.toString());
+    });
+    
+    renderUsersTable(filtered);
+  }
+
+  function renderUsersTable(users) {
+    const tb = $('usersTbl').querySelector('tbody');
     tb.innerHTML = '';
     
-    (data || []).forEach(u => {
+    users.forEach(u => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
+        <td class="checkbox-cell">
+          <input type="checkbox" value="${u.id}" onchange="updateUserSelection()">
+        </td>
         <td>${u.email || 'N/A'}</td>
         <td>${u.role || 'Ingen rolle'}</td>
         <td>${new Date(u.created_at).toLocaleDateString()}</td>
@@ -970,7 +1914,158 @@ window.addEventListener('load', function() {
     });
   }
 
-  // Generate activation key
+  // Selection management
+  window.toggleAllKeys = () => {
+    const mainCheckbox = $('selectAllKeys');
+    const checkboxes = document.querySelectorAll('#keysTbl input[type="checkbox"]');
+    checkboxes.forEach(cb => cb.checked = mainCheckbox.checked);
+    updateKeySelection();
+  };
+
+  window.toggleAllUsers = () => {
+    const mainCheckbox = $('selectAllUsers');
+    const checkboxes = document.querySelectorAll('#usersTbl input[type="checkbox"]');
+    checkboxes.forEach(cb => cb.checked = mainCheckbox.checked);
+    updateUserSelection();
+  };
+
+  window.updateKeySelection = () => {
+    const checked = document.querySelectorAll('#keysTbl input[type="checkbox"]:checked').length;
+    const bulkControls = $('keyBulkControls');
+    
+    if (checked > 0) {
+      bulkControls.classList.add('active');
+      bulkControls.querySelector('.selection-count').textContent = `${checked} nøgler valgt`;
+    } else {
+      bulkControls.classList.remove('active');
+    }
+  };
+
+  window.updateUserSelection = () => {
+    const checked = document.querySelectorAll('#usersTbl input[type="checkbox"]:checked').length;
+    const bulkControls = $('userBulkControls');
+    
+    if (checked > 0) {
+      bulkControls.classList.add('active');
+      bulkControls.querySelector('.selection-count').textContent = `${checked} brugere valgt`;
+    } else {
+      bulkControls.classList.remove('active');
+    }
+  };
+
+  window.clearKeySelection = () => {
+    document.querySelectorAll('#keysTbl input[type="checkbox"]').forEach(cb => cb.checked = false);
+    $('selectAllKeys').checked = false;
+    updateKeySelection();
+  };
+
+  window.clearUserSelection = () => {
+    document.querySelectorAll('#usersTbl input[type="checkbox"]').forEach(cb => cb.checked = false);
+    $('selectAllUsers').checked = false;
+    updateUserSelection();
+  };
+
+  // Sort functions
+  window.sortKeys = (column) => {
+    const direction = currentSort.column === column && currentSort.direction === 'asc' ? 'desc' : 'asc';
+    currentSort = { column, direction };
+    
+    filteredData.keys.sort((a, b) => {
+      let aVal = a[column] || '';
+      let bVal = b[column] || '';
+      
+      if (column === 'created_at' || column === 'used_at') {
+        aVal = aVal ? new Date(aVal) : new Date(0);
+        bVal = bVal ? new Date(bVal) : new Date(0);
+      }
+      
+      if (aVal < bVal) return direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+    
+    filterKeys();
+  };
+
+  window.sortUsers = (column) => {
+    const direction = currentSort.column === column && currentSort.direction === 'asc' ? 'desc' : 'asc';
+    currentSort = { column, direction };
+    
+    filteredData.users.sort((a, b) => {
+      let aVal = a[column] || '';
+      let bVal = b[column] || '';
+      
+      if (column === 'created_at') {
+        aVal = aVal ? new Date(aVal) : new Date(0);
+        bVal = bVal ? new Date(bVal) : new Date(0);
+      }
+      
+      if (aVal < bVal) return direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+    
+    filterUsers();
+  };
+
+  // Bulk operations
+  window.bulkDeleteSelectedKeys = async () => {
+    const selected = Array.from(document.querySelectorAll('#keysTbl input[type="checkbox"]:checked')).map(cb => cb.value);
+    if (selected.length === 0) return;
+    
+    if (!confirm(`Slet ${selected.length} valgte nøgler? Dette kan ikke fortrydes.`)) return;
+    
+    try {
+      const { error } = await supabase.from('activation_keys').delete().in('id', selected);
+      if (error) throw error;
+      
+      alert(`✅ ${selected.length} nøgler slettet`);
+      clearKeySelection();
+      await loadUsers();
+      await loadDashboard();
+    } catch (error) {
+      alert('❌ Fejl: ' + error.message);
+    }
+  };
+
+  window.applyBulkRoleChange = async () => {
+    const selected = Array.from(document.querySelectorAll('#usersTbl input[type="checkbox"]:checked')).map(cb => cb.value);
+    const newRole = $('bulkRoleChange').value;
+    
+    if (selected.length === 0 || !newRole) return;
+    
+    if (!confirm(`Ændre rolle for ${selected.length} brugere til ${newRole}?`)) return;
+    
+    try {
+      for (const userId of selected) {
+        if (newRole === 'remove') {
+          await supabase.from('user_roles').delete().eq('user_id', userId);
+        } else {
+          await supabase.from('user_roles').upsert({ user_id: userId, role: newRole });
+        }
+      }
+      
+      alert(`✅ Roller opdateret for ${selected.length} brugere`);
+      clearUserSelection();
+      $('bulkRoleChange').value = '';
+      await loadUsers();
+      await loadDashboard();
+    } catch (error) {
+      alert('❌ Fejl: ' + error.message);
+    }
+  };
+
+  window.bulkDeleteUsers = async () => {
+    const selected = Array.from(document.querySelectorAll('#usersTbl input[type="checkbox"]:checked')).map(cb => cb.value);
+    if (selected.length === 0) return;
+    
+    if (!confirm(`ADVARSEL: Slet ${selected.length} brugere permanent? Dette sletter deres konti og kan ikke fortrydes.`)) return;
+    
+    // Note: This would require admin API access to actually delete users
+    alert('⚠️ Bruger sletning kræver admin API adgang. Kontakt system administrator.');
+  };
+
+  // Key management
   $('generateKey').onclick = async () => {
     const email = $('keyEmail').value.trim();
     const notes = $('keyNotes').value.trim();
@@ -995,11 +2090,53 @@ window.addEventListener('load', function() {
     
     // Reload keys table
     loadUsers();
+    loadDashboard();
     
     // Hide result after 30 seconds
     setTimeout(() => {
       $('keyResult').style.display = 'none';
     }, 30000);
+  };
+
+  $('cleanupUsedKeys').onclick = async () => {
+    if (!confirm('Slet alle brugte aktiveringsnøgler? Dette kan ikke fortrydes.')) return;
+    
+    try {
+      const { error } = await supabase.from('activation_keys').delete().eq('used', true);
+      if (error) throw error;
+      
+      alert('✅ Brugte nøgler slettet');
+      await loadUsers();
+      await loadDashboard();
+    } catch (error) {
+      alert('❌ Fejl: ' + error.message);
+      }
+  };
+
+  $('bulkDeleteKeys').onclick = bulkDeleteSelectedKeys;
+
+  // Export users
+  $('exportUsers').onclick = async () => {
+    try {
+      const { data: users } = await supabase.from('v_users_with_roles').select('*');
+      
+      const csv = [
+        'Email,Rolle,Oprettet,Rolle Tildelt',
+        ...users.map(u => `"${u.email || ''}","${u.role || ''}","${u.created_at}","${u.role_assigned_at || ''}"`)
+      ].join('\n');
+      
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `kompas_users_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      alert('❌ Eksport fejlede: ' + error.message);
+    }
   };
 
   // Global function for remove user role
@@ -1015,6 +2152,7 @@ window.addEventListener('load', function() {
     
     alert(data.message);
     loadUsers();
+    loadDashboard();
   };
 
   // Add user role directly
@@ -1034,6 +2172,7 @@ window.addEventListener('load', function() {
     alert(data.message);
     $('userEmailInput').value = '';
     loadUsers();
+    loadDashboard();
   };
 
   // === COACHING ADMINISTRATION ===
@@ -1118,6 +2257,7 @@ window.addEventListener('load', function() {
     
     const className = type === 'error' ? 'error-message' : 
                      type === 'success' ? 'success-message' : 
+                     type === 'warning' ? 'warning-message' :
                      'muted';
     
     statusDiv.innerHTML = `<div class="${className}">${message}</div>`;
@@ -1482,7 +2622,625 @@ window.addEventListener('load', function() {
     // The actual collection happens in collectArrayData when saving
   };
 
-});
+  // Coaching backup and import
+  $('backupCoaching').onclick = async () => {
+    if (!currentCoachingTemplate) {
+      alert('Vælg en skabelon først');
+      return;
+    }
+
+    try {
+      const { data: competencies } = await supabase
+        .from('coaching_competency')
+        .select('*')
+        .in('category_id', coachingData.categories.map(c => c.category_id));
+
+      const { data: tips } = await supabase
+        .from('coaching_tip')
+        .select('*')
+        .in('category_id', coachingData.categories.map(c => c.category_id));
+
+      const backup = {
+        backup_date: new Date().toISOString(),
+        backup_type: 'coaching',
+        template_id: currentCoachingTemplate,
+        categories: coachingData.categories,
+        competencies: competencies || [],
+        tips: tips || []
+      };
+
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `kompas_coaching_backup_${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+    } catch (error) {
+      alert('❌ Backup fejlede: ' + error.message);
+    }
+  };
+
+  $('importCoaching').onclick = () => {
+    $('coachingFileInput').click();
+  };
+
+  $('coachingFileInput').onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const backup = JSON.parse(text);
+
+      if (backup.backup_type !== 'coaching') {
+        alert('Ugyldig coaching backup fil');
+        return;
+      }
+
+      if (!confirm('Import coaching data? Dette vil overskrive eksisterende data.')) return;
+
+      // Import logic would go here
+      alert('✅ Coaching data importeret (funktionalitet skal implementeres)');
+
+    } catch (error) {
+      alert('❌ Import fejlede: ' + error.message);
+    }
+  };
+
+    // === MAINTENANCE FUNCTIONS ===
+  async function loadVersionHistory() {
+    try {
+      // This would need a versions table to be implemented
+      $('versionHistory').innerHTML = `
+        <div class="warning-message">
+          📚 Content versionering kræver versions tabel i database.<br>
+          Implementer versions tabel for at aktivere denne funktionalitet.
+        </div>
+      `;
+    } catch (error) {
+      $('versionHistory').innerHTML = `<div class="error-message">Fejl: ${error.message}</div>`;
+    }
+  }
+
+  async function loadSystemMetrics() {
+    try {
+      const [
+        { count: projectCount },
+        { count: userCount },
+        { count: responseCount },
+        { data: dbSize }
+      ] = await Promise.all([
+        supabase.from('projects').select('*', { count: 'exact', head: true }),
+        supabase.from('user_roles').select('*', { count: 'exact', head: true }),
+        supabase.from('responses').select('*', { count: 'exact', head: true }),
+        supabase.rpc('get_database_size') // This RPC would need to be created
+      ]);
+
+      $('systemMetrics').innerHTML = `
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-number">${projectCount || 0}</div>
+            <div class="stat-label">Projekter i Database</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">${userCount || 0}</div>
+            <div class="stat-label">Brugere med Roller</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">${responseCount || 0}</div>
+            <div class="stat-label">Samlede Besvarelser</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">N/A</div>
+            <div class="stat-label">Database Størrelse</div>
+          </div>
+        </div>
+        <div style="margin-top:16px">
+          <h5>💾 Storage Status:</h5>
+          <div class="muted">Database metrics kræver custom RPC funktioner</div>
+        </div>
+      `;
+    } catch (error) {
+      $('systemMetrics').innerHTML = `<div class="error-message">Fejl: ${error.message}</div>`;
+    }
+  }
+
+  // Maintenance functions
+  window.purgeExpiredProjects = async () => {
+    if (!confirm('Ryd alle udløbne projekter? Dette kan ikke fortrydes.')) return;
+
+    const progressDiv = $('cleanupProgress');
+    const progressFill = $('cleanupProgressFill');
+    const progressText = $('cleanupProgressText');
+
+    progressDiv.style.display = 'block';
+    progressFill.style.width = '0%';
+    progressText.textContent = 'Starter oprydning...';
+
+    try {
+      progressFill.style.width = '25%';
+      progressText.textContent = 'Finder udløbne projekter...';
+
+      const { data, error } = await supabase.rpc('purge_expired_projects');
+      if (error) throw error;
+
+      progressFill.style.width = '100%';
+      progressText.textContent = 'Oprydning fuldført!';
+
+      setTimeout(() => {
+        progressDiv.style.display = 'none';
+      }, 2000);
+
+      alert('✅ Udløbne projekter ryddet');
+      await loadDashboard();
+      await loadProjects();
+    } catch (error) {
+      progressDiv.style.display = 'none';
+      alert('❌ Fejl: ' + error.message);
+    }
+  };
+
+  window.cleanupOrphanedData = async () => {
+    if (!confirm('Ryd forældreløse data? Dette finder og sletter data uden gyldig reference.')) return;
+
+    try {
+      // This would need custom cleanup RPC functions
+      alert('⚠️ Orphaned data cleanup kræver custom RPC funktioner');
+    } catch (error) {
+      alert('❌ Fejl: ' + error.message);
+    }
+  };
+
+  window.compactDatabase = async () => {
+    if (!confirm('Kompaktér database? Dette kan tage lang tid.')) return;
+
+    try {
+      // This would need database admin functions
+      alert('⚠️ Database kompaktering kræver admin rettigheder');
+    } catch (error) {
+      alert('❌ Fejl: ' + error.message);
+    }
+  };
+
+  window.exportFullSystem = async () => {
+    try {
+      const [
+        { data: projects },
+        { data: users },
+        { data: templates },
+        { data: responses },
+        { data: keys }
+      ] = await Promise.all([
+        supabase.from('projects').select('*'),
+        supabase.from('v_users_with_roles').select('*'),
+        supabase.from('templates').select(`*, domains(*, categories(*, questions(*)))`),
+        supabase.from('responses').select('*, response_items(*)'),
+        supabase.from('v_activation_keys').select('*')
+      ]);
+
+      const systemExport = {
+        export_date: new Date().toISOString(),
+        export_type: 'full_system',
+        version: '1.0',
+        data: {
+          projects: projects || [],
+          users: users || [],
+          templates: templates || [],
+          responses: responses || [],
+          activation_keys: keys || []
+        },
+        metadata: {
+          projects_count: projects?.length || 0,
+          users_count: users?.length || 0,
+          templates_count: templates?.length || 0,
+          responses_count: responses?.length || 0,
+          keys_count: keys?.length || 0
+        }
+      };
+
+      const blob = new Blob([JSON.stringify(systemExport, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `kompas_system_export_${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+    } catch (error) {
+      alert('❌ System export fejlede: ' + error.message);
+    }
+  };
+
+  window.exportTemplates = async () => {
+    try {
+      const { data: templates } = await supabase.from('templates').select(`
+        *,
+        domains(*, categories(*, questions(*)))
+      `);
+
+      const templateExport = {
+        export_date: new Date().toISOString(),
+        export_type: 'templates',
+        data: templates || []
+      };
+
+      const blob = new Blob([JSON.stringify(templateExport, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `kompas_templates_${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+    } catch (error) {
+      alert('❌ Template export fejlede: ' + error.message);
+    }
+  };
+
+  window.exportCoachingData = async () => {
+    try {
+      const { data: competencies } = await supabase.from('coaching_competency').select('*');
+      const { data: tips } = await supabase.from('coaching_tip').select('*');
+
+      const coachingExport = {
+        export_date: new Date().toISOString(),
+        export_type: 'coaching',
+        data: {
+          competencies: competencies || [],
+          tips: tips || []
+        }
+      };
+
+      const blob = new Blob([JSON.stringify(coachingExport, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `kompas_coaching_${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+    } catch (error) {
+      alert('❌ Coaching export fejlede: ' + error.message);
+    }
+  };
+
+  window.createSystemSnapshot = async () => {
+    const comment = prompt('Snapshot kommentar:');
+    if (!comment) return;
+
+    try {
+      // This would need a snapshots table
+      alert('✅ System snapshot oprettet (funktionalitet skal implementeres)');
+    } catch (error) {
+      alert('❌ Fejl: ' + error.message);
+    }
+  };
+
+  /* === TOKENS: plan + grants (ny) ===
+     Ligger i samme load()-blok, så supabase er i scope.
+  */
+  const btnPlan = document.getElementById('tok-save');
+  if (btnPlan) {
+    btnPlan.addEventListener('click', async () => {
+      const email = document.getElementById('tok-email').value.trim();
+      const plan  = document.getElementById('tok-plan').value;
+      const start = parseInt(document.getElementById('tok-start').value || '0', 10);
+
+      const { data, error } = await supabase.rpc('set_user_plan', { p_email: email, p_plan: plan, p_tokens: start });
+      const msg = document.getElementById('tok-plan-msg');
+      if (error) {
+        msg.textContent = `⚠️ ${error.message || error}`;
+      } else if (data?.error) {
+        msg.textContent = `⚠️ ${data.error}`;
+      } else {
+        msg.textContent = '✅ Gemt';
+      }
+
+    });
+  }
+
+ const btnGrant = document.getElementById('grant-save');
+  if (btnGrant) {
+    btnGrant.addEventListener('click', async () => {
+      const email = document.getElementById('grant-email').value.trim();
+      const qty   = parseInt(document.getElementById('grant-qty').value || '0', 10);
+      const note  = document.getElementById('grant-note').value;
+
+      const { data, error } = await supabase.rpc('grant_tokens', { p_email: email, p_qty: qty, p_note: note });
+      const msg2 = document.getElementById('grant-msg');
+      if (error) {
+        msg2.textContent = `⚠️ ${error.message || error}`;
+      } else if (data?.error) {
+        msg2.textContent = `⚠️ ${data.error}`;
+      } else {
+        msg2.textContent = '✅ Tildelt';
+        // Opdater oversigten automatisk
+        await loadOverview();
+        // Ryd felterne
+        document.getElementById('grant-email').value = '';
+        document.getElementById('grant-qty').value = '5';
+        document.getElementById('grant-note').value = '';
+      }
+    });
+  }
+
+  // === TOKEN OVERSIGT FUNKTIONER ===
+  
+  // Load overview function
+  async function loadOverview() {
+    const plan = document.getElementById('flt-plan').value || null;
+    const balance = document.getElementById('flt-balance').value || null;
+    const days = parseInt(document.getElementById('flt-days').value || '30', 10);
+
+    try {
+      const { data, error } = await supabase.rpc('get_billing_overview', {
+        p_plan: plan,
+        p_has_tokens: balance,
+        p_days: days
+      });
+
+      if (error) throw error;
+
+      displayOverview(data || []);
+    } catch (error) {
+      console.error('Fejl ved indlæsning af oversigt:', error);
+      document.getElementById('overview-summary').textContent = `❌ Fejl: ${error.message}`;
+    }
+  }
+
+  // Display overview data in table
+  function displayOverview(data) {
+    const tbody = document.querySelector('#overview-table tbody');
+    const summary = document.getElementById('overview-summary');
+    
+    // Clear existing rows
+    tbody.innerHTML = '';
+    
+    if (!data || data.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted)">Ingen brugere fundet</td></tr>';
+      summary.textContent = 'Ingen data at vise';
+      return;
+    }
+
+    // Calculate summary stats
+    const totalUsers = data.length;
+    const totalTokens = data.reduce((sum, row) => sum + (row.token_balance || 0), 0);
+    const totalSpent = data.reduce((sum, row) => sum + (row.spent_period || 0), 0);
+    const subscriptionUsers = data.filter(row => row.plan === 'subscription').length;
+    const prepaidUsers = data.filter(row => row.plan === 'prepaid').length;
+
+    summary.innerHTML = `
+      <strong>${totalUsers}</strong> brugere • 
+      <strong>${subscriptionUsers}</strong> abonnement • 
+      <strong>${prepaidUsers}</strong> forudbetalt • 
+      <strong>${totalTokens}</strong> tokens i alt • 
+      <strong>${totalSpent}</strong> brugt i periode
+    `;
+
+    // Populate table
+    data.forEach(row => {
+      const tr = document.createElement('tr');
+      
+      const formatDate = (dateStr) => {
+        if (!dateStr) return '-';
+        return new Date(dateStr).toLocaleString('da-DK', {
+          day: '2-digit',
+          month: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      };
+
+      const planText = row.plan === 'subscription' ? 'Abonnement' : 'Forudbetalt';
+      const balanceColor = row.token_balance > 0 ? 'color:green' : 
+                          row.token_balance < 0 ? 'color:red' : '';
+
+      tr.innerHTML = `
+        <td style="padding:6px;">${row.email}</td>
+        <td style="padding:6px;">${planText}</td>
+        <td style="padding:6px;text-align:right;${balanceColor}"><strong>${row.token_balance || 0}</strong></td>
+        <td style="padding:6px;text-align:right;">${row.spent_period || 0}</td>
+        <td style="padding:6px;">${formatDate(row.last_spend_at)}</td>
+        <td style="padding:6px;">
+          <input type="number" class="input" style="width:60px;padding:2px 4px;font-size:0.8rem;" value="10" min="1" max="100">
+          <button class="btn small" style="font-size:0.7rem;padding:2px 6px;margin-left:4px;" 
+                  onclick="quickGrant('${row.email}', this.previousElementSibling.value)">+</button>
+        </td>
+        <td style="padding:6px;">
+          <button class="btn small" style="font-size:0.7rem;padding:2px 6px;" 
+                  onclick="showLedger('${row.email}', '${row.user_id}')">Se ledger</button>
+        </td>
+      `;
+      
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Quick grant tokens function
+  async function quickGrant(email, qty) {
+    const amount = parseInt(qty, 10);
+    if (!amount || amount < 1) {
+      alert('Indtast et gyldigt antal tokens');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('grant_tokens', {
+        p_email: email,
+        p_qty: amount,
+        p_note: `Hurtig tildeling via oversigt`
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      // Reload overview
+      await loadOverview();
+      
+      // Show success message briefly
+      const summary = document.getElementById('overview-summary');
+      const originalText = summary.innerHTML;
+      summary.innerHTML = `✅ Tildelt ${amount} tokens til ${email}`;
+      setTimeout(() => { summary.innerHTML = originalText; }, 3000);
+
+    } catch (error) {
+      alert(`Fejl ved tildeling: ${error.message}`);
+    }
+  }
+
+  // Show ledger function
+  async function showLedger(email, userId) {
+    try {
+      const { data, error } = await supabase
+        .from('token_ledger')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const dialog = document.getElementById('dlg-ledger');
+      const emailSpan = document.getElementById('dlg-email');
+      const ledgerWrap = document.getElementById('ledger-wrap');
+
+      emailSpan.textContent = email;
+
+      if (!data || data.length === 0) {
+        ledgerWrap.innerHTML = '<p style="text-align:center;color:var(--muted);padding:20px;">Ingen transaktioner fundet</p>';
+      } else {
+        ledgerWrap.innerHTML = `
+          <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
+            <thead>
+              <tr style="background:var(--bg);border-bottom:1px solid var(--line);">
+                <th style="padding:8px;text-align:left;">Dato</th>
+                <th style="padding:8px;text-align:left;">Type</th>
+                <th style="padding:8px;text-align:right;">Antal</th>
+                <th style="padding:8px;text-align:left;">Note</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.map(entry => {
+                const typeText = {
+                  'grant': 'Tildeling',
+                  'spend': 'Forbrug',
+                  'refund': 'Refusion',
+                  'adjust': 'Justering'
+                }[entry.kind] || entry.kind;
+                
+                const qtyColor = entry.qty > 0 ? 'color:green' : 'color:red';
+                
+                return `
+                  <tr style="border-bottom:1px solid var(--line);">
+                    <td style="padding:6px;">${new Date(entry.created_at).toLocaleString('da-DK')}</td>
+                    <td style="padding:6px;">${typeText}</td>
+                    <td style="padding:6px;text-align:right;${qtyColor}"><strong>${entry.qty > 0 ? '+' : ''}${entry.qty}</strong></td>
+                    <td style="padding:6px;">${entry.note || '-'}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        `;
+      }
+
+      dialog.showModal();
+    } catch (error) {
+      alert(`Fejl ved indlæsning af ledger: ${error.message}`);
+    }
+  }
+
+  // Export CSV function
+  async function exportOverview() {
+    const plan = document.getElementById('flt-plan').value || null;
+    const balance = document.getElementById('flt-balance').value || null;
+    const days = parseInt(document.getElementById('flt-days').value || '30', 10);
+
+    try {
+      const { data, error } = await supabase.rpc('get_billing_overview', {
+        p_plan: plan,
+        p_has_tokens: balance,
+        p_days: days
+      });
+
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        alert('Ingen data at eksportere');
+        return;
+      }
+
+      // Create CSV content
+      const headers = ['Email', 'Plan', 'Token Saldo', 'Forbrug (periode)', 'Sidste Forbrug'];
+      const csvContent = [
+        headers.join(','),
+        ...data.map(row => [
+          `"${row.email}"`,
+          `"${row.plan === 'subscription' ? 'Abonnement' : 'Forudbetalt'}"`,
+          row.token_balance || 0,
+          row.spent_period || 0,
+          `"${row.last_spend_at ? new Date(row.last_spend_at).toLocaleString('da-DK') : '-'}"`
+        ].join(','))
+      ].join('\n');
+
+      // Download CSV
+      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `token_oversigt_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+    } catch (error) {
+      alert(`Fejl ved eksport: ${error.message}`);
+    }
+  }
+
+  // Event listeners for overview functionality
+  const btnLoadOverview = document.getElementById('btn-load-overview');
+  if (btnLoadOverview) {
+    btnLoadOverview.addEventListener('click', loadOverview);
+  }
+
+  const btnExportCsv = document.getElementById('btn-export-csv');
+  if (btnExportCsv) {
+    btnExportCsv.addEventListener('click', exportOverview);
+  }
+
+  const dlgClose = document.getElementById('dlg-close');
+  if (dlgClose) {
+    dlgClose.addEventListener('click', () => {
+      document.getElementById('dlg-ledger').close();
+    });
+  }
+
+  // Auto-load overview when tokens tab is selected
+  document.querySelector('[data-tab="tokens"]')?.addEventListener('click', () => {
+    setTimeout(() => {
+      if (document.getElementById('tab-tokens').style.display !== 'none') {
+        loadOverview();
+      }
+    }, 100);
+  });
+
+  // Make functions globally available
+  window.quickGrant = quickGrant;
+  window.showLedger = showLedger;
+  window.loadOverview = loadOverview;
+
+});  <!-- slut på window.addEventListener('load', ...) -->
 </script>
+
 </body>
 </html>
