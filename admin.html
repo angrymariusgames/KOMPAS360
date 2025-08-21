@@ -2123,12 +2123,12 @@ window.showLargeProjectQR = (url, title) => {
   };
 
   // Funktion til at generere SVG KOMPAS hjul
-function generateKOMPASSVG(data, width = 300, height = 300) {
-  const centerX = width / 2;
-  const centerY = height / 2;
-  const radius = Math.min(width, height) / 2 - 40;
+  function generateKOMPASSVG(data, width = 500, height = 500) {
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const radius = Math.min(width, height) / 2 - 120;  // MEGET mere plads til lange labels
   
-  // KOMPAS kategorier i korrekt rækkefølge (som på dit billede)
+  // KOMPAS kategorier i korrekt rækkefølge
   const categories = [
     'Kommunikation', 'Fleksibilitet', 'Nytænkning', 'Helhedsorientering',
     'Fremtidsorientering', 'Håndtering af pres', 'Beslutningstagning', 'Styring', 
@@ -2136,36 +2136,78 @@ function generateKOMPASSVG(data, width = 300, height = 300) {
     'Ressourcebevidsthed', 'Samarbejde', 'Udvikling af andre', 'Motivere andre'
   ];
   
-  // Map data til kategorier
-  const values = categories.map(catName => {
-    if (data.categories) {
+  // Check om det er team data (kun max) eller individuel data (self/peer/leader)
+  const isTeamData = data.categories && data.categories[0]?.max !== undefined;
+  
+  let datasets = [];
+  
+  if (isTeamData) {
+    // Team visning - kun én linje med max værdier
+    const values = categories.map(catName => {
       const cat = data.categories.find(c => c.name === catName || c.category_name === catName);
-      if (cat) {
-        return cat.max !== undefined ? cat.max : 
-               Math.max(cat.self || 0, cat.peer || 0, cat.leader || 0);
+      return cat ? (cat.max || 0) : 0;
+    });
+    
+    datasets.push({
+      values: values,
+      color: 'rgba(34, 197, 94, 1)',
+      fillColor: 'rgba(34, 197, 94, 0.2)'
+    });
+  } else {
+    // Individuel visning - vis separate linjer for self/peer/leader
+    if (data.showSelf !== false) {
+      const selfValues = categories.map(catName => {
+        const cat = data.categories.find(c => c.name === catName || c.category_name === catName);
+        return cat ? (cat.self || 0) : 0;
+      });
+      datasets.push({
+        values: selfValues,
+        color: 'rgba(34, 197, 94, 1)',
+        fillColor: 'rgba(34, 197, 94, 0.12)',
+        label: 'Selv'
+      });
+    }
+    
+    if (data.showPeer !== false) {
+      const peerValues = categories.map(catName => {
+        const cat = data.categories.find(c => c.name === catName || c.category_name === catName);
+        return cat ? (cat.peer || 0) : 0;
+      });
+      // Tjek om der faktisk er peer data
+      if (peerValues.some(v => v > 0)) {
+        datasets.push({
+          values: peerValues,
+          color: 'rgba(59, 130, 246, 1)',
+          fillColor: 'rgba(59, 130, 246, 0.12)',
+          label: 'Kollega'
+        });
       }
     }
-    return 0;
-  });
-  
-  // Generer radar points
-  const points = values.map((value, index) => {
-    const angle = (index * 2 * Math.PI / 16) - Math.PI / 2; // Start top
-    const r = (value / 5) * radius; // Scale til radius
-    return {
-      x: centerX + r * Math.cos(angle),
-      y: centerY + r * Math.sin(angle)
-    };
-  });
+    
+    if (data.showLeader !== false) {
+      const leaderValues = categories.map(catName => {
+        const cat = data.categories.find(c => c.name === catName || c.category_name === catName);
+        return cat ? (cat.leader || 0) : 0;
+      });
+      // Tjek om der faktisk er leader data
+      if (leaderValues.some(v => v > 0)) {
+        datasets.push({
+          values: leaderValues,
+          color: 'rgba(249, 115, 22, 1)',
+          fillColor: 'rgba(249, 115, 22, 0.12)',
+          label: 'Fører'
+        });
+      }
+    }
+  }
   
   // Generer label positioner
   const labelPoints = categories.map((_, index) => {
     const angle = (index * 2 * Math.PI / 16) - Math.PI / 2;
-    const labelRadius = radius + 25;
+    const labelRadius = radius + 50;  // Endnu mere afstand til labels
     return {
       x: centerX + labelRadius * Math.cos(angle),
-      y: centerY + labelRadius * Math.sin(angle),
-      angle: angle
+      y: centerY + labelRadius * Math.sin(angle)
     };
   });
   
@@ -2212,16 +2254,28 @@ function generateKOMPASSVG(data, width = 300, height = 300) {
             fill="${quad.color}" clip-path="url(#circle-clip)"/>`;
   });
   
-  // Data polygon (grøn fyldt område)
-  if (points.length > 0) {
-    const pathData = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ') + ' Z';
-    svg += `<path d="${pathData}" fill="rgba(34, 197, 94, 0.2)" stroke="rgba(34, 197, 94, 1)" stroke-width="2"/>`;
-    
-    // Data points
-    points.forEach(point => {
-      svg += `<circle cx="${point.x}" cy="${point.y}" r="3" fill="rgba(34, 197, 94, 1)"/>`;
+  // Tegn datasæt
+  datasets.forEach(dataset => {
+    const points = dataset.values.map((value, index) => {
+      const angle = (index * 2 * Math.PI / 16) - Math.PI / 2;
+      const r = (value / 5) * radius;
+      return {
+        x: centerX + r * Math.cos(angle),
+        y: centerY + r * Math.sin(angle)
+      };
     });
-  }
+    
+    // Data polygon
+    if (points.length > 0 && points.some(p => p.x !== centerX || p.y !== centerY)) {
+      const pathData = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ') + ' Z';
+      svg += `<path d="${pathData}" fill="${dataset.fillColor}" stroke="${dataset.color}" stroke-width="2" opacity="0.8"/>`;
+      
+      // Data points
+      points.forEach(point => {
+        svg += `<circle cx="${point.x}" cy="${point.y}" r="3" fill="${dataset.color}"/>`;
+      });
+    }
+  });
   
   // Labels
   labelPoints.forEach((point, index) => {
@@ -2229,7 +2283,6 @@ function generateKOMPASSVG(data, width = 300, height = 300) {
     let textAnchor = 'middle';
     let dy = '0.3em';
     
-    // Justér text position baseret på vinkel
     if (point.x > centerX + 10) textAnchor = 'start';
     else if (point.x < centerX - 10) textAnchor = 'end';
     
@@ -2237,8 +2290,18 @@ function generateKOMPASSVG(data, width = 300, height = 300) {
     else if (point.y > centerY + 10) dy = '-0.2em';
     
     svg += `<text x="${point.x}" y="${point.y}" text-anchor="${textAnchor}" dy="${dy}" 
-            font-family="Arial" font-size="9" font-weight="bold" fill="#333">${text}</text>`;
+            font-family="Arial" font-size="8" font-weight="bold" fill="#333">${text}</text>`;
   });
+  
+  // Legend hvis flere datasæt
+  if (!isTeamData && datasets.length > 1) {
+    let legendY = height - 20;  // Mere plads nederst
+    datasets.forEach((dataset, idx) => {
+      const legendX = 10 + idx * 80;
+      svg += `<rect x="${legendX}" y="${legendY - 8}" width="12" height="12" fill="${dataset.color}"/>`;
+      svg += `<text x="${legendX + 16}" y="${legendY}" font-family="Arial" font-size="10" fill="#333">${dataset.label}</text>`;
+    });
+  }
   
   svg += '</svg>';
   return svg;
@@ -2393,9 +2456,9 @@ async function generatePDFFromHTML(htmlContent, filename) {
       finalHeight = maxHeight;
     }
 
-    // Tilføj billedet centreret på siden
-    const xOffset = (210 - finalWidth) / 2;
-    const yOffset = 0;
+    // Tilføj billedet centreret på siden - juster mod højre
+    const xOffset = (210 - finalWidth) / 2 + 10; // +10 for at skubbe mod højre
+    const yOffset = 5; // Lidt margin fra toppen
     
     // Konverter canvas til JPEG for mindre filstørrelse
     const imgData = canvas.toDataURL('image/jpeg', 0.8); // 0.8 kvalitet = god balance
@@ -2454,7 +2517,7 @@ $('btnZip').onclick = () => {
 
   // ----- Download UDV (hele undersøgelsen) -----
   $('btnUdvSurvey').onclick = async () => {
-    const projectId = $('selProject2').value;
+    const projectId = $('selProject3').value;
     if (!projectId) { alert('Vælg et projekt først'); return; }
     try {
       const udv = await buildSurveyUDV(projectId);
@@ -3729,7 +3792,7 @@ $('btnZip').onclick = () => {
   };
 
   $('btnDownloadTeamPDF').onclick = async () => {
-  const projectId = $('selProject2').value;
+  const projectId = $('selProject3').value;  // KORREKT - dette er fra Team Building
   if (!projectId) { alert('Vælg et projekt først'); return; }
   
   try {
@@ -3849,6 +3912,7 @@ $('btnZip').onclick = () => {
       </div>
     </div>`;
     
+   const filename = `${project.title.replace(/ /g, '_')}_Team_Rapport.pdf`;
    await generatePDFFromHTML(htmlContent, filename);
     
     $('btnDownloadTeamPDF').textContent = originalText;
