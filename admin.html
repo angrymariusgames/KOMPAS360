@@ -2250,7 +2250,7 @@ function generatePersonReportHTML(project, person, categories, series, labels) {
   </div>`;
 }
 
-$('btnPdf').onclick = async () => { 
+$('btnPdf').onclick = async () => {
   const pid = $('selProject2').value, tid = $('selTarget').value;
   if (!pid || !tid) { alert('Vælg projekt og målperson først'); return; }
   
@@ -3654,13 +3654,10 @@ $('btnZip').onclick = () => {
         <div style="font-size:9px;opacity:0.9">Aggregeret kompetenceprofil baseret på maksimale værdier</div>
       </div>
       
-      <!-- Team KOMPAS Hjul Placeholder -->
-      <div style="text-align:center;background:#f8fafc;border:2px dashed #cbd5e1;border-radius:8px;padding:15px;margin-bottom:12px">
-        <div style="font-size:12px;color:#64748b;margin-bottom:6px">🎯 Team KOMPAS Kompetencehjul</div>
-        <div style="font-size:9px;color:#94a3b8">
-          Team radar chart ville være synligt her i web-versionen<br>
-          Viser maksimale scores for hver af de 16 kompetencer
-        </div>
+      <!-- Team KOMPAS Hjul - RIGTIG CHART -->
+      <div class="chart-placeholder" style="text-align:center;background:white;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin-bottom:12px">
+        <div style="font-size:12px;color:#64748b;margin-bottom:10px">🎯 Team KOMPAS Kompetencehjul</div>
+        <div style="font-size:9px;color:#94a3b8">Genererer team chart...</div>
       </div>
       
       <!-- Team Kompetencer i 4 kolonner -->
@@ -3676,8 +3673,20 @@ $('btnZip').onclick = () => {
       </div>
     </div>`;
     
+    // Forbered team chart data
+    const teamChartData = {
+      categories: cats.map((cat, index) => ({
+        name: cat.category_name,
+        max: Math.max(
+          teamSeries.self[index] || 0,
+          teamSeries.peer[index] || 0,
+          teamSeries.leader[index] || 0
+        )
+      }))
+    };
+
     const filename = `${project.title.replace(/ /g, '_')}-Team_Rapport.pdf`;
-    await generatePDFFromHTML(htmlContent, filename);
+    await generatePDFFromHTML(htmlContent, filename, teamChartData);
     
     $('btnDownloadTeamPDF').textContent = originalText;
     $('btnDownloadTeamPDF').disabled = false;
