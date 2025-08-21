@@ -359,15 +359,16 @@
 
             <div class="row" style="margin-top:20px">
               <button id="saveProjectBtn" class="btn primary">Opret projekt</button>
+              <button id="cancelProjectBtn" class="btn" style="background:#dc3545;color:white;border-color:#dc3545">Annuller</button>
               <span id="projectStatus" class="muted"></span>
             </div>
-          </div>
-        </div>
+                      </div>
+                    </div>
 
-        <!-- RIGHT SIDE: Labels & People Management -->
-        <div class="project-right">
-          
-          <!-- Labels Section -->
+                    <!-- RIGHT SIDE: Labels & People Management -->
+                    <div class="project-right">
+                      
+                      <!-- Labels Section -->
           <h4 style="margin-bottom:12px">🏷️ Evaluerings Labels</h4>
           <div style="margin-bottom:20px">
             <div style="margin-bottom:8px">
@@ -445,12 +446,17 @@
 
     <!-- Resultater -->
     <div id="tab-results" class="section" style="display:none">
-      <div class="grid2" style="margin-bottom:8px">
-        <select id="selProject2" class="select"></select>
-        <select id="selTarget" class="select"></select>
+      <div style="margin-bottom:8px">
+        <div style="margin-bottom:8px">
+          <select id="selProject2" class="select" style="width:100%"></select>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button id="btnPrevTarget" class="btn small" style="padding:8px 12px" title="Forrige profil">←</button>
+          <select id="selTarget" class="select" style="flex:1"></select>
+          <button id="btnNextTarget" class="btn small" style="padding:8px 12px" title="Næste profil">→</button>
+        </div>
       </div>
       <div class="row" style="margin-bottom:10px">
-        <button id="btnLoadRadar" class="btn">Vis KOMPAS-hjul</button>
         <button id="btnPdf" class="btn">Download PDF</button>
         <button id="btnZip" class="btn">Download alle (ZIP)</button>
       </div>
@@ -494,6 +500,14 @@ window.addEventListener('load', function() {
       // vis valgt sektion
       const target = $('tab-' + btn.dataset.tab);
       if(target) target.style.display = 'block';
+      
+      // Vis/skjul "Opret nyt projekt" knappen afhængig af fane
+      const createBtn = $('createNewProjectBtn');
+      if(btn.dataset.tab === 'projects') {
+        createBtn.style.display = 'inline-block';
+      } else {
+        createBtn.style.display = 'none';
+      }
     };
   });
 
@@ -650,6 +664,11 @@ window.addEventListener('load', function() {
 
   // Event listeners for form state
   $('createNewProjectBtn').onclick = () => showProjectForm(false);
+  $('cancelProjectBtn').onclick = () => {
+    if(confirm('Annuller projekt oprettelse? Alle ændringer går tabt.')) {
+      hideProjectForm();
+    }
+  };
 
   // Utility functions
   function generateProjectUrl(token) {
@@ -1333,6 +1352,179 @@ window.showLargeProjectQR = (url, title) => {
     });
   });
 
+  // Funktion til at generere radar chart
+  async function generateRadarChart(){
+    const pid=$('selProject2').value, tid=$('selTarget').value;
+    if(!pid || !tid) return;
+    
+    const { data } = await supabase.from('v_kompas_series').select().eq('project_id',pid).eq('target_id',tid);
+    
+    // Organiser kategorier så de placeres MELLEM hovedakserne
+    // Chart.js starter ved toppen (0°) og går med uret
+    // Vi vil have tomme akser ved 0°, 90°, 180°, 270°
+    
+    const orderedCategories = [
+      // Tom akse ved 0° (kl. 12)
+      '', 
+      
+      // Fornyelse kvadrant (øverst højre, mellem kl. 12 og 3)
+      'Fleksibilitet',
+      'Nytænkning',
+      'Helhedsorientering',
+      'Fremtidsorientering',
+      
+      // Tom akse ved 90° (kl. 3)
+      '',
+      
+      // Resultater kvadrant (nederst højre, mellem kl. 3 og 6)
+      'Håndtering af pres',
+      'Beslutningstagning',
+      'Styring',
+      'Initiativ',
+      
+      // Tom akse ved 180° (kl. 6)
+      '',
+      
+      // Stabilitet kvadrant (nederst venstre, mellem kl. 6 og 9)
+      'Analytisk tænkning',
+      'Faglighed',
+      'Planlægning',
+      'Ressourcebevidsthed',
+      
+      // Tom akse ved 270° (kl. 9)
+      '',
+      
+      // Relationer kvadrant (øverst venstre, mellem kl. 9 og 12)
+      'Samarbejde',
+      'Udvikling af andre',
+      'Motivere andre',
+      'Kommunikation'
+    ];
+    
+    // Map data til den nye kategori rækkefølge, brug null for tomme akser
+    const self = orderedCategories.map(c => {
+      if (c === '') return null;
+      return data.find(r=>r.category_name===c && r.respondent_type==='self')?.safe_avg ?? null;
+    });
+    const peer = orderedCategories.map(c => {
+      if (c === '') return null;
+      return data.find(r=>r.category_name===c && r.respondent_type==='peer')?.safe_avg ?? null;
+    });
+    const leader = orderedCategories.map(c => {
+      if (c === '') return null;
+      return data.find(r=>r.category_name===c && r.respondent_type==='leader')?.safe_avg ?? null;
+    });
+    
+    const ctx=$('radar').getContext('2d'); 
+    if(radar) radar.destroy();
+    
+    // Plugin til at tegne kvadrant baggrunde
+    const quadrantBackgroundPlugin = {
+      id: 'quadrantBackground',
+      beforeDatasetsDraw: (chart) => {
+        const {ctx, chartArea: {top, bottom, left, right}, scales: {r}} = chart;
+        const centerX = r.xCenter;
+        const centerY = r.yCenter;
+        const radius = r.drawingArea;
+        
+        ctx.save();
+        
+        // Funktion til at tegne en sektor
+        const drawSector = (startAngle, endAngle, color) => {
+          ctx.beginPath();
+          ctx.moveTo(centerX, centerY);
+          ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+          ctx.closePath();
+          ctx.fillStyle = color;
+          ctx.fill();
+        };
+        
+        // Konverter grader til radianer (Chart.js bruger -90° som start)
+        const degToRad = (deg) => (deg - 90) * Math.PI / 180;
+        
+        // Tegn de 4 kvadrant baggrunde
+        // Fornyelse (øverst højre) - støvet grøn  
+        drawSector(degToRad(0), degToRad(90), 'rgba(34, 139, 34, 0.08)');
+        
+        // Resultater (nederst højre) - støvet rød
+        drawSector(degToRad(90), degToRad(180), 'rgba(220, 20, 60, 0.08)');
+        
+        // Stabilitet (nederst venstre) - støvet grå
+        drawSector(degToRad(180), degToRad(270), 'rgba(128, 128, 128, 0.08)');
+        
+        // Relationer (øverst venstre) - støvet blå
+        drawSector(degToRad(270), degToRad(360), 'rgba(100, 149, 237, 0.08)');
+        
+        ctx.restore();
+      }
+    };
+    
+    radar = new Chart(ctx,{
+      type:'radar',
+      data:{
+        labels:orderedCategories,
+        datasets:[
+          {
+            label:'Selv',
+            data:self,
+            borderColor:'rgba(34, 197, 94, 1)',
+            backgroundColor:'rgba(34, 197, 94, 0.12)',
+            pointBackgroundColor:'rgba(34, 197, 94, 1)',
+            borderWidth:2,
+            spanGaps: true  // Spring over null-værdier når linjer tegnes
+          },
+          {
+            label:'Kollega',
+            data:peer,
+            borderColor:'rgba(59, 130, 246, 1)',
+            backgroundColor:'rgba(59, 130, 246, 0.12)',
+            pointBackgroundColor:'rgba(59, 130, 246, 1)',
+            borderWidth:2,
+            spanGaps: true  // Spring over null-værdier når linjer tegnes
+          },
+          {
+            label:'Fører',
+            data:leader,
+            borderColor:'rgba(249, 115, 22, 1)',
+            backgroundColor:'rgba(249, 115, 22, 0.12)',
+            pointBackgroundColor:'rgba(249, 115, 22, 1)',
+            borderWidth:2,
+            spanGaps: true  // Spring over null-værdier når linjer tegnes
+          }
+        ]
+      }, 
+      options:{ 
+        scales:{ 
+          r:{
+            beginAtZero:true,
+            min:0,
+            max:5,
+            ticks:{stepSize:1},
+            pointLabels: {
+              display: function(context) {
+                // Skjul labels for tomme akser
+                return orderedCategories[context.index] !== '';
+              },
+              font: {
+                size: 13,
+                weight: 'bold'
+              }
+            }
+          }
+        }, 
+        plugins:{
+          legend:{position:'bottom'}
+        }
+      },
+      plugins: [quadrantBackgroundPlugin]
+    });
+    
+    const hidden=[]; 
+    if(peer.every(v=>v===null)) hidden.push('Kollega'); 
+    if(leader.every(v=>v===null)) hidden.push('Fører');
+    $('resultNote').textContent = hidden.length? `Skjult pga. anonymitetsgrænse: ${hidden.join(', ')}`:'';
+  }
+
   // Results
   $('selProject2').onchange = async ()=>{
     const pid=$('selProject2').value; 
@@ -1345,38 +1537,45 @@ window.showLargeProjectQR = (url, title) => {
       o.textContent=p.full_name; 
       s.appendChild(o); 
     });
+    
+    // Opdater pile-knapper status
+    updateNavigationButtons();
+    
+    // Auto-generate radar hvis target er valgt
+    if(data && data.length > 0) {
+      s.selectedIndex = 0; // Vælg første person automatisk
+      generateRadarChart();
+    }
   };
 
-  $('btnLoadRadar').onclick = async ()=>{
-    const pid=$('selProject2').value, tid=$('selTarget').value;
-    const { data } = await supabase.from('v_kompas_series').select().eq('project_id',pid).eq('target_id',tid);
-    const cats=[...new Set(data.map(d=>d.category_name))];
-    const self = cats.map(c=>data.find(r=>r.category_name===c && r.respondent_type==='self')?.safe_avg ?? null);
-    const peer = cats.map(c=>data.find(r=>r.category_name===c && r.respondent_type==='peer')?.safe_avg ?? null);
-    const leader = cats.map(c=>data.find(r=>r.category_name===c && r.respondent_type==='leader')?.safe_avg ?? null);
-    const ctx=$('radar').getContext('2d'); 
-    if(radar) radar.destroy();
-    radar = new Chart(ctx,{
-      type:'radar',
-      data:{
-        labels:cats,
-        datasets:[
-          {label:'Selv',data:self,borderColor:'#111',backgroundColor:'rgba(0,0,0,.04)',pointBackgroundColor:'#111',borderWidth:2},
-          {label:'Kollega',data:peer,borderColor:'rgba(102,126,234,1)',backgroundColor:'rgba(102,126,234,.12)',pointBackgroundColor:'rgba(102,126,234,1)',borderWidth:2},
-          {label:'Fører',data:leader,borderColor:'rgba(118,75,162,1)',backgroundColor:'rgba(118,75,162,.12)',pointBackgroundColor:'rgba(118,75,162,1)',borderWidth:2}
-        ]
-      }, 
-      options:{ 
-        scales:{ 
-          r:{beginAtZero:true,min:0,max:5,ticks:{stepSize:1}}
-        }, 
-        plugins:{legend:{position:'bottom'}} 
-      }
-    });
-    const hidden=[]; 
-    if(peer.every(v=>v===null)) hidden.push('Kollega'); 
-    if(leader.every(v=>v===null)) hidden.push('Fører');
-    $('resultNote').textContent = hidden.length? `Skjult pga. anonymitetsgrænse: ${hidden.join(', ')}`:'';
+  $('selTarget').onchange = generateRadarChart;
+
+  // Navigation mellem targets
+  function updateNavigationButtons() {
+    const targetSelect = $('selTarget');
+    const prevBtn = $('btnPrevTarget');
+    const nextBtn = $('btnNextTarget');
+    
+    prevBtn.disabled = targetSelect.selectedIndex <= 0 || targetSelect.options.length === 0;
+    nextBtn.disabled = targetSelect.selectedIndex >= targetSelect.options.length - 1 || targetSelect.options.length === 0;
+  }
+
+  $('btnPrevTarget').onclick = () => {
+    const targetSelect = $('selTarget');
+    if (targetSelect.selectedIndex > 0) {
+      targetSelect.selectedIndex = targetSelect.selectedIndex - 1;
+      generateRadarChart();
+      updateNavigationButtons();
+    }
+  };
+
+  $('btnNextTarget').onclick = () => {
+    const targetSelect = $('selTarget');
+    if (targetSelect.selectedIndex < targetSelect.options.length - 1) {
+      targetSelect.selectedIndex = targetSelect.selectedIndex + 1;
+      generateRadarChart();
+      updateNavigationButtons();
+    }
   };
 
   function openDoc(url){ window.open(url,'_blank'); }
