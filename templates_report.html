@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ project.title }} - {{ target.full_name }}</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
         @page {
             size: A4;
@@ -86,17 +87,11 @@
             text-align: center;
         }
         
-        .radar-placeholder {
-            width: 100%;
-            height: 400px;
-            background: #f1f5f9;
-            border-radius: 0.5rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #64748b;
-            font-size: 1rem;
-            border: 2px dashed #cbd5e1;
+        .chart-wrapper {
+            width: 500px;
+            height: 500px;
+            margin: 0 auto;
+            position: relative;
         }
         
         .categories-grid {
@@ -234,9 +229,8 @@
             </div>
         </div>
         
-        <div class="radar-placeholder">
-            📊 Kompetencehjul vil blive vist her<br>
-            (Kræver Chart.js integration for PDF generering)
+        <div class="chart-wrapper">
+            <canvas id="radarChart"></canvas>
         </div>
     </div>
     
@@ -302,5 +296,163 @@
         <p>Genereret af KOMPAS PDF Service</p>
         <p>For mere information, kontakt din systemadministrator.</p>
     </div>
+
+    <!-- Forbered data for JavaScript -->
+    <script type="application/json" id="chart-data">
+    {
+        "categories": [
+            {% for cat in cats %}
+            {
+                "name": "{{ cat.name }}",
+                "self": {% if series.self[loop.index0] is not none %}{{ series.self[loop.index0] }}{% else %}null{% endif %},
+                "peer": {% if series.peer[loop.index0] is not none %}{{ series.peer[loop.index0] }}{% else %}null{% endif %},
+                "leader": {% if series.leader[loop.index0] is not none %}{{ series.leader[loop.index0] }}{% else %}null{% endif %}
+            }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ],
+        "labels": {
+            "self": "{{ labels_text.self or 'Selvvurdering' }}",
+            "peer": "{{ labels_text.peer or 'Kollegavurdering' }}", 
+            "leader": "{{ labels_text.leader or 'Ledervurdering' }}"
+        }
+    }
+    </script>
+
+    <script>
+        window.addEventListener('load', function() {
+            const chartData = JSON.parse(document.getElementById('chart-data').textContent);
+            
+            const orderedCategories = [
+                '', 'Fleksibilitet', 'Nytænkning', 'Helhedsorientering', 'Fremtidsorientering',
+                '', 'Håndtering af pres', 'Beslutningstagning', 'Styring', 'Initiativ',
+                '', 'Analytisk tænkning', 'Faglighed', 'Planlægning', 'Ressourcebevidsthed',
+                '', 'Samarbejde', 'Udvikling af andre', 'Motivere andre', 'Kommunikation'
+            ];
+
+            function mapDataToChart(type) {
+                return orderedCategories.map(catName => {
+                    if (catName === '') return null;
+                    const cat = chartData.categories.find(c => c.name === catName);
+                    return cat ? cat[type] : null;
+                });
+            }
+
+            const datasets = [];
+            
+            const selfData = mapDataToChart('self');
+            const peerData = mapDataToChart('peer');
+            const leaderData = mapDataToChart('leader');
+            
+            if (selfData.some(v => v !== null)) {
+                datasets.push({
+                    label: chartData.labels.self,
+                    data: selfData,
+                    borderColor: 'rgba(34, 197, 94, 1)',
+                    backgroundColor: 'rgba(34, 197, 94, 0.12)',
+                    pointBackgroundColor: 'rgba(34, 197, 94, 1)',
+                    borderWidth: 2,
+                    spanGaps: true
+                });
+            }
+            
+            if (peerData.some(v => v !== null)) {
+                datasets.push({
+                    label: chartData.labels.peer,
+                    data: peerData,
+                    borderColor: 'rgba(59, 130, 246, 1)',
+                    backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                    pointBackgroundColor: 'rgba(59, 130, 246, 1)',
+                    borderWidth: 2,
+                    spanGaps: true
+                });
+            }
+            
+            if (leaderData.some(v => v !== null)) {
+                datasets.push({
+                    label: chartData.labels.leader,
+                    data: leaderData,
+                    borderColor: 'rgba(249, 115, 22, 1)',
+                    backgroundColor: 'rgba(249, 115, 22, 0.12)',
+                    pointBackgroundColor: 'rgba(249, 115, 22, 1)',
+                    borderWidth: 2,
+                    spanGaps: true
+                });
+            }
+
+            const quadrantBackgroundPlugin = {
+                id: 'quadrantBackground',
+                beforeDatasetsDraw: (chart) => {
+                    const ctx = chart.ctx;
+                    const r = chart.scales.r;
+                    const centerX = r.xCenter;
+                    const centerY = r.yCenter;
+                    const radius = r.drawingArea;
+                    
+                    ctx.save();
+                    
+                    function drawSector(startAngle, endAngle, color) {
+                        ctx.beginPath();
+                        ctx.moveTo(centerX, centerY);
+                        ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+                        ctx.closePath();
+                        ctx.fillStyle = color;
+                        ctx.fill();
+                    }
+                    
+                    function degToRad(deg) {
+                        return (deg - 90) * Math.PI / 180;
+                    }
+                    
+                    drawSector(degToRad(0), degToRad(90), 'rgba(34, 139, 34, 0.08)');
+                    drawSector(degToRad(90), degToRad(180), 'rgba(220, 20, 60, 0.08)');
+                    drawSector(degToRad(180), degToRad(270), 'rgba(128, 128, 128, 0.08)');
+                    drawSector(degToRad(270), degToRad(360), 'rgba(100, 149, 237, 0.08)');
+                    
+                    ctx.restore();
+                }
+            };
+
+            const ctx = document.getElementById('radarChart').getContext('2d');
+            
+            new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: orderedCategories,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    elements: {
+                        line: { tension: 0.2 },
+                        point: { radius: 0, hitRadius: 6 }
+                    },
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            min: 0,
+                            max: 5,
+                            grid: { circular: true },
+                            ticks: { display: false },
+                            angleLines: { color: 'rgba(0,0,0,0.08)' },
+                            pointLabels: {
+                                display: function(context) {
+                                    return orderedCategories[context.index] !== '';
+                                },
+                                font: {
+                                    size: 11,
+                                    weight: 'bold'
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                },
+                plugins: [quadrantBackgroundPlugin]
+            });
+        });
+    </script>
 </body>
 </html>
