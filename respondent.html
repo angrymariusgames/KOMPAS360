@@ -38,13 +38,13 @@
         
         /* Header */
         .header {
-            background: rgba(255, 255, 255, 0.95);
+            background: rgba(248, 250, 252, 0.95);
             backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
             padding: 1rem;
             position: sticky;
             top: 0;
             z-index: 100;
-            border-bottom: 1px solid var(--border);
         }
         
         .header-content {
@@ -60,6 +60,10 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            background: white;
+            border-radius: 0.75rem;
+            padding: 0.5rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         
         .logo {
@@ -67,6 +71,7 @@
             width: auto;
             max-width: 120px;
             object-fit: contain;
+            background: transparent;
         }
         
         .header-text {
