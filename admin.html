@@ -961,27 +961,20 @@ window.addEventListener('load', function() {
 
   // Utility functions
   function generateProjectUrl(token) {
-    const protocol = window.location.protocol;
-    const hostname = window.location.hostname;
-    const port = window.location.port;
-    const pathname = window.location.pathname;
+  // Frontend (respondent) host
+  const FRONTEND_BASE_URL = window.location.hostname === 'localhost'
+    ? window.location.origin
+    : window.location.origin;
 
-    let baseUrl;
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      baseUrl = `${protocol}//${hostname}${port ? ':' + port : ''}`;
-    } else {
-      baseUrl = `${protocol}//${hostname}${port && port !== '80' && port !== '443' ? ':' + port : ''}`;
-      
-      if (hostname.includes('github.io')) {
-        const pathParts = pathname.split('/').filter(p => p);
-        if (pathParts.length > 0) {
-          baseUrl += '/' + pathParts[0];
-        }
-      }
-    }
-    
-    return baseUrl + '/respondent.html?t=' + token;
-  }
+  // Backend (API) host – SÆT DENNE TIL DIN FASTAPI HTTPS-URL
+  const BACKEND_BASE_URL =
+    (window.KOMPAS_API && window.KOMPAS_API.BASE_URL) ||
+    (location.hostname === 'localhost' ? 'http://localhost:8000' : 'https://YOUR_BACKEND_HOST');
+
+  // Inkluder ?api=... så respondent.html kan kalde korrekt backend
+  return `${FRONTEND_BASE_URL}/respondent.html?t=${encodeURIComponent(token)}&api=${encodeURIComponent(BACKEND_BASE_URL)}`;
+}
+
 
   function copyToClipboard(text, element, type = 'link') {
     const originalText = element.textContent;
