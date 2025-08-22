@@ -667,10 +667,23 @@
 
                 console.log('Loading project with token:', token);
 
-                // Call Supabase function directly instead of backend API
-                const { data, error } = await supabase.rpc('get_project_context', {
-                    p_token: token
+                // Try REST API call instead of Supabase RPC
+                const response = await fetch(`${supabase.supabaseUrl}/rest/v1/rpc/get_project_context`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': supabase.supabaseKey,
+                        'Authorization': `Bearer ${supabase.supabaseKey}`
+                    },
+                    body: JSON.stringify({ p_token: token })
                 });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const error = null;
 
                 console.log('Supabase response data:', data);
                 console.log('Supabase response error:', error);
