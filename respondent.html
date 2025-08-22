@@ -658,12 +658,16 @@
                     return;
                 }
 
-                // Backend base URL (kan sættes via ?api=... eller window.KOMPAS_API.BASE_URL)
-                // VIGTIGT: Sæt HTTPS-URL til din FastAPI herunder.
+                // Backend base URL - hent fra URL parameter eller brug standard
                 const API_BASE_URL =
                   new URLSearchParams(location.search).get('api') ||
-                  (window.KOMPAS_API && window.KOMPAS_API.BASE_URL) ||
-                  (location.hostname === 'localhost' ? 'http://localhost:8000' : 'https://YOUR_BACKEND_HOST');
+                  'http://localhost:8000'; // Ret til din backend URL hvis ikke localhost
+                
+                // Gem globalt så submitResponse kan bruge det
+                window.API_BASE_URL = API_BASE_URL;
+                
+                // Gem API URL globalt så submitResponse kan bruge den
+                window.KOMPAS_API_URL = API_BASE_URL;
 
                 const response = await fetch(`${API_BASE_URL}/api/project-context?token=${encodeURIComponent(token)}`);
 
@@ -926,10 +930,10 @@
                 const urlParams = new URLSearchParams(window.location.search);
                 const token = urlParams.get('t');
                 
-                // Use same API base URL
-                const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname.includes('github.io') 
-                    ? 'http://localhost:8000' 
-                    : window.location.origin;
+                // Brug samme API base URL som loadProject
+                const API_BASE_URL = window.API_BASE_URL || 
+                    new URLSearchParams(location.search).get('api') ||
+                    'http://localhost:8000';
 
                 const response = await fetch(`${API_BASE_URL}/api/submit-response`, {
                   method: 'POST',
