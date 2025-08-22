@@ -666,19 +666,22 @@
                 }
 
                 console.log('Loading project with token:', token);
+                console.log('Supabase client:', supabase);
+                console.log('Supabase URL:', supabase.supabaseUrl);
 
-                // Use backend API instead of direct Supabase call
-                const apiUrl = new URLSearchParams(window.location.search).get('api') || 'http://localhost:8000';
-                const response = await fetch(`${apiUrl}/api/project-context?token=${token}`);
+                // Call Supabase function directly
+                const { data, error } = await supabase.rpc('get_project_context', {
+                    p_token: token
+                });
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                console.log('Full Supabase response:', { data, error });
+                console.log('Response.data:', data);
+                console.log('Response.error:', error);
+
+                if (error) {
+                    console.error('Supabase error:', error);
+                    throw new Error(error.message || 'Kunne ikke hente projekt');
                 }
-
-                const data = await response.json();
-
-                console.log('Backend API response:', data);
-                console.log('Data.questions length:', data.questions ? data.questions.length : 'undefined');
 
                 if (data && data.error) {
                     throw new Error(data.error);
@@ -687,6 +690,9 @@
                 if (!data) {
                     throw new Error('Ingen data modtaget fra server');
                 }
+
+                console.log('Parsed data:', data);
+                console.log('Data.questions length:', data.questions ? data.questions.length : 'undefined');
 
                 state.project = data;
                 
