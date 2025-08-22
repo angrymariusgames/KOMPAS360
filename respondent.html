@@ -658,8 +658,15 @@
                     return;
                 }
 
-                // Simulate API call - replace with actual endpoint
-                const response = await fetch(`/api/project-context?token=${token}`);
+                // Backend base URL (kan sættes via ?api=... eller window.KOMPAS_API.BASE_URL)
+                // VIGTIGT: Sæt HTTPS-URL til din FastAPI herunder.
+                const API_BASE_URL =
+                  new URLSearchParams(location.search).get('api') ||
+                  (window.KOMPAS_API && window.KOMPAS_API.BASE_URL) ||
+                  (location.hostname === 'localhost' ? 'http://localhost:8000' : 'https://YOUR_BACKEND_HOST');
+
+                const response = await fetch(`${API_BASE_URL}/api/project-context?token=${encodeURIComponent(token)}`);
+
                 const data = await response.json();
                 
                 if (!response.ok) {
@@ -705,7 +712,7 @@
             state.project.people.forEach(person => {
                 const div = document.createElement('div');
                 div.className = 'target-option';
-                div.onclick = () => selectTarget(person.id);
+                div.onclick = (e) => selectTarget(person.id, e.currentTarget);
                 
                 div.innerHTML = `
                     <div class="target-name">${person.name}</div>
@@ -718,7 +725,8 @@
 
         function renderTypes() {
             const container = document.getElementById('type-grid');
-            const labels = state.project.settings?.labels || {};
+            const labels = state.project.labels || {};
+
             
             const types = [
                 { value: 'self', label: labels.self || 'Vurdering af sig selv' },
@@ -731,7 +739,7 @@
             types.forEach(type => {
                 const div = document.createElement('div');
                 div.className = 'type-option';
-                div.onclick = () => selectType(type.value);
+                div.onclick = (e) => selectType(type.value, e.currentTarget);
                 div.textContent = type.label;
                 
                 container.appendChild(div);
@@ -739,110 +747,96 @@
         }
 
         function renderQuestions() {
-            const container = document.getElementById('questions-container');
-            container.innerHTML = '';
-            
-            // Group questions by domain
-            const domains = {};
-            state.project.taxonomy.forEach(item => {
-                if (!domains[item.domain_name]) {
-                    domains[item.domain_name] = [];
-                }
-                domains[item.domain_name].push(item);
+          const container = document.getElementById('questions-container');
+          container.innerHTML = '';
+          state.questions = [];
+
+          // Gruppér spørgsmål efter domæne og kategori
+          const grouped = {};
+          (state.project.questions || []).forEach(q => {
+            if (!grouped[q.domain]) grouped[q.domain] = {};
+            if (!grouped[q.domain][q.category]) grouped[q.domain][q.category] = [];
+            grouped[q.domain][q.category].push(q);
+          });
+
+          Object.entries(grouped).forEach(([domainName, categories]) => {
+            const domainDiv = document.createElement('div');
+            domainDiv.className = 'domain-card';
+
+            const header = document.createElement('div');
+            header.className = 'domain-header';
+            header.textContent = domainName;
+            domainDiv.appendChild(header);
+
+            Object.entries(categories).forEach(([categoryName, qs]) => {
+              qs.sort((a,b) => (a.sort_order || 0) - (b.sort_order || 0));
+              qs.forEach(q => {
+                const questionId = q.id; // UUID fra backend
+                state.questions.push(questionId);
+
+                const questionDiv = document.createElement('div');
+                questionDiv.className = 'question-item';
+                questionDiv.innerHTML = `
+                  <div class="question-text">
+                    ${categoryName} — ${q.text}
+                  </div>
+                  <div class="rating-container">
+                    <div class="rating-scale">
+                      ${[1,2,3,4,5].map(score => `
+                        <div class="rating-option">
+                          <input type="radio" class="rating-input" 
+                                name="q_${questionId}" value="${score}" 
+                                id="q_${questionId}_${score}">
+                          <label class="rating-label" for="q_${questionId}_${score}">
+                            ${score}
+                          </label>
+                        </div>
+                      `).join('')}
+                    </div>
+                    <div class="rating-legend">
+                      <span>I ringe grad</span>
+                      <span>I meget høj grad</span>
+                    </div>
+                    <div class="sg-option" onclick="toggleSG('${questionId}')">
+                      <input type="checkbox" class="sg-input" id="sg_${questionId}">
+                      <label for="sg_${questionId}">Savner grundlag</label>
+                    </div>
+                  </div>
+                `;
+                domainDiv.appendChild(questionDiv);
+              });
             });
-            
-            // Create questions for each domain
-            Object.entries(domains).forEach(([domainName, categories]) => {
-                const domainDiv = document.createElement('div');
-                domainDiv.className = 'domain-card';
-                
-                const header = document.createElement('div');
-                header.className = 'domain-header';
-                header.textContent = domainName;
-                domainDiv.appendChild(header);
-                
-                categories.forEach(category => {
-                    // For demo purposes, create 3 questions per category
-                    // In real implementation, fetch actual questions
-                    for (let i = 1; i <= 3; i++) {
-                        const questionDiv = document.createElement('div');
-                        questionDiv.className = 'question-item';
-                        
-                        const questionId = `${category.category_id}_${i}`;
-                        state.questions.push(questionId);
-                        
-                        questionDiv.innerHTML = `
-                            <div class="question-text">
-                                ${category.category_name} - Spørgsmål ${i}
-                            </div>
-                            <div class="rating-container">
-                                <div class="rating-scale">
-                                    ${[1,2,3,4,5].map(score => `
-                                        <div class="rating-option">
-                                            <input type="radio" class="rating-input" 
-                                                   name="q_${questionId}" value="${score}" 
-                                                   id="q_${questionId}_${score}">
-                                            <label class="rating-label" for="q_${questionId}_${score}">
-                                                ${score}
-                                            </label>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                                <div class="rating-legend">
-                                    <span>I ringe grad</span>
-                                    <span>I meget høj grad</span>
-                                </div>
-                                <div class="sg-option" onclick="toggleSG('${questionId}')">
-                                    <input type="checkbox" class="sg-input" id="sg_${questionId}">
-                                    <label for="sg_${questionId}">Savner grundlag</label>
-                                </div>
-                            </div>
-                        `;
-                        
-                        domainDiv.appendChild(questionDiv);
-                    }
-                });
-                
-                container.appendChild(domainDiv);
-            });
-            
-            // Add event listeners to radio buttons
-            document.querySelectorAll('.rating-input').forEach(input => {
-                input.addEventListener('change', handleAnswerChange);
-            });
+
+            container.appendChild(domainDiv);
+          });
+
+          // Lyttere til skalaerne
+          document.querySelectorAll('.rating-input').forEach(input => {
+            input.addEventListener('change', handleAnswerChange);
+          });
         }
 
-        function selectTarget(targetId) {
-            // Clear previous selection
-            document.querySelectorAll('.target-option').forEach(el => {
-                el.classList.remove('selected');
-            });
-            
-            // Select new target
-            event.target.closest('.target-option').classList.add('selected');
-            state.selectedTarget = targetId;
-            
-            updateProgress();
+
+        function selectTarget(targetId, el) {
+          document.querySelectorAll('.target-option').forEach(x => x.classList.remove('selected'));
+          if (el) el.classList.add('selected');
+          state.selectedTarget = targetId;
+          updateProgress();
         }
 
-        function selectType(type) {
-            // Clear previous selection
-            document.querySelectorAll('.type-option').forEach(el => {
-                el.classList.remove('selected');
-            });
-            
-            // Select new type
-            event.target.classList.add('selected');
-            state.selectedType = type;
-            
-            // Show/hide employee number field
-            const employeeSection = document.getElementById('employee-section');
-            if (!state.project.is_anonymous) {
-                employeeSection.classList.remove('hidden');
-            }
-            
-            updateProgress();
+
+        function selectType(type, el) {
+          document.querySelectorAll('.type-option').forEach(x => x.classList.remove('selected'));
+          if (el) el.classList.add('selected');
+          state.selectedType = type;
+
+          const employeeSection = document.getElementById('employee-section');
+          if (!state.project.is_anonymous) {
+            employeeSection.classList.remove('hidden');
+          }
+          updateProgress();
         }
+
 
         function toggleSG(questionId) {
             const sgCheckbox = document.getElementById(`sg_${questionId}`);
@@ -932,16 +926,17 @@
                 const urlParams = new URLSearchParams(window.location.search);
                 const token = urlParams.get('t');
                 
-                const response = await fetch('/api/submit-response', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        token: token,
-                        ...submissionData
-                    })
+                // Use same API base URL
+                const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname.includes('github.io') 
+                    ? 'http://localhost:8000' 
+                    : window.location.origin;
+
+                const response = await fetch(`${API_BASE_URL}/api/submit-response`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ token, ...submissionData })
                 });
+
                 
                 if (!response.ok) {
                     throw new Error('Kunne ikke gemme besvarelse');
