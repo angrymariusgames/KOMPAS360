@@ -666,41 +666,21 @@
                 }
 
                 console.log('Loading project with token:', token);
-                console.log('Supabase client:', supabase);
-                console.log('Supabase URL:', supabase.supabaseUrl);
 
-                // Call Supabase function directly instead of backend API
-                const response = await supabase.rpc('get_project_context', {
-                    p_token: token
-                });
+                // Use backend API instead of direct Supabase call
+                const apiUrl = new URLSearchParams(window.location.search).get('api') || 'http://localhost:8000';
+                const response = await fetch(`${apiUrl}/api/project-context?token=${token}`);
 
-                console.log('Full Supabase response:', response);
-                console.log('Response.data:', response.data);
-                console.log('Response.error:', response.error);
-
-                if (response.error) {
-                    console.error('Supabase RPC error:', response.error);
-                    throw new Error(response.error.message || 'Kunne ikke indlæse projekt');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
-                // Parse JSON if it's a string
-                let data = response.data;
-                if (typeof data === 'string') {
-                    console.log('Data is string, parsing JSON:', data);
-                    data = JSON.parse(data);
-                }
+                const data = await response.json();
 
-                console.log('Parsed data:', data);
-                console.log('Data type:', typeof data);
-                console.log('Data keys:', Object.keys(data));
-                console.log('Data.people:', data.people);
-                console.log('Data.people length:', data.people ? data.people.length : 'undefined');
-                console.log('Data.questions FULL:', JSON.stringify(data.questions));
-                console.log('Data.title:', data.title);
-                console.log('Data.labels:', data.labels);
+                console.log('Backend API response:', data);
+                console.log('Data.questions length:', data.questions ? data.questions.length : 'undefined');
 
                 if (data && data.error) {
-                    console.error('Project context error:', data.error);
                     throw new Error(data.error);
                 }
 
@@ -708,13 +688,7 @@
                     throw new Error('Ingen data modtaget fra server');
                 }
 
-                console.log('Final data.questions:', data.questions);
-                console.log('Questions type:', typeof data.questions);
-                console.log('Questions length:', data.questions ? data.questions.length : 'undefined');
-
                 state.project = data;
-                console.log('State.project after assignment:', state.project);
-                console.log('State.project.questions after assignment:', state.project.questions);
                 
                 renderProject();
                 
