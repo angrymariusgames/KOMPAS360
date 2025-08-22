@@ -607,7 +607,15 @@
         </div>
     </div>
 
+    <!-- Supabase -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    
     <script>
+        // Supabase configuration
+        const SUPABASE_URL = "https://wsrstyrsuwhcmmlmnbrz.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzcnN0eXJzdXdoY21tbG1uYnJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MTU0NTIsImV4cCI6MjA3MTE5MTQ1Mn0.Rf3Z3bQGjV5CKXKZr6IMOjzPdbhVJCh3SwuvlkpxUD0";
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
         // Global state
         let state = {
             project: null,
@@ -658,23 +666,17 @@
                     return;
                 }
 
-                // Backend base URL - hent fra URL parameter eller brug standard
-                const API_BASE_URL =
-                  new URLSearchParams(location.search).get('api') ||
-                  'http://localhost:8000'; // Ret til din backend URL hvis ikke localhost
-                
-                // Gem globalt så submitResponse kan bruge det
-                window.API_BASE_URL = API_BASE_URL;
-                
-                // Gem API URL globalt så submitResponse kan bruge den
-                window.KOMPAS_API_URL = API_BASE_URL;
+                // Call Supabase function directly instead of backend API
+                const { data, error } = await supabase.rpc('get_project_context', {
+                    p_token: token
+                });
 
-                const response = await fetch(`${API_BASE_URL}/api/project-context?token=${encodeURIComponent(token)}`);
+                if (error) {
+                    throw new Error(error.message || 'Kunne ikke indlæse projekt');
+                }
 
-                const data = await response.json();
-                
-                if (!response.ok) {
-                    throw new Error(data.message || 'Kunne ikke indlæse projekt');
+                if (data && data.error) {
+                    throw new Error(data.error);
                 }
 
                 state.project = data;
@@ -910,40 +912,31 @@
         }
 
         async function submitResponse() {
-            try {
+           try {
                 document.getElementById('submit-btn').disabled = true;
                 document.getElementById('submit-btn').textContent = 'Gemmer...';
                 
                 // Prepare submission data
-                const submissionData = {
-                    target_id: state.selectedTarget,
-                    respondent_type: state.selectedType,
-                    employee_no: state.employeeNo,
-                    answers: Object.entries(state.answers).map(([questionId, answer]) => ({
-                        question_id: questionId,
-                        score: answer.score || null,
-                        sg: answer.sg || false
-                    }))
-                };
-                
-                // Simulate API call - replace with actual endpoint
                 const urlParams = new URLSearchParams(window.location.search);
                 const token = urlParams.get('t');
                 
-                // Brug samme API base URL som loadProject
-                const API_BASE_URL = window.API_BASE_URL || 
-                    new URLSearchParams(location.search).get('api') ||
-                    'http://localhost:8000';
+                const answers = Object.entries(state.answers).map(([questionId, answer]) => ({
+                    question_id: questionId,
+                    score: answer.score || null,
+                    sg: answer.sg || false
+                }));
 
-                const response = await fetch(`${API_BASE_URL}/api/submit-response`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ token, ...submissionData })
+                // Call Supabase function directly instead of backend API
+                const { data, error } = await supabase.rpc('create_response_via_token', {
+                    p_token: token,
+                    p_target: state.selectedTarget,
+                    p_type: state.selectedType,
+                    p_employee_no: state.employeeNo || null,
+                    p_answers: answers
                 });
 
-                
-                if (!response.ok) {
-                    throw new Error('Kunne ikke gemme besvarelse');
+                if (error) {
+                    throw new Error(error.message || 'Kunne ikke gemme besvarelse');
                 }
                 
                 // Show success
