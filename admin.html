@@ -961,10 +961,10 @@ window.addEventListener('load', function() {
 
   // Utility functions
   function generateProjectUrl(token) {
-  // Frontend (respondent) host
+  // Frontend (respondent) host - inkluder hele stien med repo navn
   const FRONTEND_BASE_URL = window.location.hostname === 'localhost'
     ? window.location.origin
-    : window.location.origin;
+    : window.location.origin + window.location.pathname.replace('/admin.html', '');
 
   // Backend API host - din faktiske backend URL
   const BACKEND_BASE_URL = 'http://localhost:8000'; // Ret til din backend URL hvis ikke localhost
