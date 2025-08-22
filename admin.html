@@ -2126,14 +2126,18 @@ window.showLargeProjectQR = (url, title) => {
   function generateKOMPASSVG(data, width = 500, height = 500) {
     const centerX = width / 2;
     const centerY = height / 2;
-    const radius = Math.min(width, height) / 2 - 120;  // MEGET mere plads til lange labels
+    const radius = Math.min(width, height) / 2 - 90;  // Større radius for større hjul, men stadig plads til labels
   
-  // KOMPAS kategorier i korrekt rækkefølge
+  // KOMPAS kategorier med tomme strenge ved akserne - matcher HTML radar chart
   const categories = [
-    'Kommunikation', 'Fleksibilitet', 'Nytænkning', 'Helhedsorientering',
-    'Fremtidsorientering', 'Håndtering af pres', 'Beslutningstagning', 'Styring', 
-    'Initiativ', 'Analytisk tænkning', 'Faglighed', 'Planlægning',
-    'Ressourcebevidsthed', 'Samarbejde', 'Udvikling af andre', 'Motivere andre'
+    '', // Tom akse ved 0° (kl. 12)
+    'Fleksibilitet', 'Nytænkning', 'Helhedsorientering', 'Fremtidsorientering', // Fornyelse
+    '', // Tom akse ved 90° (kl. 3)
+    'Håndtering af pres', 'Beslutningstagning', 'Styring', 'Initiativ', // Resultater
+    '', // Tom akse ved 180° (kl. 6)
+    'Analytisk tænkning', 'Faglighed', 'Planlægning', 'Ressourcebevidsthed', // Stabilitet
+    '', // Tom akse ved 270° (kl. 9)
+    'Samarbejde', 'Udvikling af andre', 'Motivere andre', 'Kommunikation' // Relationer
   ];
   
   // Check om det er team data (kun max) eller individuel data (self/peer/leader)
@@ -2144,6 +2148,7 @@ window.showLargeProjectQR = (url, title) => {
   if (isTeamData) {
     // Team visning - kun én linje med max værdier
     const values = categories.map(catName => {
+      if (catName === '') return null; // Returner null for tomme akser
       const cat = data.categories.find(c => c.name === catName || c.category_name === catName);
       return cat ? (cat.max || 0) : 0;
     });
@@ -2157,15 +2162,18 @@ window.showLargeProjectQR = (url, title) => {
     // Individuel visning - vis separate linjer for self/peer/leader
     if (data.showSelf !== false) {
       const selfValues = categories.map(catName => {
+        if (catName === '') return null; // Returner null for tomme akser
         const cat = data.categories.find(c => c.name === catName || c.category_name === catName);
         return cat ? (cat.self || 0) : 0;
       });
-      datasets.push({
-        values: selfValues,
-        color: 'rgba(34, 197, 94, 1)',
-        fillColor: 'rgba(34, 197, 94, 0.12)',
-        label: 'Selv'
-      });
+      if (selfValues.some(v => v !== null && v > 0)) {
+        datasets.push({
+          values: selfValues,
+          color: 'rgba(34, 197, 94, 1)',
+          fillColor: 'rgba(34, 197, 94, 0.12)',
+          label: 'Selv'
+        });
+      }
     }
     
     if (data.showPeer !== false) {
@@ -2201,10 +2209,10 @@ window.showLargeProjectQR = (url, title) => {
     }
   }
   
-  // Generer label positioner
+  // Generer label positioner - nu med 20 positioner (16 kategorier + 4 tomme)
   const labelPoints = categories.map((_, index) => {
-    const angle = (index * 2 * Math.PI / 16) - Math.PI / 2;
-    const labelRadius = radius + 50;  // Endnu mere afstand til labels
+    const angle = (index * 2 * Math.PI / 20) - Math.PI / 2;
+    const labelRadius = radius + 25;  // Meget tættere på hjulet for bedre læsbarhed
     return {
       x: centerX + labelRadius * Math.cos(angle),
       y: centerY + labelRadius * Math.sin(angle)
@@ -2219,9 +2227,9 @@ window.showLargeProjectQR = (url, title) => {
     svg += `<circle cx="${centerX}" cy="${centerY}" r="${r}" fill="none" stroke="#e5e7eb" stroke-width="1"/>`;
   }
   
-  // Akser (16 linjer fra center)
-  for (let i = 0; i < 16; i++) {
-    const angle = (i * 2 * Math.PI / 16) - Math.PI / 2;
+  // Akser (20 linjer fra center for at matche de 20 positioner)
+  for (let i = 0; i < 20; i++) {
+    const angle = (i * 2 * Math.PI / 20) - Math.PI / 2;
     const x2 = centerX + radius * Math.cos(angle);
     const y2 = centerY + radius * Math.sin(angle);
     svg += `<line x1="${centerX}" y1="${centerY}" x2="${x2}" y2="${y2}" stroke="#e5e7eb" stroke-width="1"/>`;
@@ -2254,10 +2262,14 @@ window.showLargeProjectQR = (url, title) => {
             fill="${quad.color}" clip-path="url(#circle-clip)"/>`;
   });
   
-  // Tegn datasæt
+  // Tegn datasæt - korrekt håndtering af null værdier som i HTML version
   datasets.forEach(dataset => {
-    const points = dataset.values.map((value, index) => {
-      const angle = (index * 2 * Math.PI / 16) - Math.PI / 2;
+    // Beregn alle punkter inklusive null for tomme akser
+    const allPoints = dataset.values.map((value, index) => {
+      const angle = (index * 2 * Math.PI / 20) - Math.PI / 2; // 20 positioner
+      if (value === null || value === 0) {
+        return null; // Returner null for tomme akser eller 0-værdier
+      }
       const r = (value / 5) * radius;
       return {
         x: centerX + r * Math.cos(angle),
@@ -2265,21 +2277,26 @@ window.showLargeProjectQR = (url, title) => {
       };
     });
     
-    // Data polygon
-    if (points.length > 0 && points.some(p => p.x !== centerX || p.y !== centerY)) {
-      const pathData = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ') + ' Z';
+    // Filtrer null værdier væk for at tegne polygon
+    const validPoints = allPoints.filter(p => p !== null);
+    
+    // Data polygon - forbind kun gyldige punkter
+    if (validPoints.length > 0) {
+      const pathData = validPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ') + ' Z';
       svg += `<path d="${pathData}" fill="${dataset.fillColor}" stroke="${dataset.color}" stroke-width="2" opacity="0.8"/>`;
       
       // Data points
-      points.forEach(point => {
+      validPoints.forEach(point => {
         svg += `<circle cx="${point.x}" cy="${point.y}" r="3" fill="${dataset.color}"/>`;
       });
     }
   });
   
-  // Labels
+  // Labels - kun vis labels for ikke-tomme kategorier
   labelPoints.forEach((point, index) => {
     const text = categories[index];
+    if (text === '') return; // Spring tomme labels over
+    
     let textAnchor = 'middle';
     let dy = '0.3em';
     
@@ -2290,7 +2307,7 @@ window.showLargeProjectQR = (url, title) => {
     else if (point.y > centerY + 10) dy = '-0.2em';
     
     svg += `<text x="${point.x}" y="${point.y}" text-anchor="${textAnchor}" dy="${dy}" 
-            font-family="Arial" font-size="8" font-weight="bold" fill="#333">${text}</text>`;
+            font-family="Arial" font-size="9" font-weight="bold" fill="#333">${text}</text>`;
   });
   
   // Legend hvis flere datasæt
