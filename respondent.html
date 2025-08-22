@@ -287,11 +287,13 @@
         .rating-input {
             position: absolute;
             opacity: 0;
-            inset: 0; /* dækker hele feltet fra top/left/bottom/right */
+            inset: 0;           /* fyld hele parent */
             width: 100%;
             height: 100%;
             cursor: pointer;
+            z-index: 1;         /* ligg over label */
         }
+
 
         
         .rating-label {
@@ -310,7 +312,11 @@
             transition: all 0.2s ease;
             cursor: pointer;
             min-height: 3.5rem;
+            position: relative; /* så z-index virker */
+            z-index: 0;
+            user-select: none;
         }
+
         
         .rating-input:checked + .rating-label {
             border-color: var(--primary);
@@ -853,6 +859,25 @@
             input.addEventListener('change', handleAnswerChange);
             input.addEventListener('click', handleAnswerChange); // ekstra robusthed
           });
+
+          // Gør label-klik 100% pålideligt (og ryd SG ved valg af tal)
+          document.querySelectorAll('.rating-label').forEach(label => {
+            label.addEventListener('click', () => {
+              const forId = label.getAttribute('for');
+              const input = document.getElementById(forId);
+              if (input) {
+                input.checked = true;
+                const qid = input.name.replace('q_', '');
+                const sgCheckbox = document.getElementById(`sg_${qid}`);
+                if (sgCheckbox && sgCheckbox.checked) {
+                  sgCheckbox.checked = false;
+                  sgCheckbox.closest('.sg-option')?.classList.remove('selected');
+                }
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+              }
+            });
+          });
+
           // Sørg for at klik på label altid vælger radioen – også på iOS/Safari
           document.querySelectorAll('.rating-label').forEach(label => {
             label.addEventListener('click', () => {
