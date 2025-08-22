@@ -666,8 +666,8 @@
                 }
 
                 console.log('Loading project with token:', token);
-
-                console.log('Loading project with token:', token);
+                console.log('Supabase client:', supabase);
+                console.log('Supabase URL:', supabase.supabaseUrl);
 
                 // Call Supabase function directly instead of backend API
                 const response = await supabase.rpc('get_project_context', {
@@ -692,6 +692,12 @@
 
                 console.log('Parsed data:', data);
                 console.log('Data type:', typeof data);
+                console.log('Data keys:', Object.keys(data));
+                console.log('Data.people:', data.people);
+                console.log('Data.people length:', data.people ? data.people.length : 'undefined');
+                console.log('Data.questions FULL:', JSON.stringify(data.questions));
+                console.log('Data.title:', data.title);
+                console.log('Data.labels:', data.labels);
 
                 if (data && data.error) {
                     console.error('Project context error:', data.error);
