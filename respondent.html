@@ -751,10 +751,31 @@
             });
         }
 
-        function renderQuestions() {
+      function renderQuestions() {
+          console.log('renderQuestions called');
+          console.log('state.project:', state.project);
+          console.log('state.project.questions:', state.project.questions);
+          console.log('questions length:', state.project.questions ? state.project.questions.length : 'undefined');
+          
           const container = document.getElementById('questions-container');
           container.innerHTML = '';
           state.questions = [];
+
+          // Debug: Vis først bare antallet af spørgsmål
+          if (!state.project.questions || state.project.questions.length === 0) {
+            container.innerHTML = '<div style="padding: 20px; color: red;">Ingen spørgsmål fundet!</div>';
+            return;
+          }
+
+          // Simpel test: vis bare de første par spørgsmål uden gruppering
+          container.innerHTML = `
+            <div style="padding: 20px; background: #f0f0f0; margin-bottom: 20px;">
+              <h3>Debug: Fundet ${state.project.questions.length} spørgsmål</h3>
+              <p>Første spørgsmål: ${state.project.questions[0].text}</p>
+              <p>Domæne: ${state.project.questions[0].domain}</p>
+              <p>Kategori: ${state.project.questions[0].category}</p>
+            </div>
+          `;
 
           // Gruppér spørgsmål efter domæne og kategori
           const grouped = {};
@@ -764,6 +785,21 @@
             grouped[q.domain][q.category].push(q);
           });
 
+          console.log('grouped questions:', grouped);
+
+          // Test: vis bare grupperede data
+          let debugHtml = '<div style="padding: 20px;"><h3>Grupperede spørgsmål:</h3>';
+          Object.entries(grouped).forEach(([domainName, categories]) => {
+            debugHtml += `<h4>${domainName}</h4>`;
+            Object.entries(categories).forEach(([categoryName, qs]) => {
+              debugHtml += `<p>${categoryName}: ${qs.length} spørgsmål</p>`;
+            });
+          });
+          debugHtml += '</div>';
+          
+          container.innerHTML += debugHtml;
+
+          // Nu renderer vi de faktiske spørgsmål
           Object.entries(grouped).forEach(([domainName, categories]) => {
             const domainDiv = document.createElement('div');
             domainDiv.className = 'domain-card';
@@ -820,7 +856,6 @@
             input.addEventListener('change', handleAnswerChange);
           });
         }
-
 
         function selectTarget(targetId, el) {
           document.querySelectorAll('.target-option').forEach(x => x.classList.remove('selected'));
