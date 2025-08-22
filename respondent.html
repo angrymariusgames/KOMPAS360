@@ -1,1013 +1,866 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="da">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>KOMPAS • Besvarelse</title>
-  <link rel="icon" href="data:," />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    /* Modern theme matching admin.html */
-    *{box-sizing:border-box;margin:0;padding:0}
-    :root{
-      --bg1:#667eea; --bg2:#764ba2; --ink:#2d3748; --muted:#718096;
-      --card:#ffffff; --line:#e2e8f0; --brand:#667eea; --radius:20px;
-      --success:#48bb78; --error:#f56565; --warning:#ed8936;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>KOMPAS • Evaluering</title>
+    <link rel="icon" href="data:,">
     
-    body{
-      font-family:"Segoe UI",Tahoma,Geneva,Verdana,sans-serif;
-      background:linear-gradient(135deg,var(--bg1) 0%,var(--bg2) 100%);
-      min-height:100vh;
-      padding:20px;
-      color:var(--ink);
-      line-height:1.6;
-    }
-    
-    .app{
-      max-width:920px;
-      margin:0 auto;
-      background:#fff;
-      border-radius:20px;
-      box-shadow:0 20px 40px rgba(0,0,0,.15);
-      overflow:hidden;
-      position:relative;
-    }
-
-    /* Header */
-    .header{
-      background:linear-gradient(135deg,#2d3748 0%,#4a5568 100%);
-      color:#fff;
-      padding:24px;
-      display:flex;
-      align-items:center;
-      gap:16px;
-      position:relative;
-    }
-    
-    .logo{
-      width:56px;
-      height:56px;
-      border-radius:14px;
-      background:#fff;
-      display:grid;
-      place-items:center;
-      flex-shrink:0;
-    }
-    
-    .logo img{
-      height:38px;
-      object-fit:contain;
-    }
-    
-    .header-content{
-      flex:1;
-    }
-    
-    .title{
-      font-size:1.75rem;
-      font-weight:800;
-      margin-bottom:6px;
-    }
-    
-    .subtitle{
-      opacity:.9;
-      font-size:1rem;
-    }
-
-    /* Progress bar */
-    .progress-container{
-      position:absolute;
-      bottom:0;
-      left:0;
-      right:0;
-      height:4px;
-      background:rgba(255,255,255,.2);
-    }
-    
-    .progress-bar{
-      height:100%;
-      background:var(--success);
-      width:0%;
-      transition:width .5s ease;
-    }
-
-    /* Content */
-    .content{
-      padding:28px;
-    }
-    
-    .section{
-      background:var(--card);
-      border:1px solid var(--line);
-      border-radius:var(--radius);
-      padding:24px;
-      margin-bottom:20px;
-      position:relative;
-    }
-    
-    .section h3{
-      font-size:1.3rem;
-      margin-bottom:12px;
-      color:var(--ink);
-    }
-
-    /* Loading state */
-    .loading{
-      text-align:center;
-      padding:40px 20px;
-      color:var(--muted);
-    }
-    
-    .spinner{
-      display:inline-block;
-      width:32px;
-      height:32px;
-      border:3px solid var(--line);
-      border-top:3px solid var(--brand);
-      border-radius:50%;
-      animation:spin 1s linear infinite;
-      margin-bottom:16px;
-    }
-    
-    @keyframes spin{
-      0%{transform:rotate(0deg)}
-      100%{transform:rotate(360deg)}
-    }
-
-    /* Form elements */
-    .form-row{
-      display:grid;
-      grid-template-columns:1fr 2fr auto;
-      gap:16px;
-      align-items:end;
-      margin-bottom:16px;
-    }
-    
-    @media(max-width:768px){
-      .form-row{
-        grid-template-columns:1fr;
-        gap:12px;
-      }
-    }
-    
-    .input, .select{
-      border:1px solid var(--line);
-      background:#fff;
-      color:var(--ink);
-      padding:12px 16px;
-      border-radius:12px;
-      font-size:1rem;
-      transition:.3s;
-      width:100%;
-    }
-    
-    .input:focus, .select:focus{
-      outline:none;
-      border-color:var(--brand);
-      box-shadow:0 0 0 3px rgba(102,126,234,.1);
-    }
-    
-    label{
-      display:block;
-      font-weight:600;
-      margin-bottom:6px;
-      color:var(--ink);
-      font-size:.95rem;
-    }
-    
-    .btn{
-      cursor:pointer;
-      font-weight:700;
-      border:1px solid var(--line);
-      background:#fff;
-      color:var(--ink);
-      padding:12px 24px;
-      border-radius:12px;
-      font-size:1rem;
-      transition:.3s;
-      text-transform:uppercase;
-      letter-spacing:.5px;
-      position:relative;
-      overflow:hidden;
-    }
-    
-    .btn.primary{
-      background:var(--brand);
-      border-color:var(--brand);
-      color:#fff;
-    }
-    
-    .btn.primary:hover:not(:disabled){
-      background:#5a67d8;
-      transform:translateY(-2px);
-      box-shadow:0 8px 20px rgba(102,126,234,.3);
-    }
-    
-    .btn:disabled{
-      opacity:.5;
-      cursor:not-allowed;
-      transform:none!important;
-    }
-
-    /* Questions */
-    .questions-container{
-      display:none;
-    }
-    
-    .questions-container.active{
-      display:block;
-    }
-    
-    .question-item{
-      background:#fff;
-      border:1px solid var(--line);
-      border-radius:12px;
-      padding:24px;
-      margin-bottom:16px;
-      position:relative;
-    }
-    
-    .question-text{
-      font-size:1rem;
-      margin-bottom:20px;
-      color:var(--ink);
-      font-weight:400;
-      line-height:1.5;
-    }
-    
-    .question-text .required{
-      color:#dc2626;
-      margin-left:4px;
-    }
-    
-    .scale-container{
-      display:flex;
-      align-items:center;
-      gap:0;
-      justify-content:space-between;
-      position:relative;
-    }
-    
-    .scale-labels{
-      display:flex;
-      justify-content:space-between;
-      width:100%;
-      position:absolute;
-      top:-8px;
-      font-size:0.875rem;
-      color:var(--muted);
-    }
-    
-    .scale-numbers{
-      display:flex;
-      justify-content:space-between;
-      width:320px;
-      margin:0 auto;
-      position:relative;
-    }
-    
-    .scale-number{
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      gap:8px;
-    }
-    
-    .scale-radio{
-      appearance:none;
-      width:20px;
-      height:20px;
-      border:2px solid #d1d5db;
-      border-radius:50%;
-      background:#fff;
-      cursor:pointer;
-      transition:all .2s;
-      position:relative;
-    }
-    
-    .scale-radio:hover{
-      border-color:var(--brand);
-      transform:scale(1.1);
-    }
-    
-    .scale-radio:checked{
-      border-color:var(--brand);
-      background:var(--brand);
-    }
-    
-    .scale-radio:checked::after{
-      content:'';
-      position:absolute;
-      top:50%;
-      left:50%;
-      transform:translate(-50%, -50%);
-      width:6px;
-      height:6px;
-      background:#fff;
-      border-radius:50%;
-    }
-    
-    .scale-number-label{
-      font-size:0.875rem;
-      font-weight:500;
-      color:var(--ink);
-      user-select:none;
-    }
-    
-    .sg-container{
-      margin-top:16px;
-      display:flex;
-      justify-content:center;
-    }
-    
-    .sg-option{
-      display:flex;
-      align-items:center;
-      gap:8px;
-      cursor:pointer;
-      padding:8px 16px;
-      border-radius:8px;
-      transition:.2s;
-      user-select:none;
-    }
-    
-    .sg-option:hover{
-      background:#f3f4f6;
-    }
-    
-    .sg-radio{
-      appearance:none;
-      width:16px;
-      height:16px;
-      border:2px solid #d1d5db;
-      border-radius:50%;
-      background:#fff;
-      cursor:pointer;
-      transition:all .2s;
-      position:relative;
-    }
-    
-    .sg-radio:checked{
-      border-color:#f59e0b;
-      background:#f59e0b;
-    }
-    
-    .sg-radio:checked::after{
-      content:'';
-      position:absolute;
-      top:50%;
-      left:50%;
-      transform:translate(-50%, -50%);
-      width:4px;
-      height:4px;
-      background:#fff;
-      border-radius:50%;
-    }
-    
-    .sg-label{
-      font-size:0.875rem;
-      color:var(--ink);
-    }
-
-    /* Validation */
-    .question-item.error{
-      background:#fef5e7;
-      border-left:4px solid var(--error);
-    }
-    
-    .error-message{
-      color:var(--error);
-      font-size:.9rem;
-      margin-top:8px;
-      display:none;
-    }
-    
-    .question-item.error .error-message{
-      display:block;
-    }
-
-    /* Success/Done state */
-    .done{
-      text-align:center;
-      padding:40px 20px;
-      display:none;
-    }
-    
-    .done.active{
-      display:block;
-    }
-    
-    .success-icon{
-      width:80px;
-      height:80px;
-      background:var(--success);
-      border-radius:50%;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      margin:0 auto 24px;
-      font-size:2.5rem;
-      color:#fff;
-      animation:successPulse 1.5s ease;
-    }
-    
-    @keyframes successPulse{
-      0%,100%{transform:scale(1)}
-      50%{transform:scale(1.1)}
-    }
-    
-    .done h3{
-      font-size:1.8rem;
-      color:var(--success);
-      margin-bottom:12px;
-    }
-    
-    .done p{
-      color:var(--muted);
-      font-size:1.1rem;
-      margin-bottom:24px;
-    }
-
-    /* Error states */
-    .error-container{
-      background:#fef2f2;
-      border:1px solid #fecaca;
-      border-radius:12px;
-      padding:20px;
-      margin-bottom:20px;
-      display:none;
-    }
-    
-    .error-container.active{
-      display:block;
-    }
-    
-    .error-title{
-      color:#dc2626;
-      font-weight:700;
-      margin-bottom:8px;
-    }
-    
-    .error-message{
-      color:#991b1b;
-      line-height:1.5;
-    }
-
-    /* Footer */
-    .form-footer{
-      background:var(--card);
-      border-top:1px solid var(--line);
-      padding:24px;
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:16px;
-      flex-wrap:wrap;
-    }
-    
-    .scale-legend{
-      color:var(--muted);
-      font-size:.9rem;
-      line-height:1.4;
-    }
-    
-    .submit-area{
-      display:flex;
-      gap:12px;
-      align-items:center;
-    }
-    
-    .answer-count{
-      color:var(--muted);
-      font-size:.9rem;
-      font-weight:600;
-    }
-
-    /* Mobile optimizations */
-    @media(max-width:768px){
-      .content{
-        padding:20px;
-      }
-      
-      .section{
-        padding:20px;
-      }
-      
-      .scale-container{
-        justify-content:center;
-      }
-      
-      .form-footer{
-        flex-direction:column;
-        align-items:stretch;
-        text-align:center;
-      }
-      
-      .submit-area{
-        justify-content:center;
-      }
-    }
-
-    /* Accessibility improvements */
-    .scale-radio:focus, .sg-radio:focus{
-      outline:3px solid rgba(102,126,234,.5);
-      outline-offset:2px;
-    }
-    
-    @media(prefers-reduced-motion:reduce){
-      *{
-        animation-duration:.01ms!important;
-        animation-iteration-count:1!important;
-        transition-duration:.01ms!important;
-      }
-    }
-  </style>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5a67d8;
+            --success: #48bb78;
+            --warning: #ed8936;
+            --error: #f56565;
+            --text: #2d3748;
+            --text-light: #718096;
+            --bg: #f7fafc;
+            --card: #ffffff;
+            --border: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--primary) 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: var(--text);
+            padding: 0;
+            overflow-x: hidden;
+        }
+        
+        /* Header */
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .header-content {
+            max-width: 480px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.25rem;
+        }
+        
+        .header p {
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+        
+        /* Main Container */
+        .container {
+            max-width: 480px;
+            margin: 0 auto;
+            padding: 1rem;
+            padding-bottom: 6rem; /* Space for fixed bottom bar */
+        }
+        
+        /* Project Info Card */
+        .project-info {
+            background: var(--card);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow);
+            text-align: center;
+        }
+        
+        .project-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 0.5rem;
+        }
+        
+        .project-description {
+            color: var(--text-light);
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        
+        /* Target Selection */
+        .target-section {
+            background: var(--card);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow);
+        }
+        
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--text);
+        }
+        
+        .target-grid {
+            display: grid;
+            gap: 0.75rem;
+        }
+        
+        .target-option {
+            background: var(--bg);
+            border: 2px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+        
+        .target-option:active {
+            transform: scale(0.98);
+        }
+        
+        .target-option.selected {
+            border-color: var(--primary);
+            background: rgba(102, 126, 234, 0.1);
+        }
+        
+        .target-name {
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 0.25rem;
+        }
+        
+        .target-id {
+            font-size: 0.8rem;
+            color: var(--text-light);
+        }
+        
+        /* Respondent Type */
+        .type-section {
+            background: var(--card);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow);
+        }
+        
+        .type-grid {
+            display: grid;
+            gap: 0.75rem;
+        }
+        
+        .type-option {
+            background: var(--bg);
+            border: 2px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+        
+        .type-option:active {
+            transform: scale(0.98);
+        }
+        
+        .type-option.selected {
+            border-color: var(--success);
+            background: rgba(72, 187, 120, 0.1);
+        }
+        
+        /* Questions */
+        .questions-section {
+            margin-bottom: 1.5rem;
+        }
+        
+        .domain-card {
+            background: var(--card);
+            border-radius: 1rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+        
+        .domain-header {
+            background: linear-gradient(135deg, var(--primary) 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 1.5rem;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+        
+        .question-item {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .question-item:last-child {
+            border-bottom: none;
+        }
+        
+        .question-text {
+            font-size: 1rem;
+            line-height: 1.4;
+            margin-bottom: 1rem;
+            color: var(--text);
+        }
+        
+        /* Rating Scale */
+        .rating-container {
+            margin-bottom: 1rem;
+        }
+        
+        .rating-scale {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+        
+        .rating-option {
+            position: relative;
+            aspect-ratio: 1;
+        }
+        
+        .rating-input {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        
+        .rating-label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            border: 2px solid var(--border);
+            border-radius: 0.75rem;
+            background: var(--bg);
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-light);
+            transition: all 0.2s ease;
+            cursor: pointer;
+            min-height: 3.5rem;
+        }
+        
+        .rating-input:checked + .rating-label {
+            border-color: var(--primary);
+            background: var(--primary);
+            color: white;
+            transform: scale(1.05);
+        }
+        
+        .rating-input:active + .rating-label {
+            transform: scale(0.95);
+        }
+        
+        .rating-legend {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+            color: var(--text-light);
+            margin-bottom: 1rem;
+        }
+        
+        /* Savner Grundlag */
+        .sg-option {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg);
+            border: 2px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .sg-option:active {
+            transform: scale(0.98);
+        }
+        
+        .sg-option.selected {
+            border-color: var(--warning);
+            background: rgba(237, 137, 54, 0.1);
+        }
+        
+        .sg-input {
+            margin-right: 0.5rem;
+        }
+        
+        /* Progress */
+        .progress-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem;
+            border-top: 1px solid var(--border);
+            z-index: 100;
+        }
+        
+        .progress-content {
+            max-width: 480px;
+            margin: 0 auto;
+        }
+        
+        .progress {
+            background: var(--bg);
+            border-radius: 0.5rem;
+            height: 0.5rem;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            background: linear-gradient(90deg, var(--primary) 0%, var(--success) 100%);
+            height: 100%;
+            border-radius: 0.5rem;
+            transition: width 0.3s ease;
+        }
+        
+        .progress-text {
+            text-align: center;
+            font-size: 0.9rem;
+            color: var(--text-light);
+            margin-bottom: 1rem;
+        }
+        
+        /* Submit Button */
+        .submit-btn {
+            width: 100%;
+            background: linear-gradient(135deg, var(--success) 0%, #38a169 100%);
+            color: white;
+            border: none;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: var(--shadow);
+        }
+        
+        .submit-btn:disabled {
+            background: var(--border);
+            color: var(--text-light);
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        
+        .submit-btn:not(:disabled):active {
+            transform: scale(0.98);
+        }
+        
+        /* Loading States */
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-light);
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 2rem;
+            height: 2rem;
+            border: 3px solid var(--border);
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Success State */
+        .success-message {
+            background: var(--card);
+            border-radius: 1rem;
+            padding: 2rem;
+            text-align: center;
+            box-shadow: var(--shadow);
+        }
+        
+        .success-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        /* Error States */
+        .error-message {
+            background: rgba(245, 101, 101, 0.1);
+            border: 1px solid var(--error);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            margin: 1rem 0;
+            color: var(--error);
+            text-align: center;
+        }
+        
+        /* Responsive Adjustments */
+        @media (max-width: 360px) {
+            .container {
+                padding: 0.75rem;
+            }
+            
+            .rating-scale {
+                gap: 0.25rem;
+            }
+            
+            .rating-label {
+                font-size: 0.8rem;
+                min-height: 3rem;
+            }
+        }
+        
+        @media (min-height: 700px) {
+            .container {
+                padding-bottom: 8rem;
+            }
+        }
+        
+        /* Hide elements initially */
+        .hidden {
+            display: none;
+        }
+    </style>
 </head>
 <body>
-<div class="app">
-  <!-- HEADER -->
-  <div class="header">
-    <div class="logo">
-      <img src="./assets/logo.png" alt="KOMPAS" onerror="this.style.display='none'">
-    </div>
-    <div class="header-content">
-      <div class="title" id="projectTitle">Indlæser...</div>
-      <div class="subtitle" id="projectSubtitle">Evaluering & Feedback</div>
-    </div>
-    <div class="progress-container">
-      <div class="progress-bar" id="progressBar"></div>
-    </div>
-  </div>
-
-  <!-- MAIN CONTENT -->
-  <div class="content">
-    
-    <!-- Loading State -->
-    <div id="loadingState" class="loading">
-      <div class="spinner"></div>
-      <div>Indlæser evaluering...</div>
-    </div>
-
-    <!-- Error State -->
-    <div id="errorContainer" class="error-container">
-      <div class="error-title">Der opstod en fejl</div>
-      <div class="error-message" id="errorMessage"></div>
-    </div>
-
-    <!-- Initial Setup -->
-    <div id="setupSection" class="section" style="display:none">
-      <h3>Evalueringsopsætning</h3>
-      <div id="projectInfo" class="muted" style="margin-bottom:20px;line-height:1.6"></div>
-      
-      <div class="form-row">
-        <label>Tilbagemeldingstype
-          <select id="feedbackType" class="select" required>
-            <option value="">-- Vælg type --</option>
-          </select>
-        </label>
-        
-        <label>Hvem evaluerer du?
-          <select id="targetPerson" class="select" required>
-            <option value="">-- Vælg person --</option>
-          </select>
-        </label>
-        
-        <div id="employeeField" style="display:none">
-          <label>Dit medarbejdernummer
-            <input id="employeeNo" class="input" placeholder="Hvis påkrævet">
-          </label>
+    <div class="header">
+        <div class="header-content">
+            <h1>KOMPAS</h1>
+            <p>360° Evaluering</p>
         </div>
-      </div>
-      
-      <div style="margin-top:20px">
-        <button id="startEvaluation" class="btn primary" disabled>Start evaluering</button>
-      </div>
     </div>
 
-    <!-- Questions Container -->
-    <div id="questionsContainer" class="questions-container">
-      <div id="questionsContent"></div>
-    </div>
-
-    <!-- Success State -->
-    <div id="successState" class="done">
-      <div class="success-icon">✓</div>
-      <h3>Tak for din besvarelse!</h3>
-      <p>Din evaluering er blevet gemt og vil indgå i den samlede rapport.</p>
-      <button class="btn primary" onclick="location.reload()">Evaluér en anden person</button>
-    </div>
-
-  </div>
-
-  <!-- Footer -->
-  <div id="formFooter" class="form-footer" style="display:none">
-    <div class="scale-legend">
-      <strong>Evalueringsskala:</strong> 1 = I ringe grad → 5 = I meget høj grad<br>
-      <em>"Savner grundlag" registreres som neutral vurdering</em>
-    </div>
-    <div class="submit-area">
-      <div class="answer-count" id="answerCount">0 af 0 besvaret</div>
-      <button id="submitBtn" class="btn primary" disabled>Send evaluering</button>
-    </div>
-  </div>
-</div>
-
-<script>
-// Configuration
-const SUPABASE_URL = "https://wsrstyrsuwhcmmlmnbrz.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzcnN0eXJzdXdoY21tbG1uYnJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MTU0NTIsImV4cCI6MjA3MTE5MTQ1Mn0.Rf3Z3bQGjV5CKXKZr6IMOjzPdbhVJCh3SwuvlkpxUD0";
-
-// Initialize Supabase
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-// Get token from URL
-const token = new URLSearchParams(location.search).get('t');
-
-// State management
-let projectContext = null;
-let answers = new Map();
-let totalQuestions = 0;
-
-// DOM helpers
-const $ = (id) => document.getElementById(id);
-const show = (id) => $(id).style.display = 'block';
-const hide = (id) => $(id).style.display = 'none';
-
-// Main initialization
-document.addEventListener('DOMContentLoaded', async () => {
-  if (!token) {
-    showError('Manglende evalueringslink', 'Dette link er ikke gyldigt. Kontakt den ansvarlige for et nyt link.');
-    return;
-  }
-  
-  await loadProjectContext();
-});
-
-// Load project context
-async function loadProjectContext() {
-  try {
-    console.log('Loading context with token:', token);
-    
-    const { data, error } = await supabase.rpc('get_project_context_public', { p_token: token });
-    
-    // DETAILED DEBUG LOGGING
-    console.log('Raw Supabase response:', { data, error });
-    console.log('Data type:', typeof data);
-    console.log('Data keys:', data ? Object.keys(data) : 'no data');
-    console.log('Questions field:', data?.questions);
-    console.log('Questions length:', data?.questions?.length);
-    console.log('First question:', data?.questions?.[0]);
-    
-    if (error) {
-      console.error('Supabase error:', error);
-      throw error;
-    }
-    if (data?.error) {
-      console.error('RPC error:', data.error);
-      throw new Error(data.error);
-    }
-    
-    projectContext = data;
-    console.log('Project context loaded:', projectContext);
-    console.log('Questions in context:', projectContext.questions);
-    
-    // Debug check
-    if (projectContext.debug) {
-      console.log('Debug info from backend:', projectContext.debug);
-    }
-    
-    if (!projectContext.questions || projectContext.questions.length === 0) {
-      console.error('No questions found. Full context:', projectContext);
-      console.error('Expected questions but got:', projectContext.questions);
-      throw new Error('Ingen spørgsmål fundet i evalueringen');
-    }
-    
-    console.log('✅ Questions found, proceeding to renderSetup');
-    renderSetup();
-    
-  } catch (error) {
-    console.error('Context load error:', error);
-    let message = 'Evalueringen kunne ikke indlæses.';
-    
-    if (error.message.includes('Invalid') || error.message.includes('closed')) {
-      message = 'Dette evalueringslink er ikke længere aktivt eller er udløbet.';
-    } else if (error.message.includes('Ingen spørgsmål')) {
-      message = 'Der blev ikke fundet spørgsmål til denne evaluering. Kontakt administratoren.';
-    }
-    
-    showError('Evalueringen er ikke tilgængelig', message);
-  }
-}
-
-// Render setup form
-function renderSetup() {
-  console.log('Rendering setup with context:', projectContext);
-  
-  hide('loadingState');
-  hide('errorContainer');
-  show('setupSection');
-  
-  // Update header
-  $('projectTitle').textContent = projectContext.title || 'KOMPAS Evaluering';
-  $('projectSubtitle').textContent = 'Evaluering & Feedback';
-  
-  // Project info
-  const infoEl = $('projectInfo');
-  if (projectContext.info_text) {
-    infoEl.textContent = projectContext.info_text;
-    infoEl.style.display = 'block';
-  } else {
-    infoEl.style.display = 'none';
-  }
-  
-  // Populate feedback types
-  const typeSelect = $('feedbackType');
-  typeSelect.innerHTML = '<option value="">-- Vælg type --</option>';
-  
-  if (projectContext.labels) {
-    Object.entries(projectContext.labels).forEach(([key, label]) => {
-      const option = document.createElement('option');
-      option.value = key;
-      option.textContent = label;
-      typeSelect.appendChild(option);
-    });
-  }
-  
-  // Populate target persons
-  const targetSelect = $('targetPerson');
-  targetSelect.innerHTML = '<option value="">-- Vælg person --</option>';
-  
-  if (projectContext.people && projectContext.people.length > 0) {
-    projectContext.people.forEach(person => {
-      const option = document.createElement('option');
-      option.value = person.id;
-      option.textContent = person.name;
-      targetSelect.appendChild(option);
-    });
-  } else {
-    console.warn('No people found in project context');
-  }
-  
-  // Show/hide employee field based on anonymity
-  if (!projectContext.is_anonymous) {
-    show('employeeField');
-  } else {
-    hide('employeeField');
-  }
-  
-  // Event listeners
-  typeSelect.onchange = validateSetup;
-  targetSelect.onchange = validateSetup;
-  
-  $('startEvaluation').onclick = startEvaluation;
-  
-  console.log('Setup rendered successfully');
-}
-
-// Validate setup form
-function validateSetup() {
-  const type = $('feedbackType').value;
-  const target = $('targetPerson').value;
-  
-  $('startEvaluation').disabled = !(type && target);
-}
-
-// Start evaluation
-function startEvaluation() {
-  console.log('Starting evaluation...');
-  
-  const type = $('feedbackType').value;
-  const target = $('targetPerson').value;
-  
-  if (!type || !target) {
-    alert('Vælg både type og målperson før du starter evalueringen');
-    return;
-  }
-  
-  console.log('Selected type:', type, 'Target:', target);
-  console.log('Questions available:', projectContext.questions?.length || 0);
-  
-  hide('setupSection');
-  renderQuestions();
-  show('questionsContainer');
-  show('formFooter');
-  updateProgress();
-  
-  console.log('Evaluation started successfully');
-}
-
-// Render questions
-function renderQuestions() {
-  console.log('Rendering questions...');
-  
-  const container = $('questionsContent');
-  const questions = projectContext.questions;
-  totalQuestions = questions.length;
-  
-  console.log('Total questions:', totalQuestions);
-  console.log('Questions data:', questions);
-  
-  // Clear container
-  container.innerHTML = '';
-  
-  if (!questions || questions.length === 0) {
-    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">Ingen spørgsmål fundet</div>';
-    return;
-  }
-  
-  // Render each question individually (Google Analytics style)
-  questions.forEach((question, index) => {
-    console.log(`Rendering question ${index + 1}:`, question);
-    
-    const questionDiv = document.createElement('div');
-    questionDiv.className = 'question-item';
-    questionDiv.dataset.questionId = question.id;
-    
-    questionDiv.innerHTML = `
-      <div class="question-text">
-        ${question.text}
-        <span class="required">*</span>
-      </div>
-      <div class="scale-container">
-        <div class="scale-labels">
-          <span>I ringe grad</span>
-          <span>I meget høj grad</span>
+    <div class="container">
+        <!-- Loading State -->
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p style="margin-top: 1rem;">Indlæser evaluering...</p>
         </div>
-        <div class="scale-numbers">
-          ${[1,2,3,4,5].map(score => `
-            <div class="scale-number">
-              <div class="scale-number-label">${score}</div>
-              <input type="radio" name="question_${question.id}" value="${score}" class="scale-radio" data-question-id="${question.id}" data-score="${score}">
+
+        <!-- Error State -->
+        <div id="error" class="hidden">
+            <div class="error-message">
+                <p id="error-text">Der opstod en fejl. Prøv igen senere.</p>
             </div>
-          `).join('')}
         </div>
-      </div>
-      <div class="sg-container">
-        <label class="sg-option">
-          <input type="radio" name="question_${question.id}" value="sg" class="sg-radio" data-question-id="${question.id}" data-sg="true">
-          <span class="sg-label">Savner grundlag</span>
-        </label>
-      </div>
-      <div class="error-message">Dette spørgsmål skal besvares</div>
-    `;
-    
-    // Add change handlers to radio buttons
-    questionDiv.querySelectorAll('input[type="radio"]').forEach(radio => {
-      radio.onchange = () => {
-        console.log('Radio changed:', radio.dataset);
-        if (radio.dataset.sg === "true") {
-          selectAnswer(question.id, 3, true, questionDiv);
-        } else {
-          selectAnswer(question.id, parseInt(radio.dataset.score), false, questionDiv);
+
+        <!-- Main Form -->
+        <div id="form-container" class="hidden">
+            <!-- Project Info -->
+            <div class="project-info">
+                <div class="project-title" id="project-title">Projekt Titel</div>
+                <div class="project-description" id="project-description">Projekt beskrivelse</div>
+            </div>
+
+            <!-- Target Selection -->
+            <div class="target-section">
+                <div class="section-title">Hvem evaluerer du?</div>
+                <div class="target-grid" id="target-grid">
+                    <!-- Targets will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Respondent Type -->
+            <div class="type-section">
+                <div class="section-title">Hvad er din relation?</div>
+                <div class="type-grid" id="type-grid">
+                    <!-- Types will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Employee Number (if not anonymous) -->
+            <div id="employee-section" class="type-section hidden">
+                <div class="section-title">Dit medarbejdernummer</div>
+                <input type="text" id="employee-no" placeholder="Medarbejdernummer" 
+                       style="width: 100%; padding: 1rem; border: 2px solid var(--border); border-radius: 0.75rem; font-size: 1rem;">
+            </div>
+
+            <!-- Questions -->
+            <div class="questions-section" id="questions-container">
+                <!-- Questions will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Success State -->
+        <div id="success" class="hidden">
+            <div class="success-message">
+                <div class="success-icon">✅</div>
+                <h2 style="margin-bottom: 1rem; color: var(--success);">Tak for din evaluering!</h2>
+                <p style="color: var(--text-light);">Din besvarelse er blevet gemt.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="progress-bar" id="progress-bar">
+        <div class="progress-content">
+            <div class="progress">
+                <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+            </div>
+            <div class="progress-text" id="progress-text">0 af 0 spørgsmål besvaret</div>
+            <button class="submit-btn" id="submit-btn" disabled>Afslut evaluering</button>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let state = {
+            project: null,
+            selectedTarget: null,
+            selectedType: null,
+            employeeNo: '',
+            answers: {},
+            questions: [],
+            currentProgress: 0
+        };
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            loadProject();
+        });
+
+        async function loadProject() {
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const token = urlParams.get('t');
+                
+                if (!token) {
+                    showError('Ugyldig link. Kontakt projektleder.');
+                    return;
+                }
+
+                // Simulate API call - replace with actual endpoint
+                const response = await fetch(`/api/project-context?token=${token}`);
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.message || 'Kunne ikke indlæse projekt');
+                }
+
+                state.project = data;
+                renderProject();
+                
+            } catch (error) {
+                console.error('Error loading project:', error);
+                showError('Kunne ikke indlæse evaluering. Prøv igen senere.');
+            }
         }
-      };
-    });
-    
-    container.appendChild(questionDiv);
-  });
-  
-  console.log('Questions rendered successfully');
-  
-  // Submit button handler
-  $('submitBtn').onclick = submitEvaluation;
-}
 
-// Select answer
-function selectAnswer(questionId, score, isSG, questionDiv) {
-  // Store answer
-  answers.set(questionId, { score, sg: isSG });
-  
-  // Remove error state
-  questionDiv.classList.remove('error');
-  
-  // Update progress
-  updateProgress();
-}
+        function renderProject() {
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('form-container').classList.remove('hidden');
+            
+            // Project info
+            document.getElementById('project-title').textContent = state.project.title;
+            document.getElementById('project-description').textContent = state.project.info_text || '';
+            
+            // Targets
+            renderTargets();
+            
+            // Types
+            renderTypes();
+            
+            // Questions
+            renderQuestions();
+            
+            // Setup event listeners
+            setupEventListeners();
+            
+            updateProgress();
+        }
 
-// Update progress
-function updateProgress() {
-  const answered = answers.size;
-  const progress = (answered / totalQuestions) * 100;
-  
-  $('progressBar').style.width = `${progress}%`;
-  $('answerCount').textContent = `${answered} af ${totalQuestions} besvaret`;
-  $('submitBtn').disabled = answered < totalQuestions;
-}
+        function renderTargets() {
+            const container = document.getElementById('target-grid');
+            container.innerHTML = '';
+            
+            state.project.people.forEach(person => {
+                const div = document.createElement('div');
+                div.className = 'target-option';
+                div.onclick = () => selectTarget(person.id);
+                
+                div.innerHTML = `
+                    <div class="target-name">${person.name}</div>
+                    ${person.employee_no ? `<div class="target-id">Nr. ${person.employee_no}</div>` : ''}
+                `;
+                
+                container.appendChild(div);
+            });
+        }
 
-// Submit evaluation
-async function submitEvaluation() {
-  // Validate all questions answered
-  const unanswered = [];
-  projectContext.questions.forEach(q => {
-    if (!answers.has(q.id)) {
-      unanswered.push(q.id);
-    }
-  });
-  
-  if (unanswered.length > 0) {
-    // Highlight unanswered questions
-    unanswered.forEach(qid => {
-      const questionDiv = document.querySelector(`[data-question-id="${qid}"]`);
-      if (questionDiv) {
-        questionDiv.classList.add('error');
-        questionDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    });
-    
-    showError('Manglende svar', `Du skal besvare alle ${totalQuestions} spørgsmål før du kan sende evalueringen.`);
-    return;
-  }
-  
-  // Prepare submission
-  const submitBtn = $('submitBtn');
-  const originalText = submitBtn.textContent;
-  submitBtn.disabled = true;
-  submitBtn.textContent = 'Sender...';
-  
-  try {
-    // Prepare answers payload
-    const answersPayload = projectContext.questions.map(q => {
-      const answer = answers.get(q.id);
-      return {
-        question_id: q.id,
-        score: answer.score,
-        sg: answer.sg || false
-      };
-    });
-    
-    // Submit via RPC
-    const { data, error } = await supabase.rpc('create_response_via_token', {
-      p_token: token,
-      p_target: $('targetPerson').value,
-      p_type: $('feedbackType').value,
-      p_employee_no: $('employeeNo').value || null,
-      p_answers: answersPayload
-    });
-    
-    if (error) throw error;
-    
-    // Success!
-    hide('questionsContainer');
-    hide('formFooter');
-    hide('errorContainer');
-    show('successState');
-    
-    // Update progress to 100%
-    $('progressBar').style.width = '100%';
-    
-  } catch (error) {
-    console.error('Submission error:', error);
-    submitBtn.disabled = false;
-    submitBtn.textContent = originalText;
-    
-    showError('Fejl ved indsendelse', 'Der opstod en fejl ved indsendelse af din evaluering. Prøv venligst igen.');
-  }
-}
+        function renderTypes() {
+            const container = document.getElementById('type-grid');
+            const labels = state.project.settings?.labels || {};
+            
+            const types = [
+                { value: 'self', label: labels.self || 'Vurdering af sig selv' },
+                { value: 'peer', label: labels.peer || 'Vurdering af kollega' },
+                { value: 'leader', label: labels.leader || 'Fører vurdering' }
+            ];
+            
+            container.innerHTML = '';
+            
+            types.forEach(type => {
+                const div = document.createElement('div');
+                div.className = 'type-option';
+                div.onclick = () => selectType(type.value);
+                div.textContent = type.label;
+                
+                container.appendChild(div);
+            });
+        }
 
-// Show error
-function showError(title, message) {
-  $('errorContainer').querySelector('.error-title').textContent = title;
-  $('errorMessage').textContent = message;
-  show('errorContainer');
-  hide('loadingState');
-  
-  // Scroll to top
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
+        function renderQuestions() {
+            const container = document.getElementById('questions-container');
+            container.innerHTML = '';
+            
+            // Group questions by domain
+            const domains = {};
+            state.project.taxonomy.forEach(item => {
+                if (!domains[item.domain_name]) {
+                    domains[item.domain_name] = [];
+                }
+                domains[item.domain_name].push(item);
+            });
+            
+            // Create questions for each domain
+            Object.entries(domains).forEach(([domainName, categories]) => {
+                const domainDiv = document.createElement('div');
+                domainDiv.className = 'domain-card';
+                
+                const header = document.createElement('div');
+                header.className = 'domain-header';
+                header.textContent = domainName;
+                domainDiv.appendChild(header);
+                
+                categories.forEach(category => {
+                    // For demo purposes, create 3 questions per category
+                    // In real implementation, fetch actual questions
+                    for (let i = 1; i <= 3; i++) {
+                        const questionDiv = document.createElement('div');
+                        questionDiv.className = 'question-item';
+                        
+                        const questionId = `${category.category_id}_${i}`;
+                        state.questions.push(questionId);
+                        
+                        questionDiv.innerHTML = `
+                            <div class="question-text">
+                                ${category.category_name} - Spørgsmål ${i}
+                            </div>
+                            <div class="rating-container">
+                                <div class="rating-scale">
+                                    ${[1,2,3,4,5].map(score => `
+                                        <div class="rating-option">
+                                            <input type="radio" class="rating-input" 
+                                                   name="q_${questionId}" value="${score}" 
+                                                   id="q_${questionId}_${score}">
+                                            <label class="rating-label" for="q_${questionId}_${score}">
+                                                ${score}
+                                            </label>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                <div class="rating-legend">
+                                    <span>I ringe grad</span>
+                                    <span>I meget høj grad</span>
+                                </div>
+                                <div class="sg-option" onclick="toggleSG('${questionId}')">
+                                    <input type="checkbox" class="sg-input" id="sg_${questionId}">
+                                    <label for="sg_${questionId}">Savner grundlag</label>
+                                </div>
+                            </div>
+                        `;
+                        
+                        domainDiv.appendChild(questionDiv);
+                    }
+                });
+                
+                container.appendChild(domainDiv);
+            });
+            
+            // Add event listeners to radio buttons
+            document.querySelectorAll('.rating-input').forEach(input => {
+                input.addEventListener('change', handleAnswerChange);
+            });
+        }
 
-// Keyboard navigation support
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && $('errorContainer').style.display !== 'none') {
-    hide('errorContainer');
-  }
-});
+        function selectTarget(targetId) {
+            // Clear previous selection
+            document.querySelectorAll('.target-option').forEach(el => {
+                el.classList.remove('selected');
+            });
+            
+            // Select new target
+            event.target.closest('.target-option').classList.add('selected');
+            state.selectedTarget = targetId;
+            
+            updateProgress();
+        }
 
-// Prevent form submission on Enter
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') {
-    e.preventDefault();
-  }
-});
+        function selectType(type) {
+            // Clear previous selection
+            document.querySelectorAll('.type-option').forEach(el => {
+                el.classList.remove('selected');
+            });
+            
+            // Select new type
+            event.target.classList.add('selected');
+            state.selectedType = type;
+            
+            // Show/hide employee number field
+            const employeeSection = document.getElementById('employee-section');
+            if (!state.project.is_anonymous) {
+                employeeSection.classList.remove('hidden');
+            }
+            
+            updateProgress();
+        }
 
-// Accessibility: announce page changes to screen readers
-function announceToScreenReader(message) {
-  const announcement = document.createElement('div');
-  announcement.setAttribute('aria-live', 'polite');
-  announcement.setAttribute('aria-atomic', 'true');
-  announcement.style.position = 'absolute';
-  announcement.style.left = '-10000px';
-  announcement.style.width = '1px';
-  announcement.style.height = '1px';
-  announcement.style.overflow = 'hidden';
-  announcement.textContent = message;
-  
-  document.body.appendChild(announcement);
-  
-  setTimeout(() => {
-    document.body.removeChild(announcement);
-  }, 1000);
-}
-</script>
+        function toggleSG(questionId) {
+            const sgCheckbox = document.getElementById(`sg_${questionId}`);
+            const sgOption = sgCheckbox.closest('.sg-option');
+            const radioInputs = document.querySelectorAll(`input[name="q_${questionId}"]`);
+            
+            sgCheckbox.checked = !sgCheckbox.checked;
+            
+            if (sgCheckbox.checked) {
+                sgOption.classList.add('selected');
+                // Clear radio selections
+                radioInputs.forEach(input => {
+                    input.checked = false;
+                    input.nextElementSibling.style.transform = 'scale(1)';
+                });
+                state.answers[questionId] = { sg: true };
+            } else {
+                sgOption.classList.remove('selected');
+                delete state.answers[questionId];
+            }
+            
+            updateProgress();
+        }
+
+        function handleAnswerChange(event) {
+            const questionId = event.target.name.replace('q_', '');
+            const score = parseInt(event.target.value);
+            
+            // Clear SG if radio is selected
+            const sgCheckbox = document.getElementById(`sg_${questionId}`);
+            if (sgCheckbox && sgCheckbox.checked) {
+                sgCheckbox.checked = false;
+                sgCheckbox.closest('.sg-option').classList.remove('selected');
+            }
+            
+            state.answers[questionId] = { score: score };
+            updateProgress();
+        }
+
+        function updateProgress() {
+            const totalQuestions = state.questions.length;
+            const answeredQuestions = Object.keys(state.answers).length;
+            const hasTarget = !!state.selectedTarget;
+            const hasType = !!state.selectedType;
+            const hasEmployee = state.project.is_anonymous || !!state.employeeNo;
+            
+            // Update progress bar
+            const progressPercent = totalQuestions > 0 ? (answeredQuestions / totalQuestions) * 100 : 0;
+            document.getElementById('progress-fill').style.width = `${progressPercent}%`;
+            document.getElementById('progress-text').textContent = 
+                `${answeredQuestions} af ${totalQuestions} spørgsmål besvaret`;
+            
+            // Enable/disable submit button
+            const canSubmit = hasTarget && hasType && hasEmployee && answeredQuestions === totalQuestions;
+            document.getElementById('submit-btn').disabled = !canSubmit;
+        }
+
+        function setupEventListeners() {
+            // Employee number input
+            document.getElementById('employee-no').addEventListener('input', function(e) {
+                state.employeeNo = e.target.value.trim();
+                updateProgress();
+            });
+            
+            // Submit button
+            document.getElementById('submit-btn').addEventListener('click', submitResponse);
+        }
+
+        async function submitResponse() {
+            try {
+                document.getElementById('submit-btn').disabled = true;
+                document.getElementById('submit-btn').textContent = 'Gemmer...';
+                
+                // Prepare submission data
+                const submissionData = {
+                    target_id: state.selectedTarget,
+                    respondent_type: state.selectedType,
+                    employee_no: state.employeeNo,
+                    answers: Object.entries(state.answers).map(([questionId, answer]) => ({
+                        question_id: questionId,
+                        score: answer.score || null,
+                        sg: answer.sg || false
+                    }))
+                };
+                
+                // Simulate API call - replace with actual endpoint
+                const urlParams = new URLSearchParams(window.location.search);
+                const token = urlParams.get('t');
+                
+                const response = await fetch('/api/submit-response', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        token: token,
+                        ...submissionData
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Kunne ikke gemme besvarelse');
+                }
+                
+                // Show success
+                document.getElementById('form-container').classList.add('hidden');
+                document.getElementById('progress-bar').classList.add('hidden');
+                document.getElementById('success').classList.remove('hidden');
+                
+            } catch (error) {
+                console.error('Submission error:', error);
+                showError('Kunne ikke gemme besvarelse. Prøv igen.');
+                document.getElementById('submit-btn').disabled = false;
+                document.getElementById('submit-btn').textContent = 'Afslut evaluering';
+            }
+        }
+
+        function showError(message) {
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('form-container').classList.add('hidden');
+            document.getElementById('error-text').textContent = message;
+            document.getElementById('error').classList.remove('hidden');
+        }
+    </script>
 </body>
 </html>
