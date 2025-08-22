@@ -667,31 +667,31 @@
 
                 console.log('Loading project with token:', token);
 
-                // Try REST API call instead of Supabase RPC
-                const response = await fetch(`${supabase.supabaseUrl}/rest/v1/rpc/get_project_context`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'apikey': supabase.supabaseKey,
-                        'Authorization': `Bearer ${supabase.supabaseKey}`
-                    },
-                    body: JSON.stringify({ p_token: token })
+                console.log('Loading project with token:', token);
+
+                // Call Supabase function directly instead of backend API
+                const response = await supabase.rpc('get_project_context', {
+                    p_token: token
                 });
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                console.log('Full Supabase response:', response);
+                console.log('Response.data:', response.data);
+                console.log('Response.error:', response.error);
+
+                if (response.error) {
+                    console.error('Supabase RPC error:', response.error);
+                    throw new Error(response.error.message || 'Kunne ikke indlæse projekt');
                 }
 
-                const data = await response.json();
-                const error = null;
-
-                console.log('Supabase response data:', data);
-                console.log('Supabase response error:', error);
-
-                if (error) {
-                    console.error('Supabase RPC error:', error);
-                    throw new Error(error.message || 'Kunne ikke indlæse projekt');
+                // Parse JSON if it's a string
+                let data = response.data;
+                if (typeof data === 'string') {
+                    console.log('Data is string, parsing JSON:', data);
+                    data = JSON.parse(data);
                 }
+
+                console.log('Parsed data:', data);
+                console.log('Data type:', typeof data);
 
                 if (data && data.error) {
                     console.error('Project context error:', data.error);
@@ -702,7 +702,7 @@
                     throw new Error('Ingen data modtaget fra server');
                 }
 
-                console.log('Raw data.questions:', data.questions);
+                console.log('Final data.questions:', data.questions);
                 console.log('Questions type:', typeof data.questions);
                 console.log('Questions length:', data.questions ? data.questions.length : 'undefined');
 
