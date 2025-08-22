@@ -281,17 +281,18 @@
         
         .rating-option {
             position: relative;
-            aspect-ratio: 1;
+            min-height: 3.5rem; /* stabil højde, ingen aspect-ratio */
         }
+
         
         .rating-input {
             position: absolute;
             opacity: 0;
-            inset: 0;           /* fyld hele parent */
+            inset: 0;            /* dæk hele feltet fra start */
             width: 100%;
             height: 100%;
             cursor: pointer;
-            z-index: 1;         /* ligg over label */
+            z-index: 2;          /* ligg øverst så 1. klik altid rammer */
         }
 
 
@@ -312,10 +313,11 @@
             transition: all 0.2s ease;
             cursor: pointer;
             min-height: 3.5rem;
-            position: relative; /* så z-index virker */
-            z-index: 0;
+            position: relative;  /* opret stacking context */
+            z-index: 1;
             user-select: none;
         }
+
 
         
         .rating-input:checked + .rating-label {
@@ -854,13 +856,14 @@
             container.appendChild(domainDiv);
           });
 
-          // Lyttere til skalaerne
+                    // Lyttere til skalaerne
           document.querySelectorAll('.rating-input').forEach(input => {
+            // ét klik skal være nok — både change og click
             input.addEventListener('change', handleAnswerChange);
-            input.addEventListener('click', handleAnswerChange); // ekstra robusthed
+            input.addEventListener('click', handleAnswerChange);
           });
 
-          // Gør label-klik 100% pålideligt (og ryd SG ved valg af tal)
+          // Sørg for at klik på label også vælger radioen (Safari/iOS m.fl.)
           document.querySelectorAll('.rating-label').forEach(label => {
             label.addEventListener('click', () => {
               const forId = label.getAttribute('for');
@@ -877,6 +880,7 @@
               }
             });
           });
+
 
           // Sørg for at klik på label altid vælger radioen – også på iOS/Safari
           document.querySelectorAll('.rating-label').forEach(label => {
