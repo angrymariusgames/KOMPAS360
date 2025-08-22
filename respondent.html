@@ -523,8 +523,7 @@
             <!-- Logo container - your actual logo -->
             <div class="logo-container">
                 <img src="./assets/logo.png" alt="KOMPAS Logo" class="logo" id="company-logo" 
-                     onload="updateHeaderLayout()" 
-                     onerror="this.style.display='none'; updateHeaderLayout();">
+                  onerror="this.style.display='none';">
             </div>
             
             <!-- Header text -->
@@ -721,7 +720,7 @@
                 div.onclick = (e) => selectTarget(person.id, e.currentTarget);
                 
                 div.innerHTML = `
-                    <div class="target-name">${person.name}</div>
+                    <div class="target-name">${person.name || person.full_name}</div>
                     ${person.employee_no ? `<div class="target-id">Nr. ${person.employee_no}</div>` : ''}
                 `;
                 
