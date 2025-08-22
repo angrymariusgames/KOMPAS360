@@ -665,20 +665,38 @@
                     return;
                 }
 
+                console.log('Loading project with token:', token);
+
                 // Call Supabase function directly instead of backend API
                 const { data, error } = await supabase.rpc('get_project_context', {
                     p_token: token
                 });
 
+                console.log('Supabase response data:', data);
+                console.log('Supabase response error:', error);
+
                 if (error) {
+                    console.error('Supabase RPC error:', error);
                     throw new Error(error.message || 'Kunne ikke indlæse projekt');
                 }
 
                 if (data && data.error) {
+                    console.error('Project context error:', data.error);
                     throw new Error(data.error);
                 }
 
+                if (!data) {
+                    throw new Error('Ingen data modtaget fra server');
+                }
+
+                console.log('Raw data.questions:', data.questions);
+                console.log('Questions type:', typeof data.questions);
+                console.log('Questions length:', data.questions ? data.questions.length : 'undefined');
+
                 state.project = data;
+                console.log('State.project after assignment:', state.project);
+                console.log('State.project.questions after assignment:', state.project.questions);
+                
                 renderProject();
                 
             } catch (error) {
