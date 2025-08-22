@@ -3883,16 +3883,50 @@ $('btnZip').onclick = () => {
       </div>`;
     }).join('');
     
-    // Forbered team chart data
+    // Forbered team chart data med samme orderedCategories struktur som individuel PDF
+    const orderedCategories = [
+      '', // Tom akse ved 0° (kl. 12)
+      'Fleksibilitet', 'Nytænkning', 'Helhedsorientering', 'Fremtidsorientering', // Fornyelse
+      '', // Tom akse ved 90° (kl. 3)
+      'Håndtering af pres', 'Beslutningstagning', 'Styring', 'Initiativ', // Resultater
+      '', // Tom akse ved 180° (kl. 6)
+      'Analytisk tænkning', 'Faglighed', 'Planlægning', 'Ressourcebevidsthed', // Stabilitet
+      '', // Tom akse ved 270° (kl. 9)
+      'Samarbejde', 'Udvikling af andre', 'Motivere andre', 'Kommunikation' // Relationer
+    ];
+    
+    // Map team data til orderedCategories struktur
     const teamSVGData = {
-      categories: cats.map((cat, index) => ({
-        name: cat.category_name,
-        max: Math.max(
-          teamSeries.self[index] || 0,
-          teamSeries.peer[index] || 0,
-          teamSeries.leader[index] || 0
-        )
-      }))
+      categories: orderedCategories.map(catName => {
+        if (catName === '') {
+          // Tom akse - returner dummy data med null værdi
+          return { name: '', max: null };
+        }
+        
+        // Find kategorien i cats array
+        const catData = cats.find(c => c.category_name === catName);
+        if (!catData) {
+          return { name: catName, max: 0 };
+        }
+        
+        // Find index i original cats array
+        const catIndex = cats.findIndex(c => c.category_name === catName);
+        if (catIndex === -1) {
+          return { name: catName, max: 0 };
+        }
+        
+        // Beregn max værdi for denne kategori
+        const maxValue = Math.max(
+          teamSeries.self[catIndex] || 0,
+          teamSeries.peer[catIndex] || 0,
+          teamSeries.leader[catIndex] || 0
+        );
+        
+        return {
+          name: catName,
+          max: maxValue
+        };
+      })
     };
     
     // Generer team SVG hjul
