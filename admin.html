@@ -966,12 +966,10 @@ window.addEventListener('load', function() {
     ? window.location.origin
     : window.location.origin;
 
-  // Backend (API) host – SÆT DENNE TIL DIN FASTAPI HTTPS-URL
-  const BACKEND_BASE_URL =
-    (window.KOMPAS_API && window.KOMPAS_API.BASE_URL) ||
-    (location.hostname === 'localhost' ? 'http://localhost:8000' : 'https://YOUR_BACKEND_HOST');
+  // Backend API host - din faktiske backend URL
+  const BACKEND_BASE_URL = 'http://localhost:8000'; // Ret til din backend URL hvis ikke localhost
 
-  // Inkluder ?api=... så respondent.html kan kalde korrekt backend
+  // Inkluder ?api=... så respondent.html ved hvor backend er
   return `${FRONTEND_BASE_URL}/respondent.html?t=${encodeURIComponent(token)}&api=${encodeURIComponent(BACKEND_BASE_URL)}`;
 }
 
