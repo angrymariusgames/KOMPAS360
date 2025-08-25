@@ -1319,16 +1319,150 @@ window.addEventListener('load', function() {
 
   // Version template
   window.versionTemplate = async (templateId) => {
-    const comment = prompt('Versionskommentar:');
+    const comment = prompt('Versionskommentar for ny KOMPAS version:');
     if (!comment) return;
 
     try {
-      // This would need a versions table to be implemented
-      alert('✅ Template version gemt (funktionalitet skal implementeres)');
+      // Hent current template info
+      const { data: currentTemplate } = await supabase
+        .from('templates')
+        .select('*')
+        .eq('id', templateId)
+        .single();
+
+      if (!currentTemplate) throw new Error('Template ikke fundet');
+
+      // Find næste version nummer
+      const { data: existingVersions } = await supabase
+        .from('template_versions')
+        .select('version_number')
+        .eq('template_id', templateId)
+        .order('version_number', { ascending: false });
+
+      const nextVersion = (existingVersions?.[0]?.version_number || currentTemplate.version || 0) + 1;
+      const baseName = currentTemplate.base_template_name || 'KOMPAS';
+
+      // Opret ny version af templaten
+      const { data: newTemplate, error: insertError } = await supabase
+        .from('templates')
+        .insert({
+          name: `${baseName} v${nextVersion}.0`,
+          base_template_name: baseName,
+          description: `${currentTemplate.description} (Version ${nextVersion})`,
+          version: nextVersion,
+          is_active: true,
+          created_by: user?.id
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      // Registrer version i versions tabel
+      const { error: versionError } = await supabase
+        .from('template_versions')
+        .insert({
+          template_id: newTemplate.id,
+          version_number: nextVersion,
+          comment: comment,
+          created_by: user?.id
+        });
+
+      if (versionError) throw versionError;
+
+      // Kopiér template indhold (domains, categories, questions)
+      await duplicateTemplateContent(templateId, newTemplate.id);
+
+      alert(`✅ ${baseName} v${nextVersion}.0 oprettet succesfuldt`);
+      loadTemplates();
+
     } catch (error) {
-      alert('❌ Fejl: ' + error.message);
+      console.error('Versioning fejl:', error);
+      alert('❌ Fejl ved oprettelse af version: ' + error.message);
     }
   };
+
+  // Hjælpefunktion til at kopiere template indhold
+  async function duplicateTemplateContent(sourceTemplateId, targetTemplateId) {
+    try {
+      // Kopiér domains
+      const { data: domains } = await supabase
+        .from('domains')
+        .select('name, sort_order')
+        .eq('template_id', sourceTemplateId);
+
+      for (const domain of domains || []) {
+        const { data: newDomain } = await supabase
+          .from('domains')
+          .insert({
+            template_id: targetTemplateId,
+            name: domain.name,
+            sort_order: domain.sort_order
+          })
+          .select()
+          .single();
+
+        // Kopiér categories for dette domain
+        const { data: categories } = await supabase
+          .from('categories')
+          .select('name, sort_order')
+          .eq('domain_id', (await supabase
+            .from('domains')
+            .select('id')
+            .eq('template_id', sourceTemplateId)
+            .eq('name', domain.name)
+            .single()
+          ).data.id);
+
+        for (const category of categories || []) {
+          const { data: newCategory } = await supabase
+            .from('categories')
+            .insert({
+              domain_id: newDomain.id,
+              name: category.name,
+              sort_order: category.sort_order
+            })
+            .select()
+            .single();
+
+          // Kopiér questions for denne category
+          const { data: questions } = await supabase
+            .from('questions')
+            .select('text, is_lite, scale_min, scale_max, weight, sort_order')
+            .eq('category_id', (await supabase
+              .from('categories')
+              .select('id')
+              .eq('domain_id', (await supabase
+                .from('domains')
+                .select('id')
+                .eq('template_id', sourceTemplateId)
+                .eq('name', domain.name)
+                .single()
+              ).data.id)
+              .eq('name', category.name)
+              .single()
+            ).data.id);
+
+          for (const question of questions || []) {
+            await supabase
+              .from('questions')
+              .insert({
+                category_id: newCategory.id,
+                text: question.text,
+                is_lite: question.is_lite,
+                scale_min: question.scale_min,
+                scale_max: question.scale_max,
+                weight: question.weight,
+                sort_order: question.sort_order
+              });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Fejl ved kopiering af template indhold:', error);
+      throw error;
+    }
+  }
 
   // [Rest of template functions remain the same as in original]
   // Template editor - direct edit mode
