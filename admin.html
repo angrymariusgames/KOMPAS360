@@ -776,7 +776,7 @@ window.addEventListener('load', function() {
   
   // Tabs: skift aktiv fane
   document.querySelectorAll('.tabbtn').forEach(btn=>{
-    btn.onclick = ()=>{
+    btn.onclick = async ()=>{
       document.querySelectorAll('.tabbtn').forEach(x=>x.classList.remove('active'));
       btn.classList.add('active');
 
@@ -797,8 +797,50 @@ window.addEventListener('load', function() {
       } else {
         createBtn.style.display = 'none';
       }
+      
+      // Automatisk data loading når specifikke faner åbnes
+      await handleTabDataLoading(btn.dataset.tab);
     };
   });
+
+  // Funktion til at håndtere automatisk data loading ved tab skift
+  async function handleTabDataLoading(tabName) {
+    try {
+      switch(tabName) {
+        case 'results':
+          // Opdater resultater fanen når den åbnes
+          const currentProject = $('selProject2').value;
+          const currentTarget = $('selTarget').value;
+          
+          if(currentProject && currentTarget) {
+            console.log('Auto-opdaterer resultater for projekt:', currentProject, 'target:', currentTarget);
+            await generateRadarChart();
+          } else if(currentProject) {
+            // Hvis projekt er valgt men ingen target, trigger projekt change event
+            console.log('Auto-loader personer for projekt:', currentProject);
+            const event = new Event('change');
+            $('selProject2').dispatchEvent(event);
+          }
+          break;
+          
+        case 'teambuilding':
+          // Opdater teambuilding fanen når den åbnes
+          const teamProject = $('selProject3').value;
+          
+          if(teamProject) {
+            console.log('Auto-opdaterer teambuilding for projekt:', teamProject);
+            await loadTeamBuildingData();
+          }
+          break;
+          
+        default:
+          // Ingen special handling for andre faner
+          break;
+      }
+    } catch(error) {
+      console.error('Fejl ved auto-loading af tab data:', error);
+    }
+  }
 
   // Logout
   $('logoutBtn').onclick = async ()=>{ 
@@ -961,18 +1003,27 @@ window.addEventListener('load', function() {
 
   // Utility functions
   function generateProjectUrl(token) {
-  // Frontend (respondent) host - inkluder hele stien med repo navn
-  const FRONTEND_BASE_URL = window.location.hostname === 'localhost'
-    ? window.location.origin
-    : window.location.origin + window.location.pathname.replace('/admin.html', '');
+    const protocol = window.location.protocol;
+    const hostname = window.location.hostname;
+    const port = window.location.port;
+    const pathname = window.location.pathname;
 
-  // Backend API host - din faktiske backend URL
-  const BACKEND_BASE_URL = 'http://localhost:8000'; // Ret til din backend URL hvis ikke localhost
-
-  // Inkluder ?api=... så respondent.html ved hvor backend er
-  return `${FRONTEND_BASE_URL}/respondent.html?t=${encodeURIComponent(token)}&api=${encodeURIComponent(BACKEND_BASE_URL)}`;
-}
-
+    let baseUrl;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      baseUrl = `${protocol}//${hostname}${port ? ':' + port : ''}`;
+    } else {
+      baseUrl = `${protocol}//${hostname}${port && port !== '80' && port !== '443' ? ':' + port : ''}`;
+      
+      if (hostname.includes('github.io')) {
+        const pathParts = pathname.split('/').filter(p => p);
+        if (pathParts.length > 0) {
+          baseUrl += '/' + pathParts[0];
+        }
+      }
+    }
+    
+    return baseUrl + '/respondent.html?t=' + token;
+  }
 
   function copyToClipboard(text, element, type = 'link') {
     const originalText = element.textContent;
@@ -1742,6 +1793,8 @@ window.showLargeProjectQR = (url, title) => {
       return;
     }
     
+    console.log('Loading coaching recommendations for tab navigation...');
+    
     console.log('Loading coaching for project:', pid, 'target:', tid);
     
     try {
@@ -1854,7 +1907,7 @@ window.showLargeProjectQR = (url, title) => {
                   <span style="background:var(--brand);color:white;padding:1px 6px;border-radius:8px;margin-right:6px">
                     ${tip.method || 'self'}
                   </span>
-                  ${tip.next_action || tip.title}
+                  ${tip.next_action || (tip.micro_habits && tip.micro_habits.length > 0 ? tip.micro_habits[0] : tip.title)}
                 </div>
               </div>
             `).join('')}
@@ -3742,6 +3795,15 @@ $('btnZip').onclick = () => {
     if (person) {
       person.selected = !person.selected;
       updateTeamSelection();
+    }
+  };
+
+  // Tilføj global refresh funktion for teambuilding
+  window.refreshTeamBuilding = async () => {
+    const projectId = $('selProject3').value;
+    if(projectId) {
+      console.log('Manual refresh af teambuilding data...');
+      await loadTeamBuildingData();
     }
   };
 
