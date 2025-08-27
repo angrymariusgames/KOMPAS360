@@ -4592,7 +4592,11 @@ function contractToggleCompetency(competencyId, card) {
     card.classList.add('selected');
   }
   contractUpdateSectionStatus();
+  // Opdater forslag dynamisk når valgte kompetencer ændres
+  contractLoadTipsForSelected();
+  contractLoadColleagueSupport();
 }
+
 
 async function contractLoadTipsForSelected() {
   const container = $('contractTipsContainer');
@@ -4752,7 +4756,7 @@ async function loadFallbackTips(competencyIds, dismissedIds) {
         priority: 'database_fallback',
         coaching_context: 'Database fallback - generelt udviklingsforslag'
       };
-      
+
       if (!contractAvailableTips.has(tip.category_id)) {
         contractAvailableTips.set(tip.category_id, []);
       }
@@ -4859,48 +4863,88 @@ function contractSetupRolesStep(){
 }
 
 async function contractLoadColleagueSupport() {
-  const colleagueEl = $('contractColleagueSupport');
-  if (!colleagueEl) return;
-  
+  const el = $('contractColleagueSupport');
+  if (!el) return;
+
   const selectedCompetencies = Array.from(contractState.selectedCompetencies);
   if (selectedCompetencies.length === 0) {
-    colleagueEl.innerHTML = '<p style="color:var(--muted);font-style:italic">Vælg først kompetencer for at se kollega forslag</p>';
+    el.innerHTML = '<p style="color:var(--muted);font-style:italic">Vælg først kompetencer</p>';
     return;
   }
-  
+  if (!contractState.project_id) {
+    el.innerHTML = '<p style="color:var(--muted)">Vælg et projekt først</p>';
+    return;
+  }
+
   try {
-    colleagueEl.innerHTML = '<p style="color:var(--muted)">Søger efter kollegaer...</p>';
-    
-    const response = await fetch('/api/colleague-support', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        project_id: contractState.project_id,
-        competencies: selectedCompetencies
-      })
-    });
-    
-    if (!response.ok) throw new Error('Kunne ikke hente kollega data');
-    const colleagues = await response.json();
-    
-    if (colleagues.length === 0) {
-      colleagueEl.innerHTML = '<p style="color:var(--muted);font-style:italic">Ingen kollegaer fundet med data for de valgte kompetencer</p>';
+    el.innerHTML = '<p style="color:var(--muted)">Søger efter kollegaer…</p>';
+
+    // 1) Hent scorer og navne
+    const [scoresRes, peopleRes] = await Promise.all([
+      supabase
+        .from('v_kompas_series')
+        .select('target_id,category_id,category_name,safe_avg')
+        .eq('project_id', contractState.project_id)
+        .in('category_id', selectedCompetencies),
+      supabase
+        .from('project_people')
+        .select('id,full_name')
+        .eq('project_id', contractState.project_id)
+    ]);
+    if (scoresRes.error) throw scoresRes.error;
+    if (peopleRes.error) throw peopleRes.error;
+
+    const nameById = new Map((peopleRes.data || []).map(p => [p.id, p.full_name]));
+    const scores = (scoresRes.data || []).filter(r => r.safe_avg != null);
+
+    // 2) Lav kandidat-lister pr. kompetence (sorteret højeste score først)
+    const candidatesByComp = new Map(); // compId -> [{target_id, full_name, score, category_name}]
+    for (const row of scores) {
+      if (contractState.target_id && row.target_id === contractState.target_id) continue;
+      const list = candidatesByComp.get(row.category_id) || [];
+      list.push({
+        target_id: row.target_id,
+        full_name: nameById.get(row.target_id) || '(ukendt)',
+        score: Number(row.safe_avg),
+        category_name: row.category_name
+      });
+      candidatesByComp.set(row.category_id, list);
+    }
+    for (const [cid, list] of candidatesByComp) {
+      list.sort((a,b) => b.score - a.score || a.full_name.localeCompare(b.full_name));
+    }
+
+    // 3) Vælg én unik kollega per kompetence (greedy i den rækkefølge brugeren har valgt)
+    const usedPeople = new Set();
+    const assignments = [];
+    for (const compId of selectedCompetencies) {
+      const list = candidatesByComp.get(compId) || [];
+      const pick = list.find(c => !usedPeople.has(c.target_id));
+      if (pick) {
+        usedPeople.add(pick.target_id);
+        assignments.push({ full_name: pick.full_name, competency: pick.category_name });
+      }
+    }
+
+    // 4) Render – ingen gennemsnit, én kompetence pr. kollega
+    if (!assignments.length) {
+      el.innerHTML = '<p style="color:var(--muted);font-style:italic">Ingen egnede kollegaer fundet for valgte kompetencer</p>';
       return;
     }
-    
-    colleagueEl.innerHTML = colleagues.map((colleague, index) => `
+    el.innerHTML = assignments.map(a => `
       <div style="border:1px solid var(--line);border-radius:6px;padding:12px;margin-bottom:8px;background:#f9f9f9">
-        <strong>${colleague.full_name}</strong>
-        <div style="font-size:0.8rem;color:var(--muted)">Gennemsnit: ${colleague.avg_score.toFixed(1)}</div>
-        <div style="font-size:0.9rem;margin-top:4px">Stærk inden for: ${colleague.competencies.join(', ')}</div>
+        <strong>${a.full_name}</strong>
+        <div style="font-size:0.9rem;margin-top:8px">Stærk inden for: ${a.competency}</div>
       </div>
     `).join('');
-    
-  } catch (error) {
-    console.error('Error loading colleague support:', error);
-    colleagueEl.innerHTML = '<p style="color:var(--error);font-style:italic">Fejl ved indlæsning af kollega forslag</p>';
+
+  } catch (err) {
+    console.error('Error loading colleague support:', err);
+    el.innerHTML = '<p style="color:var(--error);font-style:italic">Fejl ved indlæsning af kollega forslag</p>';
   }
 }
+
+
 
 document.addEventListener('click', (e) => {
   if (e.target.classList.contains('contract-status-btn')) {
