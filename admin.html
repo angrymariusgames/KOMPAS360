@@ -279,6 +279,122 @@
     .project-form-collapsed {
       display: none;
     }
+
+    /* Unified Contract Sections */
+    .contract-unified-section {
+      transition: all 0.3s ease;
+    }
+    
+    .contract-unified-section.active {
+      border-color: var(--brand) !important;
+      opacity: 1 !important;
+      box-shadow: 0 4px 12px rgba(245, 87, 108, 0.1) !important;
+    }
+    
+    .contract-competency-card {
+      background: var(--card);
+      border: 2px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-align: center;
+      position: relative;
+    }
+    
+    .contract-competency-card:hover {
+      border-color: var(--brand);
+      transform: translateY(-2px);
+    }
+    
+    .contract-competency-card.selected {
+      border-color: var(--brand);
+      background: rgba(102, 126, 234, 0.1);
+    }
+    
+    .contract-competency-card .check-icon {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      color: var(--brand);
+      font-size: 1.2rem;
+      display: none;
+    }
+    
+    .contract-competency-card.selected .check-icon {
+      display: block;
+    }
+    
+    .contract-tip-card {
+      background: #fff;
+      border: 2px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-bottom: 8px;
+    }
+    
+    .contract-tip-card:hover {
+      border-color: var(--brand);
+    }
+    
+    .contract-tip-card.selected {
+      border-color: var(--brand);
+      background: rgba(102, 126, 234, 0.05);
+    }
+    
+    .contract-tip-method {
+      background: var(--brand);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    
+    .contract-item {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 8px;
+    }
+    
+    .contract-status-selector {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    
+    .contract-status-btn {
+      padding: 4px 8px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: #fff;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+    
+    .contract-status-btn.active {
+      background: var(--brand);
+      color: white;
+      border-color: var(--brand);
+    }
+    
+    .status-text.complete {
+      background: var(--success);
+      color: white;
+      border-color: var(--success);
+    }
+    
+    /* Responsive for contract sections */
+    @media (max-width: 1024px) {
+      #contractUnifiedSections {
+        grid-template-columns: 1fr !important;
+        grid-template-rows: auto auto auto auto !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -306,6 +422,7 @@
       <button class="tabbtn" data-tab="results">📈 Resultater</button>
       <button class="tabbtn" data-tab="teambuilding">🤝 Team Building</button>
       <button class="tabbtn" data-tab="development">🌱 Udvikling</button>
+      <button class="tabbtn" data-tab="contract">📝 Udviklingskontrakt</button>
 
     </div>
     <div style="padding:16px 0">
@@ -375,87 +492,109 @@
                     <div class="project-right">
                       
                       <!-- Labels Section -->
-          <h4 style="margin-bottom:12px">🏷️ Evaluerings Labels</h4>
-          <div style="margin-bottom:20px">
-            <div style="margin-bottom:8px">
-              <label style="display:block;font-size:0.9rem;margin-bottom:4px;color:var(--muted)">Label — Selv</label>
-              <input id="label-self" class="input" value="Vurdering af sig selv" style="width:100%">
-            </div>
-            <div style="margin-bottom:8px">
-              <label style="display:block;font-size:0.9rem;margin-bottom:4px;color:var(--muted)">Label — Kollega</label>
-              <input id="label-peer" class="input" value="Vurdering af kollega" style="width:100%">
-            </div>
-            <div style="margin-bottom:8px">
-              <label style="display:block;font-size:0.9rem;margin-bottom:4px;color:var(--muted)">Label — Fører</label>
-              <input id="label-leader" class="input" value="Fører vurdering" style="width:100%">
-            </div>
-          </div>
+                      <h4 style="margin-bottom:12px">🏷️ Evaluerings Labels</h4>
+                      <div style="margin-bottom:20px">
+                        <div style="margin-bottom:8px">
+                          <label style="display:block;font-size:0.9rem;margin-bottom:4px;color:var(--muted)">Label — Selv</label>
+                          <input id="label-self" class="input" value="Vurdering af sig selv" style="width:100%">
+                        </div>
+                        <div style="margin-bottom:8px">
+                          <label style="display:block;font-size:0.9rem;margin-bottom:4px;color:var(--muted)">Label — Kollega</label>
+                          <input id="label-peer" class="input" value="Vurdering af kollega" style="width:100%">
+                        </div>
+                        <div style="margin-bottom:8px">
+                          <label style="display:block;font-size:0.9rem;margin-bottom:4px;color:var(--muted)">Label — Fører</label>
+                          <input id="label-leader" class="input" value="Fører vurdering" style="width:100%">
+                        </div>
+                      </div>
 
-          <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
+                      <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
 
-          <!-- People Management Section -->
-          <h4 style="margin-bottom:12px">👥 Navneliste</h4>
-          
-          <!-- People management controls -->
-          <div id="peopleControls">
-            <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-              <button id="btnReloadPeople" class="btn small">Genindlæs</button>
-              <input type="file" id="csvFile" accept=".csv,.txt,.tsv" style="display:none">
-              <button id="importCsv" class="btn small">Import CSV</button>
-            </div>
+                      <!-- People Management Section -->
+                      <h4 style="margin-bottom:12px">👥 Navneliste</h4>
+                      
+                      <!-- People management controls -->
+                      <div id="peopleControls">
+                        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+                          <button id="btnReloadPeople" class="btn small">Genindlæs</button>
+                          <input type="file" id="csvFile" accept=".csv,.txt,.tsv" style="display:none">
+                          <button id="importCsv" class="btn small">Import CSV</button>
+                        </div>
 
-            <div style="margin-bottom:12px">
-              <div style="margin-bottom:6px">
-                <input id="personName" class="input" placeholder="Fulde navn" style="width:100%;margin-bottom:6px">
-              </div>
-              <div style="display:flex;gap:6px">
-                <input id="personNo" class="input" placeholder="Nr." style="flex:1">
-                <button id="addPerson" class="btn primary small">Tilføj</button>
-              </div>
-            </div>
+                        <div style="margin-bottom:12px">
+                          <div style="margin-bottom:6px">
+                            <input id="personName" class="input" placeholder="Fulde navn" style="width:100%;margin-bottom:6px">
+                          </div>
+                          <div style="display:flex;gap:6px">
+                            <input id="personNo" class="input" placeholder="Nr." style="flex:1">
+                            <button id="addPerson" class="btn primary small">Tilføj</button>
+                          </div>
+                        </div>
 
-            <!-- People Table -->
-            <div style="max-height:250px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;background:#fff">
-              <table id="peopleTbl" style="font-size:0.85rem;width:100%">
-                <thead style="background:var(--card);position:sticky;top:0">
-                  <tr>
-                    <th style="padding:8px;border-bottom:1px solid var(--line)">Navn</th>
-                    <th style="padding:8px;width:60px;border-bottom:1px solid var(--line)">Nr.</th>
-                    <th style="padding:8px;width:50px;text-align:center;border-bottom:1px solid var(--line)">Slet</th>
-                  </tr>
-                </thead>
-                <tbody></tbody>
-              </table>
-            </div>
-          </div>
+                        <!-- People Table -->
+                        <div style="max-height:250px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;background:#fff">
+                          <table id="peopleTbl" style="font-size:0.85rem;width:100%">
+                            <thead style="background:var(--card);position:sticky;top:0">
+                              <tr>
+                                <th style="padding:8px;border-bottom:1px solid var(--line)">Navn</th>
+                                <th style="padding:8px;width:60px;border-bottom:1px solid var(--line)">Nr.</th>
+                                <th style="padding:8px;width:50px;text-align:center;border-bottom:1px solid var(--line)">Slet</th>
+                              </tr>
+                            </thead>
+                            <tbody></tbody>
+                          </table>
+                        </div>
+                      </div>
 
-        </div>
-      </div>
+                    </div>
+                  </div>
 
-      <!-- Projects Table -->
-      <div class="section">
-        <table id="projectsTbl" class="projects-table" style="margin-top:12px">
-          <thead>
-            <tr>
-              <th>Titel</th>
-              <th>Status & Svar</th>
-              <th>Åbner</th>
-              <th>Lukker</th>
-              <th>Link</th>
-              <th>QR</th>
-              <th style="text-align:right">Handling</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </div>
+                  <!-- Projects Table -->
+                  <div class="section">
+                    <table id="projectsTbl" class="projects-table" style="margin-top:12px">
+                      <thead>
+                        <tr>
+                          <th>Titel</th>
+                          <th>Status & Svar</th>
+                          <th>Åbner</th>
+                          <th>Lukker</th>
+                          <th>Link</th>
+                          <th>QR</th>
+                          <th style="text-align:right">Handling</th>
+                        </tr>
+                      </thead>
+                      <tbody></tbody>
+                    </table>
+                  </div>
+                </div>
 
-    <!-- Resultater -->
-    <div id="tab-results" class="section" style="display:none">
-      <div style="margin-bottom:8px">
-        <div style="margin-bottom:8px">
-          <select id="selProject2" class="select" style="width:100%"></select>
+                <!-- Resultater -->
+                <div id="tab-results" class="section" style="display:none">
+                  <div style="margin-bottom:8px">
+                    <div style="margin-bottom:8px">
+                      <select id="selProject2" class="select" style="width:100%">
+              <option value="">-- Vælg et projekt --</option>
+            </select>
+            <script>
+              // Hent projekter til dropdown
+              async function loadProjects() {
+                const { data, error } = await window.supabase.from("projects").select("id,title").order("title");
+                if (error) {
+                  console.error("Kunne ikke hente projekter:", error);
+                  return;
+                }
+                const sel = document.getElementById("selProject2");
+                sel.innerHTML = '<option value="">-- Vælg et projekt --</option>';
+                data.forEach(p => {
+                  const opt = document.createElement("option");
+                  opt.value = p.id;
+                  opt.textContent = p.title;
+                  sel.appendChild(opt);
+                });
+              }
+              loadProjects();
+            </script>
+
         </div>
         <div style="display:flex;gap:8px;align-items:center">
           <button id="btnPrevTarget" class="btn small" style="padding:8px 12px" title="Forrige profil">←</button>
@@ -731,10 +870,169 @@
       </div>
     </div>
 
-  </div>
+    <!-- Udviklingskontrakt -->
+    <div id="tab-contract" style="display:none">
+      
+      <!-- Contract Header -->
+      <div style="background:linear-gradient(135deg,var(--brand) 0%,#ff6b7a 100%);color:white;padding:24px;border-radius:12px;margin-bottom:24px;text-align:center">
+        <h1 style="margin:0 0 8px 0">📋 Udviklingskontrakt</h1>
+        <p style="margin:0;opacity:0.9">Skab en personlig udviklingsplan baseret på KOMPAS-resultaterne</p>
+      </div>
+
+      
+      <!-- Project & Person Selection -->
+      <div class="section" style="margin-bottom:20px">
+        <h3>Projekt og målperson</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div>
+            <label>Projekt</label>
+            <select id="contractProjectSelect" class="select" style="width:100%">
+              <option value="">Vælg projekt...</option>
+            </select>
+          </div>
+          <div>
+            <label>Målperson</label>
+            <select id="contractTargetSelect" class="select" style="width:100%">
+              <option value="">Vælg målperson...</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Unified Contract Sections -->
+      <div id="contractUnifiedSections" style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto;gap:20px;margin-bottom:120px">
+        
+        <!-- Section 1: Kompetencer -->
+        <section class="contract-unified-section competencies-section active" id="contractCompetenciesSection" style="background:white;border:2px solid var(--brand);border-radius:12px;padding:20px;opacity:1;box-shadow:0 4px 12px rgba(245,87,108,0.1)">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--line)">
+            <div style="background:var(--brand);color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700">1</div>
+            <h3 style="margin:0;font-size:1.1rem;font-weight:700;flex:1">Vælg kompetencer til udvikling</h3>
+            <div id="contractCompetenciesStatus" style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-size:0.8rem;color:var(--muted)">
+              <span class="status-text">0 valgt</span>
+            </div>
+          </div>
+          <div>
+            <p style="color:var(--muted);margin-bottom:16px">
+              Vælg de KOMPAS-kompetencer som skal fokuseres på i udviklingsplanen
+            </p>
+            <div id="contractCompetencyGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:16px 0">
+              <!-- Kompetencer indlæses dynamisk -->
+            </div>
+          </div>
+        </section>
+
+        <!-- Section 2: Aktiviteter -->
+        <section class="contract-unified-section activities-section" id="contractActivitiesSection" style="background:white;border:2px solid var(--line);border-radius:12px;padding:20px;opacity:0.6">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--line)">
+            <div style="background:var(--brand);color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700">2</div>
+            <h3 style="margin:0;font-size:1.1rem;font-weight:700;flex:1">Vælg udviklingsaktiviteter</h3>
+            <div id="contractActivitiesStatus" style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-size:0.8rem;color:var(--muted)">
+              <span class="status-text">Vælg først kompetencer</span>
+            </div>
+          </div>
+          <div>
+            <p style="color:var(--muted);margin-bottom:16px">
+              Vælg konkrete tips og aktiviteter for hver kompetence
+            </p>
+            <div id="contractTipsContainer">
+              <!-- Tips indlæses dynamisk -->
+            </div>
+          </div>
+        </section>
+
+        <!-- Section 3: Roller & aftaler -->
+        <section class="contract-unified-section roles-section" id="contractRolesSection" style="background:white;border:2px solid var(--line);border-radius:12px;padding:20px;opacity:0.6">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--line)">
+            <div style="background:var(--brand);color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700">3</div>
+            <h3 style="margin:0;font-size:1.1rem;font-weight:700;flex:1">Aftaler om roller og ansvar</h3>
+            <div id="contractRolesStatus" style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-size:0.8rem;color:var(--muted)">
+              <span class="status-text">Vælg først aktiviteter</span>
+            </div>
+          </div>
+          <div>
+            <p style="color:var(--muted);margin-bottom:16px">
+              Definer hvem gør hvad og sæt opfølgning
+            </p>
+            
+            <!-- Opfølgningsdato -->
+            <div style="margin-bottom:20px">
+              <label>Opfølgningsdato</label>
+              <input type="date" id="contractFollowupDate" class="input" style="width:100%">
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
+              <div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:16px">
+                <h4 style="margin:0 0 16px 0;text-align:center;color:var(--brand)">👤 Medarbejder gør</h4>
+                <textarea id="contractEmployeeActions" class="input" style="width:100%;min-height:120px;resize:vertical" placeholder="Skriv hvad medarbejderen skal gøre..."></textarea>
+              </div>
+              <div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:16px">
+                <h4 style="margin:0 0 16px 0;text-align:center;color:var(--brand)">💭 Medarbejder ønsker</h4>
+                <textarea id="contractEmployeeWishes" class="input" style="width:100%;min-height:120px;resize:vertical" placeholder="Skriv hvad medarbejderen ønsker at opnå..."></textarea>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+              <div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:16px">
+                <h4 style="margin:0 0 16px 0;text-align:center;color:var(--brand)">👨‍💼 Leder støtter</h4>
+                <textarea id="contractLeaderActions" class="input" style="width:100%;min-height:120px;resize:vertical" placeholder="Skriv hvordan lederen støtter..."></textarea>
+              </div>
+              <div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:16px">
+                <h4 style="margin:0 0 16px 0;text-align:center;color:var(--brand)">🤝 Kollega støtte</h4>
+                <div id="contractColleagueSupport">
+                  <!-- Kollega støtte indlæses automatisk -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Section 4: Oversigt -->
+        <section class="contract-unified-section overview-section" id="contractOverviewSection" style="background:white;border:2px solid var(--line);border-radius:12px;padding:20px;opacity:0.6">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--line)">
+            <div style="background:var(--brand);color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700">4</div>
+            <h3 style="margin:0;font-size:1.1rem;font-weight:700;flex:1">Kontraktoversigt og eksport</h3>
+            <div id="contractOverviewStatus" style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-size:0.8rem;color:var(--muted)">
+              <span class="status-text">Live preview</span>
+            </div>
+          </div>
+          <div>
+            <div id="contractOverviewContent" style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px;min-height:200px">
+              <!-- Kontraktoversigt opdateres live -->
+            </div>
+
+            <!-- Version info -->
+            <div style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px;margin-top:16px;font-size:0.9rem;color:var(--muted)">
+              <strong>Version:</strong> 1.0<br>
+              <strong>Sidst opdateret:</strong> <span id="contractLastUpdated">-</span><br>
+              <strong>Oprettet af:</strong> <span id="contractCreatedBy">-</span>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Sticky Action Bar -->
+      <div id="contractStickyActions" style="position:fixed;bottom:0;left:0;right:0;background:white;border-top:2px solid var(--line);padding:16px 20px;z-index:100;box-shadow:0 -4px 12px rgba(0,0,0,0.1)">
+        <div style="max-width:1400px;margin:0 auto;display:flex;align-items:center;gap:20px">
+          <div style="flex:1;display:flex;align-items:center;gap:12px">
+            <div style="font-size:0.9rem;font-weight:600;color:var(--text);min-width:150px">
+              <span id="contractProgressText">0/4 sektioner færdige</span>
+            </div>
+            <div style="flex:1;height:8px;background:var(--line);border-radius:4px;overflow:hidden">
+              <div id="contractProgressFill" style="height:100%;background:var(--brand);border-radius:4px;transition:width 0.3s ease;width:0%"></div>
+            </div>
+          </div>
+          <div style="display:flex;gap:12px">
+            <button id="contractSaveDraftBtn" class="btn ghost">💾 Gem kladde</button>
+            <button id="contractSaveFinalBtn" class="btn success" disabled>✅ Gem endelig kontrakt</button>
+            <button id="contractExportPdfBtn" class="btn primary" disabled>📄 Export PDF</button>
+            <button id="contractStartOverBtn" class="btn ghost">🔄 Start forfra</button>
+          </div>
+        </div>
+      </div>
+    </div>
 </div>
 
 <script>
+
 // Ignorér kendte extension-fejl i konsollen, så de ikke forstyrrer appen
 window.addEventListener('unhandledrejection', function(e){
   const msg = (e?.reason && (e.reason.message || String(e.reason))) || '';
@@ -774,22 +1072,21 @@ window.addEventListener('load', function() {
 
   const $ = (id)=>document.getElementById(id);
   
-  // Tabs: skift aktiv fane
-  document.querySelectorAll('.tabbtn').forEach(btn=>{
-    btn.onclick = async ()=>{
-      document.querySelectorAll('.tabbtn').forEach(x=>x.classList.remove('active'));
+  // Tab-navigation
+  document.querySelectorAll('.tabbtn').forEach(btn => {
+    btn.onclick = async () => {
+      // fjern active fra alle
+      document.querySelectorAll('.tabbtn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-
-      // skjul alle sektioner (inkl. development)
-      ['projects','results','teambuilding','development'].forEach(name=>{
+      // skjul alle sektioner
+      ['projects','results','teambuilding','development','contract'].forEach(name=>{
         const panel = $('tab-'+name);
         if(panel) panel.style.display = 'none';
       });
 
       // vis valgt sektion
       const target = $('tab-' + btn.dataset.tab);
-      if(target) target.style.display = 'block';
-      
+      if(target) target.style.display = 'block'; 
       // Vis/skjul "Opret nyt projekt" knappen afhængig af fane
       const createBtn = $('createNewProjectBtn');
       if(btn.dataset.tab === 'projects') {
@@ -803,44 +1100,50 @@ window.addEventListener('load', function() {
     };
   });
 
-  // Funktion til at håndtere automatisk data loading ved tab skift
-  async function handleTabDataLoading(tabName) {
-    try {
-      switch(tabName) {
-        case 'results':
-          // Opdater resultater fanen når den åbnes
-          const currentProject = $('selProject2').value;
-          const currentTarget = $('selTarget').value;
-          
-          if(currentProject && currentTarget) {
-            console.log('Auto-opdaterer resultater for projekt:', currentProject, 'target:', currentTarget);
-            await generateRadarChart();
-          } else if(currentProject) {
-            // Hvis projekt er valgt men ingen target, trigger projekt change event
-            console.log('Auto-loader personer for projekt:', currentProject);
-            const event = new Event('change');
-            $('selProject2').dispatchEvent(event);
-          }
-          break;
-          
-        case 'teambuilding':
-          // Opdater teambuilding fanen når den åbnes
-          const teamProject = $('selProject3').value;
-          
-          if(teamProject) {
-            console.log('Auto-opdaterer teambuilding for projekt:', teamProject);
-            await loadTeamBuildingData();
-          }
-          break;
-          
-        default:
-          // Ingen special handling for andre faner
-          break;
+  
+    // Funktion til at håndtere automatisk data loading ved tab skift
+    async function handleTabDataLoading(tabName) {
+      try {
+        switch(tabName) {
+          case 'contract':
+            await initContractTabOnce();
+            break;
+          case 'results':
+            // Opdater resultater fanen når den åbnes
+            const currentProject = $('selProject2').value;
+            const currentTarget = $('selTarget').value;
+            
+            if(currentProject && currentTarget) {
+              console.log('Auto-opdaterer resultater for projekt:', currentProject, 'target:', currentTarget);
+              await generateRadarChart();
+            } else if(currentProject) {
+              // Hvis projekt er valgt men ingen target, trigger projekt change event
+              console.log('Auto-loader personer for projekt:', currentProject);
+              const event = new Event('change');
+              $('selProject2').dispatchEvent(event);
+            }
+            break;
+            
+          case 'teambuilding':
+            // Opdater teambuilding fanen når den åbnes
+            const teamProject = $('selProject3').value;
+            
+            if(teamProject) {
+              console.log('Auto-opdaterer teambuilding for projekt:', teamProject);
+              await loadTeamBuildingData();
+            }
+            break;
+            
+          default:
+            // Ingen special handling for andre faner
+            break;
+        }
+      } catch(error) {
+        console.error('Fejl ved auto-loading af tab data:', error);
       }
-    } catch(error) {
-      console.error('Fejl ved auto-loading af tab data:', error);
     }
-  }
+
+
 
   // Logout
   $('logoutBtn').onclick = async ()=>{ 
@@ -1850,75 +2153,197 @@ window.showLargeProjectQR = (url, title) => {
     }
   }
 
-  function renderCoachingRecommendations(data) {
-    console.log('Rendering coaching recommendations with data:', data);
-    
-    if (!data) {
-      $('coaching-keep').innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px">Ingen coaching data modtaget</div>';
-      $('coaching-develop').innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px">Ingen coaching data modtaget</div>';
-      return;
-    }
-    
-    // Render "Fastholde" section
-    const keepContainer = $('coaching-keep');
-    if (data.fastholde && data.fastholde.length > 0) {
-      console.log('Rendering', data.fastholde.length, 'keep items');
-      keepContainer.innerHTML = data.fastholde.map(item => `
-        <div style="border:1px solid #dcfce7;border-radius:8px;padding:12px;background:#f0fdf4">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-            <strong style="color:var(--success)">${item.category_name}</strong>
-            <span style="background:var(--success);color:white;padding:2px 8px;border-radius:12px;font-size:0.8rem">${item.score}</span>
-          </div>
-          <div style="font-size:0.9rem;color:var(--muted);margin-bottom:8px">
-            ${item.overview?.synopsis || 'Stærk kompetence'}
-          </div>
-          <div style="margin-top:8px">
-            <strong style="font-size:0.85rem;color:var(--success)">💡 Fortsæt med:</strong>
-            ${(item.keep_doing || []).map(action => `
-              <div style="margin:4px 0;font-size:0.85rem;padding:4px 8px;background:rgba(34,197,94,0.1);border-radius:6px">
-                ${action.micro_habit || action.title}
-              </div>
-            `).join('')}
-          </div>
+    async function renderCoachingRecommendations(data) {
+  console.log('Rendering coaching recommendations with data:', data);
+  if (!data) {
+    $('coaching-keep').innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px">Ingen coaching data modtaget</div>';
+    $('coaching-develop').innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px">Ingen coaching data modtaget</div>';
+    return;
+  }
+
+  // ===== Fastholde =====
+  const keepContainer = $('coaching-keep');
+  if (data.fastholde && data.fastholde.length > 0) {
+    keepContainer.innerHTML = data.fastholde.map(item => `
+      <div style="border:1px solid #dcfce7;border-radius:8px;padding:12px;background:#f0fdf4">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <strong style="color:var(--success)">${item.category_name}</strong>
+          <span style="background:var(--success);color:white;padding:2px 8px;border-radius:12px;font-size:0.8rem">${item.score}</span>
         </div>
-      `).join('');
-    } else {
-      console.log('No keep items found');
-      keepContainer.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px">📊 Ingen tydelige styrker fundet (muligvis anonymitetsgrænse)</div>';
-    }
-    
-    // Render "Udvikle" section
-    const developContainer = $('coaching-develop');
-    if (data.udvikle && data.udvikle.length > 0) {
-      console.log('Rendering', data.udvikle.length, 'develop items');
-      developContainer.innerHTML = data.udvikle.map(item => `
+        <div style="font-size:0.9rem;color:var(--muted);margin-bottom:8px">
+          ${item.overview?.synopsis || 'Stærk kompetence'}
+        </div>
+        <div style="margin-top:8px">
+          <strong style="font-size:0.85rem;color:var(--success)">💡 Fortsæt med:</strong>
+          ${(item.keep_doing || []).map(action => `
+            <div style="margin:4px 0;font-size:0.85rem;padding:4px 8px;background:rgba(34,197,94,0.1);border-radius:6px">
+              ${action.micro_habit || action.title}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `).join('');
+  } else {
+    keepContainer.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px">📊 Ingen tydelige styrker fundet (muligvis anonymitetsgrænse)</div>';
+  }
+
+  // Hjælpere
+  const methodLabel = (m) => m === 'self' ? 'SELV' : (m === 'colleague' ? 'KOLLEGA' : (m === 'leader_employee' ? 'FØRER' : m));
+  const typeChip = (t) => {
+    const label = t==='self' ? 'SELV' : (t==='peer' ? 'KOLLEGA' : 'FØRER');
+    const bg = t==='self' ? '#10b981' : (t==='peer' ? '#3b82f6' : '#8b5cf6');
+    return `<span style="background:${bg};color:#fff;font-weight:600;padding:2px 6px;border-radius:10px;font-size:10px;margin-left:6px">${label}</span>`;
+  };
+  const toMethod = (t) => t==='self' ? 'self' : (t==='peer' ? 'colleague' : 'leader_employee');
+
+  // ===== Udvikle =====
+  const developContainer = $('coaching-develop');
+  if (data.udvikle && data.udvikle.length > 0) {
+    const cards = await Promise.all((data.udvikle || []).map(async (item) => {
+      // 1) Start med tips fra RPC og fjern fallback
+      let tips = (item.how_to_develop || []).filter(t =>
+        t.tip_id && !/Fokusér på grundlæggende|Vælg ét lavt område/i.test(t.title || '')
+      );
+
+      // 2) Hvis tomt (som i dit eksempel): hent direkte fra kataloget for den/de lave metoder
+      if (tips.length === 0) {
+        const pid = document.getElementById('selProject2')?.value;
+        const tid = document.getElementById('selTarget')?.value;
+
+        // find evt. dismissed tip_id'er
+        let dismissedIds = [];
+        try {
+          const { data: st } = await supabase
+            .from('coaching_tip_state')
+            .select('tip_id')
+            .eq('project_id', pid)
+            .eq('target_id', tid)
+            .eq('category_id', item.category_id)
+            .eq('dismissed', true);
+          dismissedIds = (st || []).map(r => r.tip_id);
+        } catch(e) { /* ignore */ }
+
+        // hent tips for den/de lave typer
+        const methods = (item.low_types || []).map(toMethod);
+        try {
+          const { data: raw } = await supabase
+            .from('coaching_tip')
+            .select('id,title,description,method,sort_order')
+            .eq('category_id', item.category_id)
+            .in('method', methods)
+            .order('sort_order', { ascending: true });
+          tips = (raw || [])
+            .filter(r => !dismissedIds.includes(r.id))
+            .map(r => ({
+              tip_id: r.id,
+              title: r.title,
+              description: r.description,
+              method: r.method
+            }));
+        } catch(e) { /* ignore */ }
+      }
+
+      // 3) Gruppér pr. råd-overskrift og lav linjer pr. metode
+      const groups = {};
+      for (const tip of tips) {
+        const key = tip.title || '(uden titel)';
+        (groups[key] ||= []).push(tip);
+      }
+      const order = { self: 1, colleague: 2, leader_employee: 3 };
+
+      const groupHtml = Object.entries(groups).map(([title, arr]) => {
+        arr.sort((a,b)=> (order[a.method]||9)-(order[b.method]||9));
+        const lines = arr.map(tip => `
+          <div class="tip-line" style="display:flex;gap:8px;align-items:flex-start;margin:4px 0;position:relative">
+            <span style="
+              background:${tip.method==='self' ? '#10b981' : (tip.method==='colleague' ? '#3b82f6' : '#8b5cf6')};
+              color:#fff;
+              font-weight:600;
+              padding:2px 8px;
+              border-radius:10px;
+              font-size:11px;
+              min-width:72px;
+              text-align:center">
+              ${methodLabel(tip.method)}
+            </span>
+            <div style="flex:1;font-size:0.9rem;line-height:1.35">${tip.description || ''}</div>
+       
+            <button 
+              class="dismiss-tip"
+              data-category-id="${item.category_id}"
+              data-tip-id="${tip.tip_id || tip.id}"
+              title="Markér som ikke relevant"
+              style="background:#dc3545;color:#fff;border:none;border-radius:4px;width:22px;height:22px;line-height:20px;font-weight:700;cursor:pointer">
+              ✖
+            </button>
+
+          </div>
+        `).join('');
+
+        return `
+          <div style="margin:10px 0;padding:10px;background:white;border-radius:8px;border:1px solid #e5e7eb">
+            <div style="font-weight:700;color:#111827;margin-bottom:6px">${title}</div>
+            ${lines}
+          </div>
+        `;
+      }).join('') || `<div style="color:var(--muted);font-size:0.9rem">Ingen specifikke tips fundet.</div>`;
+
+            return `
         <div style="border:1px solid #dbeafe;border-radius:8px;padding:12px;background:#f8fafc">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
             <strong style="color:var(--brand)">${item.category_name}</strong>
             <span style="background:var(--error);color:white;padding:2px 8px;border-radius:12px;font-size:0.8rem">${item.score}</span>
           </div>
-          <div style="margin-top:8px">
+          <div style="margin-top:6px">
             <strong style="font-size:0.85rem;color:var(--brand)">🚀 Udviklingstips:</strong>
-            ${(item.how_to_develop || []).slice(0, 2).map(tip => `
-              <div style="margin:6px 0;padding:8px;background:white;border-radius:6px;border-left:3px solid var(--brand)">
-                <div style="font-weight:600;font-size:0.9rem">${tip.title}</div>
-                <div style="font-size:0.8rem;color:var(--muted);margin-top:2px">${tip.description || ''}</div>
-                <div style="margin-top:4px;font-size:0.8rem">
-                  <span style="background:var(--brand);color:white;padding:1px 6px;border-radius:8px;margin-right:6px">
-                    ${tip.method || 'self'}
-                  </span>
-                  ${tip.next_action || (tip.micro_habits && tip.micro_habits.length > 0 ? tip.micro_habits[0] : tip.title)}
-                </div>
-              </div>
-            `).join('')}
+            ${groupHtml}
           </div>
         </div>
-      `).join('');
-    } else {
-      console.log('No develop items found');
-      developContainer.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px">📊 Ingen tydelige udviklingsområder fundet (muligvis anonymitetsgrænse)</div>';
+      `;
+
+    }));
+    developContainer.innerHTML = cards.join('');
+
+// Bind klik-håndtering til hele containeren (event delegation) én gang
+if (!window.__coachDismissBound) {
+  window.__coachDismissBound = true;
+  developContainer.addEventListener('click', async (ev) => {
+    const btn = ev.target.closest('.dismiss-tip');
+    if (!btn) return;
+
+    const pid = document.getElementById('selProject2')?.value;
+    const tid = document.getElementById('selTarget')?.value;
+    const categoryId = btn.getAttribute('data-category-id');
+    const tipId = btn.getAttribute('data-tip-id');
+
+    try {
+      const { error } = await supabase.from('coaching_tip_state').upsert([{
+        project_id: pid,
+        target_id: tid,
+        category_id: categoryId,
+        tip_id: tipId,
+        dismissed: true,
+        dismissed_at: new Date().toISOString()
+      }]);
+      if (error) {
+        alert('Kunne ikke skjule råd: ' + error.message);
+        return;
+      }
+      // Fjern linjen i UI’et med det samme
+      const line = btn.closest('.tip-line');
+      if (line) line.remove();
+      // (valgfrit) genindlæs hele anbefalingslisten for konsistens
+      await loadCoachingRecommendations();
+    } catch (e) {
+      alert('Teknisk fejl ved skjul: ' + (e?.message || e));
     }
+  });
+}
+
+  } else {
+    developContainer.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px">📊 Ingen tydelige udviklingsområder fundet (muligvis anonymitetsgrænse)</div>';
   }
+}
 
   function updateCoachingPlan(data) {
     if (!data || !data.udvikle || data.udvikle.length === 0) return;
@@ -4029,33 +4454,990 @@ $('btnZip').onclick = () => {
   }
 };
 
-// Tilføj også denne hjælpefunktion til at opdatere knappens tekst:
-function updateTeamPdfButton() {
-  const btn = $('btnDownloadTeamPDF');
-  const selectedCount = teamData.filter(p => p.selected).length;
+let contractInitialized = false;
+
+let contractState = {
+  project_id: null,
+  target_id: null,
+  selectedCompetencies: new Set(), // Set<category_id>
+  selectedTips: new Map(),         // Map<category_id, Set<tip_id>>
+  roles: new Map(),                // Map<tip_id, {employee_action, leader_action, status}>
+  followup_date: null,
+  version: 1,
+  is_draft: true,
+  contract_id: null
+};
+
+let contractAvailableCompetencies = []; // fra v_template_categories
+let contractAvailableTips = new Map();   // Map<category_id, Tip[]>
+
+
+async function initContractTabOnce(){
+  if (contractInitialized) return;
+  contractInitialized = true;
+
+  // UI-tilføjelser til AI-knap + overlay
+  ensureContractUiExtras?.();
+
+  // Fyld projekter + bind events
+  await contractLoadProjects();
+  contractSetupEventListeners();
+  contractUpdateSectionStatus();
+
+  // Bind AI-knap (findes først efter ensureContractUiExtras)
+  const aiBtn = document.getElementById('aiSuggestBtn');
+  if (aiBtn) aiBtn.addEventListener('click', generateAISuggestion);
+}
+
+
+async function contractLoadProjects() {
+  try {
+    const { data: projects, error } = await supabase
+      .from('projects')
+      .select('id, title, template_id')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+
+    const sel = $('contractProjectSelect');
+    sel.innerHTML = '<option value="">Vælg projekt.</option>';
+    (projects || []).forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.title;
+      opt.dataset.templateId = p.template_id;
+      sel.appendChild(opt);
+    });
+  } catch (e) {
+    console.error('Fejl ved indlæsning af projekter:', e);
+  }
+}
+
+async function contractLoadTargets(projectId) {
+  try {
+    const { data: people, error } = await supabase
+      .from('project_people')
+      .select('id, full_name')
+      .eq('project_id', projectId)
+      .order('full_name', { ascending: true });
+    if (error) throw error;
+
+    const sel = $('contractTargetSelect');
+    sel.innerHTML = '<option value="">Vælg målperson.</option>';
+    (people || []).forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.full_name;
+      sel.appendChild(opt);
+    });
+  } catch (e) {
+    console.error('Fejl ved indlæsning af målpersoner:', e);
+  }
+}
+
+async function contractLoadCompetencies(templateId) {
+  try {
+    const { data, error } = await supabase
+      .from('v_category_path')
+      .select('*')
+      .eq('template_id', templateId)
+      .order('domain_name, category_name');
+    if (error) throw error;
+
+    contractAvailableCompetencies = data || [];
+    console.log('Indlæste kompetencer:', contractAvailableCompetencies);
+    contractRenderCompetencies();
+  } catch (e) {
+    console.error('Fejl ved indlæsning af kompetencer:', e);
+    alert('Kunne ikke indlæse kompetencer: ' + (e.message || e));
+  }
+}
+
+function contractRenderCompetencies() {
+  const grid = $('contractCompetencyGrid');
+  grid.innerHTML = '';
   
-  if (selectedCount === 0) {
-    btn.textContent = '📥 Download Team PDF (Alle)';
-    btn.className = 'btn primary';
+  console.log('Rendering kompetencer:', contractAvailableCompetencies.length);
+  
+  if (contractAvailableCompetencies.length === 0) {
+    grid.innerHTML = '<div style="color:var(--muted);padding:20px;text-align:center">Ingen kompetencer fundet for dette projekt</div>';
+    return;
+  }
+  
+  contractAvailableCompetencies.forEach(comp => {
+    const card = document.createElement('div');
+    card.className = 'contract-competency-card';
+    card.dataset.competencyId = comp.category_id;
+    card.innerHTML = `
+      <div class="check-icon">✓</div>
+      <div style="font-weight:600;margin-bottom:4px">${comp.category_name}</div>
+      <div style="font-size:0.8rem;color:var(--muted)">${comp.domain_name}</div>
+    `;
+    card.addEventListener('click', () => contractToggleCompetency(comp.category_id, card));
+    grid.appendChild(card);
+  });
+  
+  console.log('Rendered', contractAvailableCompetencies.length, 'kompetence kort');
+}
+
+function contractToggleCompetency(competencyId, card) {
+  if (contractState.selectedCompetencies.has(competencyId)) {
+    contractState.selectedCompetencies.delete(competencyId);
+    card.classList.remove('selected');
+    contractState.selectedTips.delete(competencyId); // ryd tips for denne kompetence
   } else {
-    btn.textContent = `📥 Download Team PDF (${selectedCount} valgte)`;
-    btn.className = 'btn success';
+    contractState.selectedCompetencies.add(competencyId);
+    card.classList.add('selected');
   }
+  contractUpdateSectionStatus();
 }
 
-// Tilføj denne funktion til at håndtere person selection:
-function togglePersonSelection(personId) {
-  const person = teamData.find(p => p.id === personId);
-  if (person) {
-    person.selected = !person.selected;
-    const selectedCount = teamData.filter(p => p.selected).length;
-    $('selectedCount').textContent = selectedCount;
+async function contractLoadTipsForSelected() {
+  const container = $('contractTipsContainer');
+  if (contractState.selectedCompetencies.size === 0) {
+    container.innerHTML = '<div style="color:var(--muted);padding:20px">Vælg kompetencer først</div>';
+    return;
+  }
+  
+  const competencyIds = Array.from(contractState.selectedCompetencies);
+  
+  if (!contractState.project_id || !contractState.target_id) {
+    container.innerHTML = '<div style="color:var(--muted)">Vælg både projekt og målperson for at se tips.</div>';
+    return;
+  }
+
+  try {
+    console.log('Henter tips fra Coaching fra Resultater fanen...');
     
-    updateTeamRadar();
-    updateTeamPdfButton();
+    // Hent coaching anbefalinger for at identificere udviklings- og fastholdelseskategorier
+    const { data: coachingData, error: coachingError } = await supabase.rpc('get_coaching_recommendations', {
+      p_project_id: contractState.project_id,
+      p_target_id: contractState.target_id,
+      p_types: ['self', 'peer', 'leader'],
+      p_limit_keep: 5,
+      p_limit_develop: 8
+    });
+
+    contractAvailableTips.clear();
+    
+    // Helper funktion for at konvertere typer
+    const toMethod = (t) => t === 'self' ? 'self' : (t === 'peer' ? 'colleague' : 'leader_employee');
+    
+    // Hent dismissed tips en gang for alle kategorier
+    const { data: dismissed } = await supabase
+      .from('coaching_tip_state')
+      .select('tip_id')
+      .eq('project_id', contractState.project_id)
+      .eq('target_id', contractState.target_id)
+      .eq('dismissed', true);
+    const dismissedIds = new Set((dismissed || []).map(x => x.tip_id));
+    
+    if (!coachingError && coachingData && (coachingData.udvikle || coachingData.fastholde)) {
+      console.log('Bruger coaching anbefalinger fra Resultater fanen');
+      
+      // Proces udviklingskategorier
+      for (const item of (coachingData.udvikle || [])) {
+        if (competencyIds.includes(item.category_id)) {
+          console.log(`Henter udviklings-tips for ${item.category_name} (score: ${item.score})`);
+          
+          // Hent tips direkte fra coaching_tip tabellen baseret på lave typer
+          const methods = (item.low_types || ['self', 'peer']).map(toMethod);
+          
+          const { data: rawTips } = await supabase
+            .from('coaching_tip')
+            .select('id,title,description,method,sort_order,impact,effort,time_horizon')
+            .eq('category_id', item.category_id)
+            .in('method', methods)
+            .order('sort_order', { ascending: true });
+          
+          const tips = (rawTips || [])
+            .filter(r => !dismissedIds.has(r.id))
+            .map(r => ({
+              id: r.id,
+              title: r.title,
+              description: r.description,
+              method: r.method,
+              category_id: item.category_id,
+              category_name: item.category_name,
+              priority: 'coaching_develop',
+              coaching_context: `Fra Coaching: Udvikling anbefalet (score: ${item.score})`,
+              impact: r.impact,
+              effort: r.effort,
+              time_horizon: r.time_horizon
+            }));
+          
+          if (tips.length > 0) {
+            contractAvailableTips.set(item.category_id, tips);
+          }
+        }
+      }
+      
+      // Proces fastholdelseskategorier
+      for (const item of (coachingData.fastholde || [])) {
+        if (competencyIds.includes(item.category_id)) {
+          console.log(`Henter fasthold-tips for ${item.category_name} (score: ${item.score})`);
+          
+          const { data: rawTips } = await supabase
+            .from('coaching_tip')
+            .select('id,title,description,method,sort_order,impact,effort,time_horizon')
+            .eq('category_id', item.category_id)
+            .in('method', ['self', 'colleague'])
+            .order('impact', { ascending: false })
+            .limit(2);
+          
+          const tips = (rawTips || [])
+            .filter(r => !dismissedIds.has(r.id))
+            .map(r => ({
+              id: r.id,
+              title: r.title,
+              description: r.description,
+              method: r.method,
+              category_id: item.category_id,
+              category_name: item.category_name,
+              priority: 'coaching_keep',
+              coaching_context: `Fra Coaching: Fasthold stærk kompetence (score: ${item.score})`,
+              impact: r.impact,
+              effort: r.effort,
+              time_horizon: r.time_horizon
+            }));
+          
+          if (tips.length > 0) {
+            // Tilføj til eksisterende tips eller opret nye
+            if (contractAvailableTips.has(item.category_id)) {
+              contractAvailableTips.get(item.category_id).push(...tips);
+            } else {
+              contractAvailableTips.set(item.category_id, tips);
+            }
+          }
+        }
+      }
+      
+      // Fallback for kompetencer uden coaching data
+      const missingCompetencies = competencyIds.filter(id => !contractAvailableTips.has(id));
+      if (missingCompetencies.length > 0) {
+        console.log('Fallback til database for kompetencer uden coaching data:', missingCompetencies);
+        await loadFallbackTips(missingCompetencies, dismissedIds);
+      }
+      
+    } else {
+      // Komplet fallback hvis coaching data ikke er tilgængelig
+      console.log('Coaching data ikke tilgængelig - bruger database fallback for alle kompetencer');
+      await loadFallbackTips(competencyIds, dismissedIds);
+    }
+
+    console.log('Tips loaded for categories:', Array.from(contractAvailableTips.keys()).length);
+    contractRenderTips();
+    
+  } catch (e) {
+    console.error('Fejl ved indlæsning af tips:', e);
+    container.innerHTML = '<div style="color:var(--error)">Fejl ved indlæsning af tips: ' + (e.message || e) + '</div>';
   }
 }
 
+async function loadFallbackTips(competencyIds, dismissedIds) {
+  const { data: tips, error } = await supabase
+    .from('v_coaching_tip_enriched')
+    .select('*')
+    .in('category_id', competencyIds);
+    
+  if (error) throw error;
+
+  (tips || [])
+    .filter(t => !dismissedIds.has(t.id))
+    .forEach(tip => {
+      const enhancedTip = {
+        ...tip,
+        priority: 'database_fallback',
+        coaching_context: 'Database fallback - generelt udviklingsforslag'
+      };
+      
+      if (!contractAvailableTips.has(tip.category_id)) {
+        contractAvailableTips.set(tip.category_id, []);
+      }
+      contractAvailableTips.get(tip.category_id).push(enhancedTip);
+    });
+}
+
+function contractRenderTips() {
+  const container = $('contractTipsContainer');
+  container.innerHTML = '';
+
+  contractState.selectedCompetencies.forEach(competencyId => {
+    const comp = contractAvailableCompetencies.find(c => c.category_id === competencyId);
+    const tips = contractAvailableTips.get(competencyId) || [];
+
+    const section = document.createElement('div');
+    section.innerHTML = `
+      <h4 style="color:var(--brand);margin-bottom:12px">${comp?.category_name || 'Ukendt kompetence'}</h4>
+      <div id="tips-${competencyId}"></div>
+    `;
+
+    const wrap = section.querySelector(`#tips-${competencyId}`);
+    tips.forEach(tip => {
+      const card = document.createElement('div');
+      card.className = 'contract-tip-card';
+      card.dataset.tipId = tip.id;
+      card.dataset.competencyId = competencyId;
+      if (contractState.selectedTips.get(competencyId)?.has(tip.id)) {
+        card.classList.add('selected');
+      }
+      card.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <span class="contract-tip-method">${contractMethodLabel(tip.method)}</span>
+          <strong>${tip.title}</strong>
+        </div>
+        <p style="margin:0;font-size:0.9rem;color:var(--muted)">${tip.description}</p>
+      `;
+      card.addEventListener('click', () => contractToggleTip(competencyId, tip.id, card));
+      wrap.appendChild(card);
+    });
+
+    container.appendChild(section);
+  });
+}
+
+function contractMethodLabel(method){
+  const m = {
+    self: 'Selv', colleague: 'Kollega', leader_employee: 'Leder',
+    group: 'Gruppe', external: 'Ekstern', course: 'Kursus'
+  };
+  return m[method] || method;
+}
+
+function contractToggleTip(competencyId, tipId, card){
+  if (!contractState.selectedTips.has(competencyId)) {
+    contractState.selectedTips.set(competencyId, new Set());
+  }
+  const set = contractState.selectedTips.get(competencyId);
+  if (set.has(tipId)) {
+    set.delete(tipId);
+    card.classList.remove('selected');
+    contractState.roles.delete(tipId); // fjern evt. rolle
+  } else {
+    set.add(tipId);
+    card.classList.add('selected');
+  }
+  contractUpdateSectionStatus();
+}
+
+function contractSetupRolesStep(){
+  // Load existing data if available
+  const employeeEl = $('contractEmployeeActions');
+  const employeeWishesEl = $('contractEmployeeWishes');  
+  const leaderEl = $('contractLeaderActions');
+  const colleagueEl = $('contractColleagueSupport');
+  
+  // Set up event listeners for text areas
+  if (employeeEl && !employeeEl.hasAttribute('data-listener-added')) {
+    employeeEl.addEventListener('input', (e) => {
+      contractState.employee_actions = e.target.value;
+      contractUpdateSectionStatus();
+    });
+    employeeEl.setAttribute('data-listener-added', 'true');
+  }
+  
+  if (employeeWishesEl && !employeeWishesEl.hasAttribute('data-listener-added')) {
+    employeeWishesEl.addEventListener('input', (e) => {
+      contractState.employee_wishes = e.target.value;
+      contractUpdateSectionStatus();
+    });
+    employeeWishesEl.setAttribute('data-listener-added', 'true');
+  }
+  
+  if (leaderEl && !leaderEl.hasAttribute('data-listener-added')) {
+    leaderEl.addEventListener('input', (e) => {
+      contractState.leader_actions = e.target.value;
+      contractUpdateSectionStatus();
+    });
+    leaderEl.setAttribute('data-listener-added', 'true');
+  }
+
+  // Load colleague support data
+  contractLoadColleagueSupport();
+}
+
+async function contractLoadColleagueSupport() {
+  const colleagueEl = $('contractColleagueSupport');
+  if (!colleagueEl) return;
+  
+  const selectedCompetencies = Array.from(contractState.selectedCompetencies);
+  if (selectedCompetencies.length === 0) {
+    colleagueEl.innerHTML = '<p style="color:var(--muted);font-style:italic">Vælg først kompetencer for at se kollega forslag</p>';
+    return;
+  }
+  
+  try {
+    colleagueEl.innerHTML = '<p style="color:var(--muted)">Søger efter kollegaer...</p>';
+    
+    const response = await fetch('/api/colleague-support', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        project_id: contractState.project_id,
+        competencies: selectedCompetencies
+      })
+    });
+    
+    if (!response.ok) throw new Error('Kunne ikke hente kollega data');
+    const colleagues = await response.json();
+    
+    if (colleagues.length === 0) {
+      colleagueEl.innerHTML = '<p style="color:var(--muted);font-style:italic">Ingen kollegaer fundet med data for de valgte kompetencer</p>';
+      return;
+    }
+    
+    colleagueEl.innerHTML = colleagues.map((colleague, index) => `
+      <div style="border:1px solid var(--line);border-radius:6px;padding:12px;margin-bottom:8px;background:#f9f9f9">
+        <strong>${colleague.full_name}</strong>
+        <div style="font-size:0.8rem;color:var(--muted)">Gennemsnit: ${colleague.avg_score.toFixed(1)}</div>
+        <div style="font-size:0.9rem;margin-top:4px">Stærk inden for: ${colleague.competencies.join(', ')}</div>
+      </div>
+    `).join('');
+    
+  } catch (error) {
+    console.error('Error loading colleague support:', error);
+    colleagueEl.innerHTML = '<p style="color:var(--error);font-style:italic">Fejl ved indlæsning af kollega forslag</p>';
+  }
+}
+
+document.addEventListener('click', (e) => {
+  if (e.target.classList.contains('contract-status-btn')) {
+    const tipId = parseInt(e.target.dataset.tipId);
+    const status = e.target.dataset.status;
+    const sib = e.target.parentNode.querySelectorAll('.contract-status-btn');
+    sib.forEach(b=>b.classList.remove('active'));
+    e.target.classList.add('active');
+    if (contractState.roles.has(tipId)) {
+      contractState.roles.get(tipId).status = status;
+    }
+    contractUpdateSectionStatus();
+  }
+});
+
+function contractSetupOverview(){
+  const el = $('contractOverviewContent');
+  const projSel = $('contractProjectSelect');
+  const targSel = $('contractTargetSelect');
+  const projTxt = projSel.options[projSel.selectedIndex]?.text || 'Ikke valgt';
+  const targTxt = targSel.options[targSel.selectedIndex]?.text || 'Ikke valgt';
+
+  let html = `<h4>📋 Udviklingskontrakt — Oversigt</h4>
+  <div style="margin:16px 0">
+    <strong>Projekt:</strong> ${projTxt}<br>
+    <strong>Målperson:</strong> ${targTxt}<br>
+    <strong>Opfølgningsdato:</strong> ${contractState.followup_date || 'Ikke sat'}
+  </div>`;
+
+  html += '<h5>Valgte kompetencer:</h5><ul>';
+  contractState.selectedCompetencies.forEach(cid=>{
+    const c = contractAvailableCompetencies.find(x=>x.category_id===cid);
+    html += `<li>${c?.category_name || 'Ukendt'}</li>`;
+  });
+  html += '</ul>';
+
+  let totalActivities = 0;
+  for (const tips of contractState.selectedTips.values()) totalActivities += tips.size;
+  html += `<h5>Aktiviteter:</h5><p>${totalActivities} aktiviteter valgt</p>`;
+  html += `<h5>Roller:</h5><p>${contractState.roles.size} handlinger defineret</p>`;
+
+  el.innerHTML = html;
+}
+
+function contractUpdateProgress(){
+  let done = 0;
+  if (contractState.selectedCompetencies.size > 0) done++;
+  let totalTips = 0;
+  for (const s of contractState.selectedTips.values()) totalTips += s.size;
+  if (totalTips > 0 && contractState.selectedCompetencies.size > 0) done++;
+  if (contractState.roles.size > 0) done++;
+  if (contractState.roles.size > 0 && contractState.followup_date) done++;
+
+  const pct = Math.round((done/4)*100);
+  $('contractProgressText').textContent = `${done}/4 sektioner færdige`;
+  $('contractProgressFill').style.width = `${pct}%`;
+
+  const allComplete = done >= 3; // min. kompetencer + aktiviteter + roller
+  $('contractSaveFinalBtn').disabled = !allComplete;
+  $('contractExportPdfBtn').disabled = !allComplete;
+}
+
+function contractUpdateSectionStatus(){
+  // 1) Kompetencer
+  const compCount = contractState.selectedCompetencies.size;
+  const compStatus = $('contractCompetenciesStatus');
+  const compSection = $('contractCompetenciesSection');
+
+  if (compCount > 0) {
+    compStatus.innerHTML = `<span class="status-text complete">${compCount} valgt</span>`;
+    compSection.classList.add('active');
+    // 2) Aktiviteter åbnes når der er kompetencer
+    $('contractActivitiesSection').classList.add('active');
+    contractLoadTipsForSelected();
+  } else {
+    compStatus.innerHTML = `<span class="status-text">0 valgt</span>`;
+    compSection.classList.remove('active');
+    $('contractActivitiesSection').classList.remove('active');
+    $('contractRolesSection').classList.remove('active');
+    $('contractOverviewSection').classList.remove('active');
+  }
+
+  // 2) Aktiviteter
+  let totalTips = 0;
+  for (const s of contractState.selectedTips.values()) totalTips += s.size;
+  const actStatus = $('contractActivitiesStatus');
+  if (totalTips > 0 && compCount > 0) {
+    actStatus.innerHTML = `<span class="status-text complete">${totalTips} aktiviteter valgt</span>`;
+    $('contractRolesSection').classList.add('active');
+    contractSetupRolesStep();
+  } else if (compCount > 0) {
+    actStatus.innerHTML = `<span class="status-text">Vælg aktiviteter</span>`;
+    $('contractRolesSection').classList.remove('active');
+  } else {
+    actStatus.innerHTML = `<span class="status-text">Vælg først kompetencer</span>`;
+  }
+
+  // 3) Roller
+  const rolesStatus = $('contractRolesStatus');
+  const hasEmployeeActions = contractState.employee_actions?.trim();
+  const hasEmployeeWishes = contractState.employee_wishes?.trim();
+  const hasLeaderActions = contractState.leader_actions?.trim();
+  const rolesCompleted = hasEmployeeActions && hasEmployeeWishes && hasLeaderActions;
+
+  if (rolesCompleted) {
+    rolesStatus.innerHTML = `<span class="status-text complete">Roller defineret</span>`;
+    $('contractOverviewSection').classList.add('active');
+    contractSetupOverview();
+  } else {
+    rolesStatus.innerHTML = `<span class="status-text">Udfyld tekstfelterne</span>`;
+    $('contractOverviewSection').classList.remove('active');
+  }
+
+  contractUpdateProgress();
+}
+
+function contractSetupEventListeners(){
+  // Projekt valg
+  $('contractProjectSelect').addEventListener('change', async (e)=>{
+    const projectId = e.target.value || null;
+    const templateId = e.target.selectedOptions[0]?.dataset.templateId || null;
+
+    // nulstil state
+    contractState.project_id = projectId;
+    contractState.target_id = null;
+    contractState.selectedCompetencies.clear();
+    contractState.selectedTips.clear();
+    contractState.roles.clear();
+    $('contractTargetSelect').innerHTML = '<option value="">Vælg målperson.</option>';
+    $('contractCompetencyGrid').innerHTML = '';
+    $('contractTipsContainer').innerHTML = '';
+    $('contractEmployeeActions').innerHTML = '';
+    $('contractLeaderActions').innerHTML = '';
+    $('contractOverviewContent').innerHTML = '';
+
+    if (projectId) {
+      await contractLoadTargets(projectId);
+      if (templateId) await contractLoadCompetencies(templateId);
+    }
+    contractUpdateSectionStatus();
+  });
+
+  // Målperson valg
+  $('contractTargetSelect').addEventListener('change', async (e)=>{
+    contractState.target_id = e.target.value || null;
+    // prøv at indlæse eksisterende kontrakt hvis den findes
+    await contractMaybeLoadExistingContract();
+    contractUpdateSectionStatus();
+  });
+
+  // Opfølgningsdato
+  const followup = $('contractFollowupDate');
+  if (followup) {
+    followup.addEventListener('change', (e)=>{
+      contractState.followup_date = e.target.value || null;
+      contractUpdateSectionStatus();
+    });
+  }
+
+  // Knapper
+  $('contractSaveDraftBtn').addEventListener('click', ()=> contractSave(true));
+  $('contractSaveFinalBtn').addEventListener('click', ()=> contractSave(false));
+  $('contractExportPdfBtn').addEventListener('click', contractExportPdf);
+  $('contractStartOverBtn').addEventListener('click', contractStartOver);
+}
+
+async function contractMaybeLoadExistingContract(){
+  try {
+    if (!contractState.project_id || !contractState.target_id) return;
+    const url = `/contract-data?project_id=${encodeURIComponent(contractState.project_id)}&target_id=${encodeURIComponent(contractState.target_id)}`;
+    const resp = await fetch(url);
+    if (!resp.ok) return;
+    const data = await resp.json(); // { contract, competencies, tips }
+
+    if (data && data.contract && data.contract.id) {
+      const dc = data.contract;
+      contractState.contract_id = dc.id;
+      contractState.followup_date = dc.followup_date || null;
+
+      // kompetencer
+      contractState.selectedCompetencies = new Set(dc.selected_competencies || []);
+      // tegn kompetencer som valgte
+      contractAvailableCompetencies.forEach(c=>{
+        const card = document.querySelector(`.contract-competency-card[data-competency-id="${c.category_id}"]`);
+        if (!card) return;
+        if (contractState.selectedCompetencies.has(c.category_id)) card.classList.add('selected');
+        else card.classList.remove('selected');
+      });
+
+      // tips
+      contractState.selectedTips = new Map();
+      const selectedTipsObj = dc.selected_tips || {};
+      Object.keys(selectedTipsObj).forEach(catId => {
+        contractState.selectedTips.set(catId, new Set(selectedTipsObj[catId] || []));
+      });
+
+      // roller
+      contractState.roles = new Map();
+      const rolesObj = dc.roles_assignments || {};
+      Object.keys(rolesObj).forEach(tipIdStr => {
+        const tipId = parseInt(tipIdStr);
+        contractState.roles.set(tipId, rolesObj[tipIdStr]);
+      });
+
+      // tegn tips + roller
+      await contractLoadTipsForSelected();
+      contractSetupRolesStep();
+      contractSetupOverview();
+
+      // udfyld dato felt hvis findes
+      const followup = $('contractFollowupDate');
+      if (followup) followup.value = contractState.followup_date || '';
+
+      contractUpdateSectionStatus();
+    }
+  } catch (e) {
+    console.warn('Kunne ikke indlæse eksisterende kontrakt:', e);
+  }
+}
+
+function contractSerializeSelectedTips(){
+  const obj = {};
+  for (const [catId, set] of contractState.selectedTips.entries()) {
+    obj[catId] = Array.from(set);
+  }
+  return obj;
+}
+
+function contractSerializeRoles(){
+  const obj = {};
+  for (const [tipId, val] of contractState.roles.entries()) {
+    obj[tipId] = val;
+  }
+  return obj;
+}
+
+async function contractSave(isDraft){
+  try {
+    if (!contractState.project_id || !contractState.target_id) {
+      alert('Vælg både projekt og målperson først.');
+      return;
+    }
+    const title = 'Udviklingskontrakt';
+    const payload = {
+      project_id: contractState.project_id,
+      target_id: contractState.target_id,
+      title,
+      competencies: Array.from(contractState.selectedCompetencies),
+      tips: contractSerializeSelectedTips(),
+      roles: contractSerializeRoles(),
+      followup_date: contractState.followup_date,
+      is_draft: !!isDraft
+    };
+
+    const res = await fetch('/save-contract', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error('Kunne ikke gemme kontrakt');
+    const json = await res.json();
+    contractState.contract_id = json.contract_id || contractState.contract_id;
+
+    alert(isDraft ? 'Kladde gemt ✅' : 'Endelig kontrakt gemt ✅');
+    contractUpdateSectionStatus();
+  } catch (e) {
+    console.error('Gem fejl:', e);
+    alert('Fejl ved gemning: ' + e.message);
+  }
+}
+
+async function contractExportPdf(){
+  try {
+    if (!contractState.contract_id) {
+      // gem endelig hvis ikke gemt, så vi har et id
+      await contractSave(false);
+      if (!contractState.contract_id) throw new Error('Kontrakt-ID mangler');
+    }
+    const url = `/contract-pdf?contract_id=${encodeURIComponent(contractState.contract_id)}`;
+    window.open(url, '_blank');
+  } catch (e) {
+    console.error('PDF fejl:', e);
+    alert('Fejl ved PDF eksport: ' + e.message);
+  }
+}
+
+function contractStartOver(){
+  if (!confirm('Er du sikker på at du vil starte forfra? Alt data går tabt.')) return;
+
+  contractState.selectedCompetencies.clear();
+  contractState.selectedTips.clear();
+  contractState.roles.clear();
+  contractState.followup_date = null;
+  contractState.contract_id = null;
+
+  // ryd UI
+  document.querySelectorAll('.contract-competency-card.selected').forEach(x=>x.classList.remove('selected'));
+  $('contractTipsContainer').innerHTML = '';
+  $('contractEmployeeActions').innerHTML = '';
+  $('contractLeaderActions').innerHTML = '';
+  $('contractOverviewContent').innerHTML = '';
+  const followup = $('contractFollowupDate'); if (followup) followup.value = '';
+
+  contractUpdateSectionStatus();
+}
+
+// Hjælpefunktion: indsæt AI-knap + loading overlay én gang
+function ensureContractUiExtras() {
+  if (!document.getElementById('aiSuggestBtn')) {
+    const tab = document.getElementById('tab-contract');
+    const sections = document.getElementById('contractUnifiedSections') || tab;
+    const bar = document.createElement('div');
+    bar.id = 'contractActionBar';
+    bar.style = 'display:flex;justify-content:flex-end;gap:12px;margin:-8px 0 16px 0';
+    const btn = document.createElement('button');
+    btn.id = 'aiSuggestBtn';
+    btn.className = 'btn success';
+    btn.textContent = '⚡ Generér forslag';
+    bar.appendChild(btn);
+    tab?.insertBefore(bar, sections);
+  }
+  if (!document.getElementById('loadingOverlay')) {
+    const ovl = document.createElement('div');
+    ovl.id = 'loadingOverlay';
+    ovl.style = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000';
+    ovl.innerHTML = `
+      <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;padding:30px;border-radius:12px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.2)">
+        <div class="spinner" style="width:28px;height:28px;border:3px solid #eee;border-top-color:var(--brand);border-radius:50%;margin:0 auto;animation:spin 1s linear infinite"></div>
+        <p style="margin:16px 0 0 0">Genererer AI-forslag...</p>
+      </div>`;
+    document.body.appendChild(ovl);
+    const style = document.createElement('style');
+    style.textContent = '@keyframes spin{to{transform:rotate(360deg)}}';
+    document.head.appendChild(style);
+  }
+}
+
+async function generateAISuggestion() {
+  try {
+    if (!contractState.project_id || !contractState.target_id) {
+      alert('Vælg først projekt og målperson');
+      return;
+    }
+    
+    const ovl = document.getElementById('loadingOverlay');
+    if (ovl) ovl.style.display = 'block';
+
+    // Hent anbefalinger fra Coaching fra Resultater fanen
+    const { data: rec, error } = await supabase.rpc('get_coaching_recommendations', {
+      p_project_id: contractState.project_id,
+      p_target_id: contractState.target_id,
+      p_types: ['self', 'peer', 'leader'],
+      p_limit_keep: 5,
+      p_limit_develop: 3
+    });
+    
+    if (error) throw error;
+    if (!rec) throw new Error('Ingen anbefalingsdata');
+
+    // Debug output
+    debugCoachingRecommendations(rec);
+
+    // Saml kun udviklingskategori-ID'er (de lave scorer der skal forbedres)
+    const developCategoryIds = new Set();
+    const validUdvikleArr = [];
+    
+    // Kun udviklingskategorier - ikke fastholdelses kategorier
+    (rec.udvikle || []).forEach(item => {
+      if (item && item.category_id) {
+        developCategoryIds.add(item.category_id);
+        validUdvikleArr.push(item);
+      }
+    });
+
+    if (developCategoryIds.size === 0) {
+      alert('Ingen udviklingskategorier fundet for personen.');
+      return;
+    }
+
+    console.log(`Fundet ${developCategoryIds.size} udviklingskategorier fra coaching:`, Array.from(developCategoryIds));
+
+    // Sikr at alle kompetencer er indlæst først
+    const templateSelect = document.getElementById('contractProjectSelect');
+    const selectedOption = templateSelect?.selectedOptions[0];
+    const templateId = selectedOption?.dataset.templateId;
+
+    if (templateId && contractAvailableCompetencies.length === 0) {
+      console.log('Indlæser alle kompetencer for template:', templateId);
+      await contractLoadCompetencies(templateId);
+    }
+
+    // IKKE filtrer contractAvailableCompetencies - behold alle 16 kompetencer
+    // så brugeren kan se og vælge fra alle kompetencer
+    console.log(`Viser alle ${contractAvailableCompetencies.length} kompetencer i listen`);
+
+    // Re-render kompetence grid med alle kompetencer
+    contractRenderCompetencies();
+
+    // Nulstil alle valg
+    contractState.selectedCompetencies.clear();
+    contractState.selectedTips.clear();
+    contractState.roles.clear();
+
+    // Auto-select kun de 3 udviklingskategorier fra coaching
+    developCategoryIds.forEach(cid => {
+      contractState.selectedCompetencies.add(cid);
+    });
+
+    /// Opdater UI på kompetencekort (markér kun udviklingskategorierne som selected)
+    setTimeout(() => {
+      document.querySelectorAll('.contract-competency-card').forEach(card => {
+        const cid = card.dataset.competencyId;
+        if (contractState.selectedCompetencies.has(cid)) {
+          card.classList.add('selected');
+          console.log('Markerede udviklingskompetence som valgt:', cid);
+        } else {
+          card.classList.remove('selected');
+        }
+      });
+    }, 100);
+
+    // Hent tips for de valgte coaching kategorier og auto-vælg tips
+    await contractLoadTipsForSelected();
+    autoSelectTipsForDevelop(validUdvikleArr);
+    contractUpdateSectionStatus();
+  } catch (err) {
+    console.error('AI-forslag fejl:', err);
+    alert('Kunne ikke generere AI-forslag: ' + (err.message || err));
+  } finally {
+    const ovl = document.getElementById('loadingOverlay');
+    if (ovl) ovl.style.display = 'none';
+  }
+}
+
+// Tilføj denne funktion for at gendanne alle kompetencer
+function contractResetToAllCompetencies() {
+  // Gendan alle kompetencer hvis de er blevet filtreret af AI-forslaget
+  const templateSelect = document.getElementById('contractProjectSelect');
+  const selectedOption = templateSelect?.selectedOptions[0];
+  const templateId = selectedOption?.dataset.templateId;
+  
+  if (templateId) {
+    console.log('Gendanner alle kompetencer for template:', templateId);
+    contractLoadCompetencies(templateId);
+  }
+}
+
+// Bind reset funktion til projekt-ændringer så bruger kan se alle kompetencer igen
+async function contractOnProjectChange() {
+  const projectId = $('contractProjectSelect').value;
+  const templateId = $('contractProjectSelect').selectedOptions[0]?.dataset.templateId;
+  
+  contractState.project_id = projectId || null;
+  contractState.target_id = null;
+  
+  // Nulstil target dropdown
+  $('contractTargetSelect').innerHTML = '<option value="">Vælg målperson...</option>';
+  
+  // Nulstil selections
+  contractState.selectedCompetencies.clear();
+  contractState.selectedTips.clear();
+  contractState.roles.clear();
+  
+  if (projectId && templateId) {
+    await contractLoadTargets(projectId);
+    await contractLoadCompetencies(templateId); // Indlæs ALLE kompetencer når projekt ændres
+  }
+  
+  contractUpdateSectionStatus();
+}
+
+function autoSelectTipsForDevelop(developCompetencies) {
+  try {
+    (developCompetencies || []).forEach(item => {
+      // Sikr at item er et gyldigt objekt
+      if (!item || typeof item !== 'object') {
+        console.warn('Invalid item in developCompetencies:', item);
+        return;
+      }
+
+      const cid = item.category_id ?? item.id ?? item.category;
+      if (!cid) {
+        console.warn('Item mangler category_id:', item);
+        return;
+      }
+      
+      const tips = contractAvailableTips.get(cid) || [];
+      if (!tips.length) {
+        console.log('Ingen tips fundet for kategori:', cid, item.category_name || 'Ukendt');
+        return;
+      }
+
+      if (!contractState.selectedTips.has(cid)) {
+        contractState.selectedTips.set(cid, new Set());
+      }
+      
+      const set = contractState.selectedTips.get(cid);
+      tips.slice(0, 2).forEach(t => {
+        if (t && t.id) {
+          set.add(t.id);
+          const card = document.querySelector(`.contract-tip-card[data-tip-id="${t.id}"]`);
+          if (card) card.classList.add('selected');
+        }
+      });
+    });
+  } catch (err) {
+    console.error('Fejl i autoSelectTipsForDevelop:', err);
+  }
+}
+
+// Debug funktion til at inspicere RPC data
+function debugCoachingRecommendations(data) {
+  console.log('=== DEBUG: Coaching Recommendations Data ===');
+  console.log('Full data object:', data);
+  
+  if (data) {
+    console.log('Data keys:', Object.keys(data));
+    
+    ['udvikle', 'develop', 'develop_categories'].forEach(key => {
+      if (data[key]) {
+        console.log(`${key}:`, data[key]);
+        if (Array.isArray(data[key])) {
+          data[key].forEach((item, index) => {
+            console.log(`${key}[${index}]:`, item);
+            if (item) {
+              console.log(`  - Keys:`, Object.keys(item));
+              console.log(`  - category_id:`, item.category_id);
+              console.log(`  - category_name:`, item.category_name);
+              console.log(`  - name:`, item.name);
+            }
+          });
+        }
+      }
+    });
+  }
+  console.log('=== END DEBUG ===');
+}
+// ===== /Udviklingskontrakt =====
+ 
+    
   // Session check + rolleadskillelse
   supabase.auth.getUser().then(async ({data})=>{
     if(!data?.user){
