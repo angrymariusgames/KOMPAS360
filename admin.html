@@ -5104,13 +5104,10 @@ async function contractLoadTipsForSelected() {
     // Helper funktion for at konvertere typer
     const toMethod = (t) => t === 'self' ? 'self' : (t === 'peer' ? 'colleague' : 'leader_employee');
     
-    // Samle kategorier der skal fjernes (ingen aktive tips)
-    const categoriesToRemove = new Set();
-    
     // Hent dismissed tips en gang for alle kategorier
     const { data: dismissed } = await supabase
       .from('coaching_tip_state')
-      .select('tip_id, category_id')
+      .select('tip_id')
       .eq('project_id', contractState.project_id)
       .eq('target_id', contractState.target_id)
       .eq('dismissed', true);
@@ -5123,21 +5120,16 @@ async function contractLoadTipsForSelected() {
       for (const item of (coachingData.udvikle || [])) {
         if (competencyIds.includes(item.category_id)) {
           console.log(`Henter udviklings-tips for ${item.category_name} (score: ${item.score})`);
-          console.log(`Low types for denne kategori:`, item.low_types);
           
-          // KRITISK: Brug KUN de metoder der er lave for denne person (low_types)
-          // Dette sikrer at kun relevante tips vises, ligesom i Resultater-fanen
+          // Hent tips direkte fra coaching_tip tabellen baseret på lave typer
           const methods = (item.low_types || ['self', 'peer']).map(toMethod);
-          console.log(`Filtrerer tips til kun disse metoder:`, methods);
           
           const { data: rawTips } = await supabase
             .from('coaching_tip')
             .select('id,title,description,method,sort_order,impact,effort,time_horizon,plan_30,plan_60,plan_90')
             .eq('category_id', item.category_id)
-            .in('method', methods)  // Filtrér til KUN de lave metoder
+            .in('method', methods)
             .order('sort_order', { ascending: true });
-          
-          console.log(`Fandt ${rawTips?.length || 0} tips før dismissed-filtrering`);
           
           const tips = (rawTips || [])
             .filter(r => !dismissedIds.has(r.id))
@@ -5152,21 +5144,11 @@ async function contractLoadTipsForSelected() {
               coaching_context: `Fra Coaching: Udvikling anbefalet (score: ${item.score})`,
               impact: r.impact,
               effort: r.effort,
-              time_horizon: r.time_horizon,
-              plan_30: r.plan_30,
-              plan_60: r.plan_60,
-              plan_90: r.plan_90,
-              low_types: item.low_types  // Gem low_types på hvert tip
+              time_horizon: r.time_horizon
             }));
-          
-          console.log(`Efter dismissed-filtrering: ${tips.length} tips tilbage`);
           
           if (tips.length > 0) {
             contractAvailableTips.set(item.category_id, tips);
-          } else {
-            // Marker kategori til fjernelse hvis ingen aktive tips
-            console.log(`Ingen aktive tips for udviklingskategori ${item.category_name} - marker til fjernelse`);
-            categoriesToRemove.add(item.category_id);
           }
         }
       }
@@ -5211,30 +5193,11 @@ async function contractLoadTipsForSelected() {
         }
       }
       
-      // KRITISK: INGEN fallback for kompetencer der allerede er i coaching data
-      // Hvis en kompetence HAR coaching data men alle tips er dismissed,
-      // skal den IKKE få fallback-tips. Den skal bare ikke vises i punkt 2.
-      // Fallback er KUN for kompetencer der SLET IKKE er i coaching data.
-      const missingCompetencies = competencyIds.filter(id => {
-        // Tjek om denne kompetence er i coaching data (udvikle eller fastholde)
-        const isInCoaching = (coachingData.udvikle || []).some(item => item.category_id === id) ||
-                            (coachingData.fastholde || []).some(item => item.category_id === id);
-        
-        // Kun brug fallback hvis kompetencen IKKE er i coaching data
-        const shouldUseFallback = !isInCoaching && !contractAvailableTips.has(id);
-        
-        if (isInCoaching && !contractAvailableTips.has(id)) {
-          console.log(`Kompetence ${id} er i coaching men har ingen tilgængelige tips - INGEN fallback`);
-        }
-        
-        return shouldUseFallback;
-      });
-      
+      // Fallback for kompetencer uden coaching data
+      const missingCompetencies = competencyIds.filter(id => !contractAvailableTips.has(id));
       if (missingCompetencies.length > 0) {
         console.log('Fallback til database for kompetencer uden coaching data:', missingCompetencies);
         await loadFallbackTips(missingCompetencies, dismissedIds);
-      } else {
-        console.log('Alle valgte kompetencer er i coaching data - ingen fallback nødvendig');
       }
       
     } else {
@@ -5242,50 +5205,6 @@ async function contractLoadTipsForSelected() {
       console.log('Coaching data ikke tilgængelig - bruger database fallback for alle kompetencer');
       await loadFallbackTips(competencyIds, dismissedIds);
     }
-
-    // Fjern kun kategorier der STADIG ikke har tips efter fallback
-    const finalCategoriesToRemove = new Set();
-    categoriesToRemove.forEach(categoryId => {
-      // Tjek om kategorien stadig ikke har tips efter fallback
-      if (!contractAvailableTips.has(categoryId) || contractAvailableTips.get(categoryId).length === 0) {
-        finalCategoriesToRemove.add(categoryId);
-      } else {
-        console.log(`Kategori ${categoryId} blev reddet af fallback - beholder den`);
-      }
-    });
-
-    // Fjern kategorier uden aktive tips fra selectedCompetencies
-    if (finalCategoriesToRemove.size > 0) {
-      console.log('Fjerner kategorier uden aktive tips efter fallback:', Array.from(finalCategoriesToRemove));
-      finalCategoriesToRemove.forEach(categoryId => {
-        contractState.selectedCompetencies.delete(categoryId);
-        contractState.selectedTips.delete(categoryId);
-        
-        // Opdater UI - fjern 'selected' class fra kortet
-        const card = document.querySelector(`.contract-competency-card[data-competency-id="${categoryId}"]`);
-        if (card) card.classList.remove('selected');
-      });
-      
-      // IKKE kald contractUpdateSectionStatus() her - det skaber loop!
-      // Lad kalderen selv opdatere status hvis nødvendigt
-    }
-
-    // KRITISK: Tjek ALLE valgte kompetencer og fjern dem hvis de ikke har tips
-    // Dette sikrer at kompetencer der tidligere havde tips, men nu har alle tips dismissed,
-    // bliver fjernet fra punkt 2 "Vælg udviklingsaktiviteter"
-    const allSelectedCompetencies = Array.from(contractState.selectedCompetencies);
-    allSelectedCompetencies.forEach(categoryId => {
-      const tips = contractAvailableTips.get(categoryId) || [];
-      if (tips.length === 0) {
-        console.log(`Fjerner kategori ${categoryId} fra valgte kompetencer - ingen tilgængelige tips`);
-        contractState.selectedCompetencies.delete(categoryId);
-        contractState.selectedTips.delete(categoryId);
-        
-        // Opdater UI - fjern 'selected' class fra kortet
-        const card = document.querySelector(`.contract-competency-card[data-competency-id="${categoryId}"]`);
-        if (card) card.classList.remove('selected');
-      }
-    });
 
     console.log('Tips loaded for categories:', Array.from(contractAvailableTips.keys()).length);
     contractRenderTips();
@@ -5297,11 +5216,6 @@ async function contractLoadTipsForSelected() {
 }
 
 async function loadFallbackTips(competencyIds, dismissedIds) {
-  // KRITISK: Fallback skal ALDRIG bruges for kompetencer med coaching data
-  // Denne funktion er kun til kompetencer der IKKE er i coaching recommendations
-  console.log('loadFallbackTips kaldt for kompetencer:', competencyIds);
-  console.log('ADVARSEL: Fallback bør ikke bruges hvis kompetencen har coaching data');
-  
   const { data: tips, error } = await supabase
     .from('v_coaching_tip_enriched')
     .select('*')
@@ -5323,25 +5237,15 @@ async function loadFallbackTips(competencyIds, dismissedIds) {
       }
       contractAvailableTips.get(tip.category_id).push(enhancedTip);
     });
-  
-  console.log('Fallback tips tilføjet for', competencyIds.length, 'kompetencer');
 }
 
 function contractRenderTips() {
   const container = $('contractTipsContainer');
   container.innerHTML = '';
 
-  // Kun vis kompetencer der faktisk har tips tilgængelige
   contractState.selectedCompetencies.forEach(competencyId => {
     const comp = contractAvailableCompetencies.find(c => c.category_id === competencyId);
     const tips = contractAvailableTips.get(competencyId) || [];
-
-    // KRITISK: Spring over kompetencer uden tips
-    // Dette sikrer at kompetencer hvor alle tips er dismissed ikke vises i punkt 2
-    if (tips.length === 0) {
-      console.log(`Springer over rendering af ${comp?.category_name || competencyId} - ingen tilgængelige tips`);
-      return;
-    }
 
     const section = document.createElement('div');
     section.innerHTML = `
@@ -5371,11 +5275,6 @@ function contractRenderTips() {
 
     container.appendChild(section);
   });
-
-  // Vis besked hvis ingen kompetencer har tips
-  if (container.children.length === 0) {
-    container.innerHTML = '<div style="color:var(--muted);padding:20px;text-align:center">Ingen udviklingsaktiviteter tilgængelige for de valgte kompetencer.<br>Alle anbefalede tips er blevet fjernet fra Resultater-fanen.</div>';
-  }
 }
 
 function contractMethodLabel(method){
@@ -6025,9 +5924,17 @@ function contractSetupEventListeners(){
   // Målperson valg
   $('contractTargetSelect').addEventListener('change', async (e)=>{
     contractState.target_id = e.target.value || null;
-    // prøv at indlæse eksisterende kontrakt hvis den findes
-    await contractMaybeLoadExistingContract();
-    contractUpdateSectionStatus();
+    
+    // Hvis både projekt og målperson er valgt, hent automatisk coaching data
+    if (contractState.project_id && contractState.target_id) {
+      await contractAutoLoadFromCoaching();
+    } else {
+      // Nulstil selections hvis ingen målperson valgt
+      contractState.selectedCompetencies.clear();
+      contractState.selectedTips.clear();
+      contractState.roles.clear();
+      contractUpdateSectionStatus();
+    }
   });
 
   // Opfølgningsdato
@@ -6046,10 +5953,68 @@ function contractSetupEventListeners(){
   $('contractStartOverBtn').addEventListener('click', contractStartOver);
 }
 
-async function contractMaybeLoadExistingContract(){
-  // Denne funktion er ikke længere nødvendig da vi ikke gemmer i database
-  // Brugeren skal manuelt uploade JSON fil via "Indlæs kontrakt" knap
-  return;
+async function contractAutoLoadFromCoaching(){
+  // Automatisk load af fokusområder fra Resultat-fanen
+  try {
+    console.log('Auto-loader coaching data for målperson...');
+    
+    // Hent coaching anbefalinger
+    const { data: coachingData, error } = await supabase.rpc('get_coaching_recommendations', {
+      p_project_id: contractState.project_id,
+      p_target_id: contractState.target_id,
+      p_types: ['self', 'peer', 'leader'],
+      p_limit_keep: 5,
+      p_limit_develop: 8
+    });
+    
+    if (error) {
+      console.error('Fejl ved hentning af coaching data:', error);
+      return;
+    }
+    
+    if (!coachingData || !coachingData.udvikle) {
+      console.log('Ingen coaching data tilgængelig');
+      return;
+    }
+    
+    // Nulstil alle valg
+    contractState.selectedCompetencies.clear();
+    contractState.selectedTips.clear();
+    contractState.roles.clear();
+    
+    // Auto-vælg KUN udviklingskategorier (fokusområder)
+    const developCategoryIds = new Set();
+    (coachingData.udvikle || []).forEach(item => {
+      if (item && item.category_id) {
+        developCategoryIds.add(item.category_id);
+        contractState.selectedCompetencies.add(item.category_id);
+      }
+    });
+    
+    console.log(`Auto-valgte ${developCategoryIds.size} fokusområder fra Resultat-fanen:`, Array.from(developCategoryIds));
+    
+    // Opdater UI - marker kun fokusområderne som valgt
+    setTimeout(() => {
+      document.querySelectorAll('.contract-competency-card').forEach(card => {
+        const cid = card.dataset.competencyId;
+        if (contractState.selectedCompetencies.has(cid)) {
+          card.classList.add('selected');
+        } else {
+          card.classList.remove('selected');
+        }
+      });
+    }, 100);
+    
+    // Hent tips for de valgte kategorier
+    if (developCategoryIds.size > 0) {
+      await contractLoadTipsForSelected();
+    }
+    
+    contractUpdateSectionStatus();
+    
+  } catch (err) {
+    console.error('Fejl ved auto-load af coaching data:', err);
+  }
 }
 
 // Ny funktion til at indlæse fra JSON fil
@@ -6660,51 +6625,20 @@ async function generateAISuggestion() {
     // Debug output
     debugCoachingRecommendations(rec);
 
-    // Hent dismissed tips for denne bruger
-    const { data: dismissedData } = await supabase
-      .from('coaching_tip_state')
-      .select('tip_id, category_id')
-      .eq('project_id', contractState.project_id)
-      .eq('target_id', contractState.target_id)
-      .eq('dismissed', true);
-    
-    const dismissedTipIds = new Set((dismissedData || []).map(x => x.tip_id));
-    
-    // Konverter typer til metoder
-    const toMethod = (t) => t === 'self' ? 'self' : (t === 'peer' ? 'colleague' : 'leader_employee');
-
     // Saml kun udviklingskategori-ID'er (de lave scorer der skal forbedres)
     const developCategoryIds = new Set();
     const validUdvikleArr = [];
     
-    // Filtrer kategorier hvor ALLE tips er dismissed
-    for (const item of (rec.udvikle || [])) {
+    // Kun udviklingskategorier - ikke fastholdelses kategorier
+    (rec.udvikle || []).forEach(item => {
       if (item && item.category_id) {
-        // Hent alle tips for denne kategori baseret på lave typer
-        const methods = (item.low_types || ['self', 'peer']).map(toMethod);
-        
-        const { data: allTips } = await supabase
-          .from('coaching_tip')
-          .select('id')
-          .eq('category_id', item.category_id)
-          .in('method', methods);
-        
-        // Hvis der er tips og IKKE alle er dismissed, så inkluder kategorien
-        if (allTips && allTips.length > 0) {
-          const hasActiveTips = allTips.some(tip => !dismissedTipIds.has(tip.id));
-          
-          if (hasActiveTips) {
-            developCategoryIds.add(item.category_id);
-            validUdvikleArr.push(item);
-          } else {
-            console.log(`Springer kategori ${item.category_name} over - alle tips er dismissed`);
-          }
-        }
+        developCategoryIds.add(item.category_id);
+        validUdvikleArr.push(item);
       }
-    }
+    });
 
     if (developCategoryIds.size === 0) {
-      alert('Ingen udviklingskategorier fundet for personen. Alle anbefalede tips er enten fjernet eller ikke tilgængelige.');
+      alert('Ingen udviklingskategorier fundet for personen.');
       return;
     }
 
