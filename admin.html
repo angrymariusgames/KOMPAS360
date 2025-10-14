@@ -6691,7 +6691,7 @@ async function generateAISuggestion() {
       contractState.selectedCompetencies.add(cid);
     });
 
-    /// Opdater UI på kompetencekort (markér kun udviklingskategorierne som selected)
+    // Opdater UI på kompetencekort (markér kun udviklingskategorierne som selected)
     setTimeout(() => {
       document.querySelectorAll('.contract-competency-card').forEach(card => {
         const cid = card.dataset.competencyId;
@@ -6704,9 +6704,24 @@ async function generateAISuggestion() {
       });
     }, 100);
 
-    // Hent tips for de valgte coaching kategorier og auto-vælg tips
+    // VIGTIGT: Clear tip cache før hentning for at sikre dismissed tips filtreres
+    contractAvailableTips.clear();
+    
+    // Hent tips for de valgte coaching kategorier (med dismissed filter)
+    console.log('Henter tips med dismissed filter...');
     await contractLoadTipsForSelected();
+    
+    // Log hvor mange tips der blev hentet efter filtrering
+    let totalTipsAfterFilter = 0;
+    contractAvailableTips.forEach((tips, catId) => {
+      console.log(`Kategori ${catId}: ${tips.length} tips efter dismissed filter`);
+      totalTipsAfterFilter += tips.length;
+    });
+    console.log(`Total tips efter dismissed filter: ${totalTipsAfterFilter}`);
+    
+    // Auto-vælg tips (kun de der er tilbage efter filtrering)
     autoSelectTipsForDevelop(validUdvikleArr);
+    
     contractUpdateSectionStatus();
   } catch (err) {
     console.error('AI-forslag fejl:', err);
