@@ -5659,7 +5659,7 @@ function contractUpdateSectionStatus(){
     compSection.classList.add('active');
     // 2) Aktiviteter åbnes når der er kompetencer
     $('contractActivitiesSection').classList.add('active');
-    contractLoadTipsForSelected();
+    // FJERNET: contractLoadTipsForSelected(); - tips skal kun loades én gang
   } else {
     compStatus.innerHTML = `<span class="status-text">0 valgt</span>`;
     compSection.classList.remove('active');
@@ -6743,7 +6743,33 @@ async function generateAISuggestion() {
     // Auto-vælg tips (kun de der er tilbage efter filtrering)
     autoSelectTipsForDevelop(validUdvikleArr);
     
-    contractUpdateSectionStatus();
+    // Manuel UI opdatering uden at genindlæse tips
+    const compCount = contractState.selectedCompetencies.size;
+    const compStatus = $('contractCompetenciesStatus');
+    const compSection = $('contractCompetenciesSection');
+    
+    if (compCount > 0) {
+      compStatus.innerHTML = `<span class="status-text complete">${compCount} valgt</span>`;
+      compSection.classList.add('active');
+      $('contractActivitiesSection').classList.add('active');
+    }
+    
+    // Opdater aktiviteter status
+    let totalTips = 0;
+    for (const s of contractState.selectedTips.values()) totalTips += s.size;
+    const actStatus = $('contractActivitiesStatus');
+    if (totalTips > 0 && compCount > 0) {
+      actStatus.innerHTML = `<span class="status-text complete">${totalTips} aktiviteter valgt</span>`;
+      $('contractRolesSection').classList.add('active');
+      contractSetupRolesStep();
+      contractUpdateGoalsAndRoles();
+    } else if (compCount > 0) {
+      actStatus.innerHTML = `<span class="status-text">Vælg aktiviteter</span>`;
+    }
+    
+    // Opdater roller og oversigt
+    contractUpdateSectionStatusLight();
+    
   } catch (err) {
     console.error('AI-forslag fejl:', err);
     alert('Kunne ikke generere AI-forslag: ' + (err.message || err));
