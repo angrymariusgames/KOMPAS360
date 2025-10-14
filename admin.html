@@ -5104,7 +5104,7 @@ async function contractLoadTipsForSelected() {
     // Helper funktion for at konvertere typer
     const toMethod = (t) => t === 'self' ? 'self' : (t === 'peer' ? 'colleague' : 'leader_employee');
     
-    // Fjern valgte kompetencer hvor alle tips er dismissed
+    // Samle kategorier der skal fjernes (ingen aktive tips)
     const categoriesToRemove = new Set();
     
     // Hent dismissed tips en gang for alle kategorier
@@ -5243,6 +5243,23 @@ async function contractLoadTipsForSelected() {
       // Lad kalderen selv opdatere status hvis nødvendigt
     }
 
+    // KRITISK: Tjek ALLE valgte kompetencer og fjern dem hvis de ikke har tips
+    // Dette sikrer at kompetencer der tidligere havde tips, men nu har alle tips dismissed,
+    // bliver fjernet fra punkt 2 "Vælg udviklingsaktiviteter"
+    const allSelectedCompetencies = Array.from(contractState.selectedCompetencies);
+    allSelectedCompetencies.forEach(categoryId => {
+      const tips = contractAvailableTips.get(categoryId) || [];
+      if (tips.length === 0) {
+        console.log(`Fjerner kategori ${categoryId} fra valgte kompetencer - ingen tilgængelige tips`);
+        contractState.selectedCompetencies.delete(categoryId);
+        contractState.selectedTips.delete(categoryId);
+        
+        // Opdater UI - fjern 'selected' class fra kortet
+        const card = document.querySelector(`.contract-competency-card[data-competency-id="${categoryId}"]`);
+        if (card) card.classList.remove('selected');
+      }
+    });
+
     console.log('Tips loaded for categories:', Array.from(contractAvailableTips.keys()).length);
     contractRenderTips();
     
@@ -5280,9 +5297,17 @@ function contractRenderTips() {
   const container = $('contractTipsContainer');
   container.innerHTML = '';
 
+  // Kun vis kompetencer der faktisk har tips tilgængelige
   contractState.selectedCompetencies.forEach(competencyId => {
     const comp = contractAvailableCompetencies.find(c => c.category_id === competencyId);
     const tips = contractAvailableTips.get(competencyId) || [];
+
+    // KRITISK: Spring over kompetencer uden tips
+    // Dette sikrer at kompetencer hvor alle tips er dismissed ikke vises i punkt 2
+    if (tips.length === 0) {
+      console.log(`Springer over rendering af ${comp?.category_name || competencyId} - ingen tilgængelige tips`);
+      return;
+    }
 
     const section = document.createElement('div');
     section.innerHTML = `
@@ -5312,6 +5337,11 @@ function contractRenderTips() {
 
     container.appendChild(section);
   });
+
+  // Vis besked hvis ingen kompetencer har tips
+  if (container.children.length === 0) {
+    container.innerHTML = '<div style="color:var(--muted);padding:20px;text-align:center">Ingen udviklingsaktiviteter tilgængelige for de valgte kompetencer.<br>Alle anbefalede tips er blevet fjernet fra Resultater-fanen.</div>';
+  }
 }
 
 function contractMethodLabel(method){
