@@ -5123,16 +5123,21 @@ async function contractLoadTipsForSelected() {
       for (const item of (coachingData.udvikle || [])) {
         if (competencyIds.includes(item.category_id)) {
           console.log(`Henter udviklings-tips for ${item.category_name} (score: ${item.score})`);
+          console.log(`Low types for denne kategori:`, item.low_types);
           
-          // Hent tips direkte fra coaching_tip tabellen baseret på lave typer
+          // KRITISK: Brug KUN de metoder der er lave for denne person (low_types)
+          // Dette sikrer at kun relevante tips vises, ligesom i Resultater-fanen
           const methods = (item.low_types || ['self', 'peer']).map(toMethod);
+          console.log(`Filtrerer tips til kun disse metoder:`, methods);
           
           const { data: rawTips } = await supabase
             .from('coaching_tip')
             .select('id,title,description,method,sort_order,impact,effort,time_horizon,plan_30,plan_60,plan_90')
             .eq('category_id', item.category_id)
-            .in('method', methods)
+            .in('method', methods)  // Filtrér til KUN de lave metoder
             .order('sort_order', { ascending: true });
+          
+          console.log(`Fandt ${rawTips?.length || 0} tips før dismissed-filtrering`);
           
           const tips = (rawTips || [])
             .filter(r => !dismissedIds.has(r.id))
@@ -5150,8 +5155,11 @@ async function contractLoadTipsForSelected() {
               time_horizon: r.time_horizon,
               plan_30: r.plan_30,
               plan_60: r.plan_60,
-              plan_90: r.plan_90
+              plan_90: r.plan_90,
+              low_types: item.low_types  // Gem low_types på hvert tip
             }));
+          
+          console.log(`Efter dismissed-filtrering: ${tips.length} tips tilbage`);
           
           if (tips.length > 0) {
             contractAvailableTips.set(item.category_id, tips);
@@ -5203,11 +5211,30 @@ async function contractLoadTipsForSelected() {
         }
       }
       
-      // Fallback for kompetencer uden coaching data
-      const missingCompetencies = competencyIds.filter(id => !contractAvailableTips.has(id));
+      // KRITISK: INGEN fallback for kompetencer der allerede er i coaching data
+      // Hvis en kompetence HAR coaching data men alle tips er dismissed,
+      // skal den IKKE få fallback-tips. Den skal bare ikke vises i punkt 2.
+      // Fallback er KUN for kompetencer der SLET IKKE er i coaching data.
+      const missingCompetencies = competencyIds.filter(id => {
+        // Tjek om denne kompetence er i coaching data (udvikle eller fastholde)
+        const isInCoaching = (coachingData.udvikle || []).some(item => item.category_id === id) ||
+                            (coachingData.fastholde || []).some(item => item.category_id === id);
+        
+        // Kun brug fallback hvis kompetencen IKKE er i coaching data
+        const shouldUseFallback = !isInCoaching && !contractAvailableTips.has(id);
+        
+        if (isInCoaching && !contractAvailableTips.has(id)) {
+          console.log(`Kompetence ${id} er i coaching men har ingen tilgængelige tips - INGEN fallback`);
+        }
+        
+        return shouldUseFallback;
+      });
+      
       if (missingCompetencies.length > 0) {
         console.log('Fallback til database for kompetencer uden coaching data:', missingCompetencies);
         await loadFallbackTips(missingCompetencies, dismissedIds);
+      } else {
+        console.log('Alle valgte kompetencer er i coaching data - ingen fallback nødvendig');
       }
       
     } else {
@@ -5270,6 +5297,11 @@ async function contractLoadTipsForSelected() {
 }
 
 async function loadFallbackTips(competencyIds, dismissedIds) {
+  // KRITISK: Fallback skal ALDRIG bruges for kompetencer med coaching data
+  // Denne funktion er kun til kompetencer der IKKE er i coaching recommendations
+  console.log('loadFallbackTips kaldt for kompetencer:', competencyIds);
+  console.log('ADVARSEL: Fallback bør ikke bruges hvis kompetencen har coaching data');
+  
   const { data: tips, error } = await supabase
     .from('v_coaching_tip_enriched')
     .select('*')
@@ -5291,6 +5323,8 @@ async function loadFallbackTips(competencyIds, dismissedIds) {
       }
       contractAvailableTips.get(tip.category_id).push(enhancedTip);
     });
+  
+  console.log('Fallback tips tilføjet for', competencyIds.length, 'kompetencer');
 }
 
 function contractRenderTips() {
