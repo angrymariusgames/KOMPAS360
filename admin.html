@@ -575,26 +575,7 @@
                       <select id="selProject2" class="select" style="width:100%">
               <option value="">-- Vælg et projekt --</option>
             </select>
-            <script>
-              // Hent projekter til dropdown
-              async function loadProjects() {
-                const { data, error } = await window.supabase.from("projects").select("id,title").order("title");
-                if (error) {
-                  console.error("Kunne ikke hente projekter:", error);
-                  return;
-                }
-                const sel = document.getElementById("selProject2");
-                sel.innerHTML = '<option value="">-- Vælg et projekt --</option>';
-                data.forEach(p => {
-                  const opt = document.createElement("option");
-                  opt.value = p.id;
-                  opt.textContent = p.title;
-                  sel.appendChild(opt);
-                });
-              }
-              loadProjects();
-            </script>
-
+            
         </div>
         <div style="display:flex;gap:8px;align-items:center">
           <button id="btnPrevTarget" class="btn small" style="padding:8px 12px" title="Forrige profil">←</button>
@@ -654,7 +635,7 @@
           <span id="coaching-grow-toggle" style="font-size:1.2rem">▶</span>
           <h3 style="margin:0">🗣️ GROW & 30/60/90-plan</h3>
         </div>
-        <div id="coaching-grow-content" style="display:none;margin-top:12px">
+                <div id="coaching-grow-content" style="display:none;margin-top:12px">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
             <!-- GROW -->
             <div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px">
@@ -678,20 +659,62 @@
             <!-- 30/60/90 Plan -->
             <div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px">
               <h4 style="color:var(--success);margin-bottom:12px">📅 30/60/90-dages plan</h4>
-              <div id="coaching-timeline" style="display:flex;flex-direction:column;gap:12px">
-                <div style="padding:12px;background:rgba(34,197,94,0.1);border-radius:8px;border-left:4px solid var(--success)">
-                  <strong>30 dage:</strong> <span id="plan-30">Etablér daglige mikrovaner</span>
+              <!-- Dragbar “råd-pulje” bygget ud fra 📈 Udvikle (kun overskrift/1. linje) -->
+              <div id="plan-pool" style="border:1px dashed var(--line);border-radius:10px;padding:10px;margin-bottom:12px;min-height:56px;display:flex;gap:8px;flex-wrap:wrap">
+                <div style="color:var(--muted);font-size:.9rem">🔁 Træk råd herfra ned i 30 / 60 / 90</div>
+              </div>
+
+              <!-- Drop-zoner -->
+              <div id="coaching-timeline" style="display:grid;grid-template-columns:1fr;gap:12px">
+                <div id="plan-30" data-bin="30" style="padding:12px;background:rgba(34,197,94,0.08);border:1px solid var(--line);border-radius:10px;min-height:64px">
+                  <div style="font-weight:700;margin-bottom:8px">De første 30 dage – læring og relationer</div>
+                  <div class="plan-bin" style="display:flex;gap:8px;flex-wrap:wrap;min-height:34px"></div>
                 </div>
-                <div style="padding:12px;background:rgba(59,130,246,0.1);border-radius:8px;border-left:4px solid var(--brand)">
-                  <strong>60 dage:</strong> <span id="plan-60">Evalér og juster tilgang</span>
+                <div id="plan-60" data-bin="60" style="padding:12px;background:rgba(34,197,94,0.08);border:1px solid var(--line);border-radius:10px;min-height:64px">
+                  <div style="font-weight:700;margin-bottom:8px">Dag 31–60 – praksis og feedback</div>
+                  <div class="plan-bin" style="display:flex;gap:8px;flex-wrap:wrap;min-height:34px"></div>
                 </div>
-                <div style="padding:12px;background:rgba(249,115,22,0.1);border-radius:8px;border-left:4px solid #f97316">
-                  <strong>90 dage:</strong> <span id="plan-90">Konsolidér ny adfærd</span>
+                <div id="plan-90" data-bin="90" style="padding:12px;background:rgba(34,197,94,0.08);border:1px solid var(--line);border-radius:10px;min-height:64px">
+                  <div style="font-weight:700;margin-bottom:8px">Dag 61–90 – konsolidering og næste mål</div>
+                  <div class="plan-bin" style="display:flex;gap:8px;flex-wrap:wrap;min-height:34px"></div>
                 </div>
+              </div>
+
+            </div>
+          </div>
+
+          </div>
+      </div>
+
+      <!-- Team Roller (Top-4) – Selvstændig sektion EFTER GROW -->
+      <div class="section" style="margin-top:12px">
+        <div style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:12px;background:var(--card);border:1px solid var(--line);border-radius:12px" onclick="toggleCoachingSection('teamrole')">
+          <span id="teamrole-toggle" style="font-size:1.2rem">▶</span>
+          <h3 style="margin:0">🧩 Team Roller (Top-4)</h3>
+        </div>
+        <div id="teamrole-content" style="display:none;margin-top:12px">
+          <div class="section" id="teamrole-section" style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px">
+            <h4 style="color:var(--brand);margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+              <span>🧩</span>
+              <span>Personlige teamroller</span>
+              <small style="color: var(--muted); font-weight: normal; margin-left: auto;">(Top-4 matches)</small>
+            </h4>
+            <div id="teamRoleLoadingState" style="display:none;text-align:center;padding:20px;color:var(--muted)">
+              <div class="spinner"></div>
+              <div>Analyserer kompetencer...</div>
+            </div>
+            <div id="teamRoleContent">
+              <div style="background: #f8f9fa; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+                <div style="font-weight: 600; color: #2d3748; margin-bottom: 8px;">🎯 Dine top-4 teamroller</div>
+                <div style="font-size: 0.9em; color: #718096;">Baseret på din kompetenceprofil. Toggle de roller på som passer til personen.</div>
+              </div>
+              <div id="teamRoleCards" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <!-- Roller indsættes her dynamisk -->
               </div>
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
 
@@ -871,11 +894,11 @@
     </div>
 
     <!-- Udviklingskontrakt -->
-    <div id="tab-contract" style="display:none">
+    <div id="tab-contract" class="section" style="display:none">
       
       <!-- Contract Header -->
-      <div style="background:linear-gradient(135deg,var(--brand) 0%,#ff6b7a 100%);color:white;padding:24px;border-radius:12px;margin-bottom:24px;text-align:center">
-        <h1 style="margin:0 0 8px 0">📋 Udviklingskontrakt</h1>
+      <div style="background:linear-gradient(135deg,var(--brand) 0%,#ff6b7a 100%);color:white;padding:20px;border-radius:12px;margin-bottom:20px;text-align:center">
+        <h1 style="margin:0 0 6px 0">📋 Udviklingskontrakt</h1>
         <p style="margin:0;opacity:0.9">Skab en personlig udviklingsplan baseret på KOMPAS-resultaterne</p>
       </div>
 
@@ -953,12 +976,6 @@
             <p style="color:var(--muted);margin-bottom:16px">
               Definer hvem gør hvad og sæt opfølgning
             </p>
-            
-            <!-- Opfølgningsdato -->
-            <div style="margin-bottom:20px">
-              <label>Opfølgningsdato</label>
-              <input type="date" id="contractFollowupDate" class="input" style="width:100%">
-            </div>
 
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
               <div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:16px">
@@ -970,7 +987,7 @@
                 <textarea id="contractEmployeeWishes" class="input" style="width:100%;min-height:120px;resize:vertical" placeholder="Skriv hvad medarbejderen ønsker at opnå..."></textarea>
               </div>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
               <div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:16px">
                 <h4 style="margin:0 0 16px 0;text-align:center;color:var(--brand)">👨‍💼 Leder støtter</h4>
                 <textarea id="contractLeaderActions" class="input" style="width:100%;min-height:120px;resize:vertical" placeholder="Skriv hvordan lederen støtter..."></textarea>
@@ -981,6 +998,37 @@
                   <!-- Kollega støtte indlæses automatisk -->
                 </div>
               </div>
+            </div>
+            
+            <!-- Valgte 30/60/90 Mål og Team Roller -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
+              <!-- Valgte 30/60/90 Mål -->
+              <div style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+                  <div style="background:var(--success);color:white;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700">📅</div>
+                  <h4 style="margin:0;font-size:0.95rem;font-weight:600">Valgte 30/60/90 Mål</h4>
+                </div>
+                <div id="contractGoalsContainer" style="max-height:200px;overflow-y:auto">
+                  <p style="color:var(--muted);font-size:0.85rem;margin:0">Vælg først kompetencer og aktiviteter</p>
+                </div>
+              </div>
+
+              <!-- Valgte Team Roller -->
+              <div style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+                  <div style="background:var(--info);color:white;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700">🧩</div>
+                  <h4 style="margin:0;font-size:0.95rem;font-weight:600">Valgte Team Roller</h4>
+                </div>
+                <div id="contractRolesContainer" style="max-height:200px;overflow-y:auto">
+                  <p style="color:var(--muted);font-size:0.85rem;margin:0">Ingen roller valgt</p>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Opfølgningsdato -->
+            <div style="margin-bottom:20px">
+              <label>Opfølgningsdato</label>
+              <input type="date" id="contractFollowupDate" class="input" style="width:100%">
             </div>
           </div>
         </section>
@@ -1107,8 +1155,38 @@ window.addEventListener('load', function() {
         switch(tabName) {
           case 'contract':
             await initContractTabOnce();
+
+            // Synk projekt/målperson fra Resultater → Kontrakt
+            try {
+              const srcProj = $('selProject2')?.value;
+              const srcTarget = $('selTarget')?.value;
+              if (srcProj) {
+                const dstProj = $('contractProjectSelect');
+                if (dstProj && dstProj.value !== srcProj) {
+                  dstProj.value = srcProj;
+                  // loader targets/kompetencer mv.
+                  contractOnProjectChange();
+                }
+                if (srcTarget) {
+                  // vent et tick så targetlisten er fyldt
+                  setTimeout(() => {
+                    const dstTarget = $('contractTargetSelect');
+                    if (dstTarget) {
+                      dstTarget.value = srcTarget;
+                      dstTarget.dispatchEvent(new Event('change'));
+                    }
+                  }, 0);
+                }
+              }
+            } catch(e) {
+              console.warn('Kontrakt sync fejlede:', e);
+            }
+
+            // Vis 30/60/90 + Teamroller ud fra nuværende valg
+            contractUpdateGoalsAndRoles();
             break;
           case 'results':
+
             // Opdater resultater fanen når den åbnes
             const currentProject = $('selProject2').value;
             const currentTarget = $('selTarget').value;
@@ -1601,11 +1679,18 @@ window.addEventListener('load', function() {
     }
   }
 
-  async function loadAll(){ 
-    await loadTemplates(); 
-    await loadProjects(); 
-    await loadProjectsInto(['selProject2', 'selProject3']); 
-
+  async function loadAll(){
+    await loadTemplates();
+    await loadProjects();
+    await loadProjectsInto(['selProject2', 'selProject3']);
+    
+    // Initialize result dropdown if we have projects
+    const currentProject = $('selProject2').value;
+    if (currentProject) {
+      const event = new Event('change');
+      $('selProject2').dispatchEvent(event);
+    }
+    
     // Udvikling-fanen (drag/drop + events)
     setupDevelopmentTab();
   }
@@ -2071,7 +2156,7 @@ window.showLargeProjectQR = (url, title) => {
     });
   });
 
-  // Toggle coaching sections
+  /// Toggle coaching sections
   window.toggleCoachingSection = (sectionId) => {
     const content = document.getElementById(sectionId + '-content');
     const toggle = document.getElementById(sectionId + '-toggle');
@@ -2079,6 +2164,12 @@ window.showLargeProjectQR = (url, title) => {
     if (content.style.display === 'none') {
       content.style.display = 'block';
       toggle.textContent = '▼';
+      
+      // Hvis GROW & 30/60/90-plan sektionen åbnes, opdater planen (efter DOM er klar)
+      if (sectionId === 'coaching-grow') {
+        setTimeout(() => updateCoachingPlan(), 0);
+      }
+
     } else {
       content.style.display = 'none';
       toggle.textContent = '▶';
@@ -2142,8 +2233,9 @@ window.showLargeProjectQR = (url, title) => {
         return;
       }
       
-      renderCoachingRecommendations(data);
-      updateCoachingPlan(data);
+      await renderCoachingRecommendations(data);
+      updateCoachingPlan();
+
       
     } catch (error) {
       console.error('Error loading coaching recommendations:', error);
@@ -2253,8 +2345,15 @@ window.showLargeProjectQR = (url, title) => {
 
       const groupHtml = Object.entries(groups).map(([title, arr]) => {
         arr.sort((a,b)=> (order[a.method]||9)-(order[b.method]||9));
+        const titleFirst = (title || '').split(/\r?\n/)[0].trim(); // kun 1. linje (f.eks. "Scenarie-planlægning")
+
         const lines = arr.map(tip => `
-          <div class="tip-line" style="display:flex;gap:8px;align-items:flex-start;margin:4px 0;position:relative">
+          <div class="tip-line"
+            data-tip-id="${tip.tip_id || tip.id}"
+            data-category-id="${item.category_id}"
+            data-title="${(title || '').split(/\r?\n/)[0].trim()}"
+            style="display:flex;gap:8px;align-items:flex-start;margin:4px 0;position:relative">
+
             <span style="
               background:${tip.method==='self' ? '#10b981' : (tip.method==='colleague' ? '#3b82f6' : '#8b5cf6')};
               color:#fff;
@@ -2267,26 +2366,26 @@ window.showLargeProjectQR = (url, title) => {
               ${methodLabel(tip.method)}
             </span>
             <div style="flex:1;font-size:0.9rem;line-height:1.35">${tip.description || ''}</div>
-       
+
             <button 
               class="dismiss-tip"
               data-category-id="${item.category_id}"
               data-tip-id="${tip.tip_id || tip.id}"
               title="Markér som ikke relevant"
-              style="background:#dc3545;color:#fff;border:none;border-radius:4px;width:22px;height:22px;line-height:20px;font-weight:700;cursor:pointer">
+              style="background:#dc3545;color:#fff;border:none;border-radius:6px;padding:0 8px;height:22px;line-height:20px;font-weight:700;cursor:pointer">
               ✖
             </button>
-
           </div>
         `).join('');
 
         return `
           <div style="margin:10px 0;padding:10px;background:white;border-radius:8px;border:1px solid #e5e7eb">
-            <div style="font-weight:700;color:#111827;margin-bottom:6px">${title}</div>
+            <div style="font-weight:700;color:#111827;margin-bottom:6px">${titleFirst}</div>
             ${lines}
           </div>
         `;
       }).join('') || `<div style="color:var(--muted);font-size:0.9rem">Ingen specifikke tips fundet.</div>`;
+
 
             return `
         <div style="border:1px solid #dbeafe;border-radius:8px;padding:12px;background:#f8fafc">
@@ -2345,20 +2444,82 @@ if (!window.__coachDismissBound) {
   }
 }
 
-  function updateCoachingPlan(data) {
-    if (!data || !data.udvikle || data.udvikle.length === 0) return;
-    
-    // Update 30/60/90 plan based on development areas
-    const topDevelopArea = data.udvikle[0];
-    if (topDevelopArea) {
-      const topTip = (topDevelopArea.how_to_develop || [])[0];
-      if (topTip) {
-        $('plan-30').textContent = `Start med: ${topTip.next_action || topTip.title}`;
-        $('plan-60').textContent = `Udvikl rutiner inden for ${topDevelopArea.category_name.toLowerCase()}`;
-        $('plan-90').textContent = `Mål observerbar forbedring i ${topDevelopArea.category_name.toLowerCase()}`;
-      }
+  // Byg drag/drop-plan ud fra de råd, der lige nu vises i 📈 Udvikle (kun overskrifter)
+  function updateCoachingPlan(/* data ikke påkrævet */) {
+    const pool = document.getElementById('plan-pool');
+    const timeline = document.getElementById('coaching-timeline');
+    if (!pool || !timeline) return;
+
+    // 1) Saml alle aktive råd fra Udvikle (en chip pr. tip_id)
+    const tipLines = Array.from(document.querySelectorAll('.tip-line[data-tip-id][data-title]'));
+    const tips = tipLines.map(line => ({
+      id: line.getAttribute('data-tip-id'),
+      title: line.getAttribute('data-title') || 'Råd'
+    })).filter(t => t.id);
+
+    // 2) Nulstil UI (behold plan-overskrifterne)
+    const bins = Array.from(document.querySelectorAll('#coaching-timeline .plan-bin'));
+    bins.forEach(b => b.innerHTML = '');
+    pool.innerHTML = '';
+
+    // 3) Opret chips i puljen
+    tips.forEach(t => pool.appendChild(createPlanChip(t.id, t.title)));
+
+    // 4) Init drop-zoner (kun én gang)
+    if (!window.__planDndBound) {
+      window.__planDndBound = true;
+      makeDroppable(pool);
+      ['plan-30','plan-60','plan-90'].forEach(id => {
+        const box = document.getElementById(id);
+        if (box) makeDroppable(box.querySelector('.plan-bin'));
+      });
     }
   }
+
+  // Helper: lav en draggable chip
+  function createPlanChip(id, title) {
+    const chip = document.createElement('div');
+    chip.className = 'plan-chip';
+    chip.draggable = true;
+    chip.setAttribute('data-tip-id', id);
+    chip.setAttribute('title', title);
+    chip.style.cssText = 'padding:6px 10px;border:1px solid var(--line);border-radius:10px;background:#fff;cursor:grab;font-size:.85rem;box-shadow:0 1px 2px rgba(0,0,0,.06)';
+    chip.textContent = title;
+
+    chip.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('text/plain', id);
+      setTimeout(() => { chip.style.opacity = '0.6'; }, 0);
+    });
+    chip.addEventListener('dragend', () => { chip.style.opacity = '1'; });
+
+    return chip;
+  }
+
+  // Helper: gør et element droppable for chips
+  function makeDroppable(targetEl) {
+    if (!targetEl) return;
+    ['dragenter','dragover'].forEach(evt => {
+      targetEl.addEventListener(evt, (e) => {
+        e.preventDefault();
+        targetEl.style.outline = '2px dashed rgba(102,126,234,.5)';
+        targetEl.style.outlineOffset = '2px';
+      });
+    });
+    ['dragleave','drop'].forEach(evt => {
+      targetEl.addEventListener(evt, (e) => {
+        e.preventDefault();
+        if (evt === 'drop') {
+          const id = e.dataTransfer.getData('text/plain');
+          if (!id) return;
+          const chip = document.querySelector(`.plan-chip[data-tip-id="${id}"]`);
+          if (!chip) return;
+          targetEl.appendChild(chip); // flyt chippen
+        }
+        targetEl.style.outline = 'none';
+      });
+    });
+  }
+
 
   // Funktion til at generere radar chart
   async function generateRadarChart(){
@@ -2532,9 +2693,11 @@ if (!window.__coachDismissBound) {
     if(leader.every(v=>v===null)) hidden.push('Fører');
     $('resultNote').textContent = hidden.length? `Skjult pga. anonymitetsgrænse: ${hidden.join(', ')}`:'';
     
-    // Load coaching recommendations after radar is generated
+    // Opdater teamrolle-dropdown + coaching efter radar er genereret
+    await loadTeamRoleDropdown(pid, tid);
     await loadCoachingRecommendations();
   }
+
 
   // Results
   $('selProject2').onchange = async ()=>{
@@ -2573,21 +2736,145 @@ if (!window.__coachDismissBound) {
     nextBtn.disabled = targetSelect.selectedIndex >= targetSelect.options.length - 1 || targetSelect.options.length === 0;
   }
 
-  $('btnPrevTarget').onclick = () => {
+  $('btnPrevTarget').onclick = async () => {
     const targetSelect = $('selTarget');
     if (targetSelect.selectedIndex > 0) {
       targetSelect.selectedIndex = targetSelect.selectedIndex - 1;
-      generateRadarChart();
+      await generateRadarChart();
       updateNavigationButtons();
     }
   };
 
-  $('btnNextTarget').onclick = () => {
+  $('btnNextTarget').onclick = async () => {
     const targetSelect = $('selTarget');
     if (targetSelect.selectedIndex < targetSelect.options.length - 1) {
       targetSelect.selectedIndex = targetSelect.selectedIndex + 1;
-      generateRadarChart();
+      await generateRadarChart();
       updateNavigationButtons();
+    }
+  };
+
+  // Team roller cards (Top-4 via RPC teamrole_top4) med beskrivelse + kompetencer
+  async function loadTeamRoleDropdown(projectId, targetId) {
+    // Brug parametre hvis de er givet, ellers læs fra DOM
+    const pid = projectId || $('selProject2').value;
+    const tid = targetId || $('selTarget').value;
+    const cardsContainer = $('teamRoleCards');
+    const loadingState = $('teamRoleLoadingState');
+    const content = $('teamRoleContent');
+    
+    if (!cardsContainer) return;
+
+    if (!pid || !tid) {
+      cardsContainer.innerHTML = '<div style="text-align: center; color: #718096; padding: 40px;">Vælg projekt og målperson først for at se teamroller.</div>';
+      return;
+    }
+    
+    console.log('Loading teamroller for pid:', pid, 'tid:', tid); // Debug linje
+
+    try {
+      // Vis loading state hvis det findes
+      if (loadingState && content) {
+        loadingState.style.display = 'block';
+        content.style.display = 'none';
+      }
+
+      const { data, error } = await supabase.rpc('teamrole_top4', { pid, tid });
+      if (error) {
+        console.error('teamrole_top4 RPC error:', error);
+        throw error;
+      }
+
+      console.log('teamrole_top4 returned:', data?.length || 0, 'roles');
+
+      // Skjul loading state
+      if (loadingState && content) {
+        loadingState.style.display = 'none';
+        content.style.display = 'block';
+      }
+
+      cardsContainer.innerHTML = '';
+      
+      if (!data || data.length === 0) {
+        cardsContainer.innerHTML = '<div style="text-align: center; color: #718096; padding: 40px;">Ikke nok data til at beregne teamroller.</div>';
+        return;
+      }
+
+      (data || []).forEach((r, index) => {
+        const pct = (typeof r.score_pct === 'number') ? r.score_pct.toFixed(1) : '0.0';
+        const rank = index + 1;
+        const comps = [r.comp1, r.comp2, r.comp3].filter(Boolean);
+        
+        // Styrke-farve baseret på procent
+        let strengthColor = '#e2e8f0';
+        let strengthBg = '#f8f9fa';
+        if (pct >= 80) { strengthColor = '#10b981'; strengthBg = '#ecfdf5'; }
+        else if (pct >= 60) { strengthColor = '#f59e0b'; strengthBg = '#fffbeb'; }
+        else if (pct >= 40) { strengthColor = '#ef4444'; strengthBg = '#fef2f2'; }
+        
+        // Kompetence-badges
+        const compBadges = comps.map(comp => 
+          `<span style="background: rgba(102, 126, 234, 0.1); color: #667eea; padding: 3px 8px; border-radius: 12px; font-size: 0.8em; font-weight: 500;">${comp}</span>`
+        ).join(' ');
+        
+        // Opret rolle-kort (kompakt 2x2 version)
+        const roleCard = document.createElement('div');
+        roleCard.innerHTML = `
+          <div style="background: ${strengthBg}; border: 2px solid ${strengthColor}; border-radius: 8px; padding: 12px; position: relative; min-height: 140px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+              <div style="flex: 1; margin-right: 8px;">
+                <div style="font-weight: 600; color: #2d3748; font-size: 0.95em; margin-bottom: 2px; line-height: 1.2;">
+                  #${rank} ${r.role_name || ''}
+                </div>
+                <div style="color: ${strengthColor}; font-weight: 600; font-size: 1.1em;">
+                  ${pct}%
+                </div>
+              </div>
+              <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; background: white; padding: 4px 8px; border-radius: 12px; border: 1px solid #e2e8f0; font-size: 0.8em;">
+                <input type="checkbox" data-role-id="${r.role_id}" data-role-name="${r.role_name}" onchange="toggleTeamRole(this)" style="margin: 0; transform: scale(0.8);">
+                <span style="font-weight: 500; color: #4a5568;">Passer</span>
+              </label>
+            </div>
+            <div style="color: #4a5568; margin-bottom: 8px; line-height: 1.3; font-size: 0.85em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+              ${r.description || 'Ingen beskrivelse'}
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: auto;">
+              ${compBadges.replace(/padding: 3px 8px/g, 'padding: 2px 6px').replace(/font-size: 0.8em/g, 'font-size: 0.75em')}
+            </div>
+          </div>
+        `;
+        
+        cardsContainer.appendChild(roleCard);
+      });
+
+    } catch (err) {
+      console.error('Fejl ved hentning af teamroller:', err);
+      cardsContainer.innerHTML = '<div style="text-align: center; color: #ef4444; padding: 40px;">Kunne ikke hente teamroller. Prøv igen.</div>';
+      
+      // Skjul loading state ved fejl
+      if (loadingState && content) {
+        loadingState.style.display = 'none';
+        content.style.display = 'block';
+      }
+    }
+  }
+
+  // Toggle funktion for teamroller
+  window.toggleTeamRole = function(checkbox) {
+    const roleId = checkbox.dataset.roleId;
+    const roleName = checkbox.dataset.roleName;
+    const isChecked = checkbox.checked;
+    
+    console.log(`Team rolle ${roleName} ${isChecked ? 'aktiveret' : 'deaktiveret'}:`, roleId);
+    
+    // Opdater visuelt feedback
+    const card = checkbox.closest('div[style*="border-radius: 12px"]');
+    if (card && isChecked) {
+      card.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.15)';
+      card.style.transform = 'translateY(-1px)';
+    } else if (card) {
+      card.style.boxShadow = 'none';
+      card.style.transform = 'none';
     }
   };
 
@@ -4591,12 +4878,20 @@ function contractToggleCompetency(competencyId, card) {
     contractState.selectedCompetencies.add(competencyId);
     card.classList.add('selected');
   }
-  contractUpdateSectionStatus();
+  
   // Opdater forslag dynamisk når valgte kompetencer ændres
   contractLoadTipsForSelected();
-  contractLoadColleagueSupport();
+  
+  // Genindlæs kollega support når kompetencer ændres
+  const colleagueEl = $('contractColleagueSupport');
+  if (colleagueEl) {
+    colleagueEl.removeAttribute('data-loaded');
+    contractLoadColleagueSupport();
+    colleagueEl.setAttribute('data-loaded', 'true');
+  }
+  
+  contractUpdateSectionStatus();
 }
-
 
 async function contractLoadTipsForSelected() {
   const container = $('contractTipsContainer');
@@ -4651,7 +4946,7 @@ async function contractLoadTipsForSelected() {
           
           const { data: rawTips } = await supabase
             .from('coaching_tip')
-            .select('id,title,description,method,sort_order,impact,effort,time_horizon')
+            .select('id,title,description,method,sort_order,impact,effort,time_horizon,plan_30,plan_60,plan_90')
             .eq('category_id', item.category_id)
             .in('method', methods)
             .order('sort_order', { ascending: true });
@@ -4831,13 +5126,12 @@ function contractSetupRolesStep(){
   const employeeEl = $('contractEmployeeActions');
   const employeeWishesEl = $('contractEmployeeWishes');  
   const leaderEl = $('contractLeaderActions');
-  const colleagueEl = $('contractColleagueSupport');
   
-  // Set up event listeners for text areas
+  // Set up event listeners for text areas - brug en letvægts status opdatering
   if (employeeEl && !employeeEl.hasAttribute('data-listener-added')) {
     employeeEl.addEventListener('input', (e) => {
       contractState.employee_actions = e.target.value;
-      contractUpdateSectionStatus();
+      contractUpdateSectionStatusLight();
     });
     employeeEl.setAttribute('data-listener-added', 'true');
   }
@@ -4845,7 +5139,7 @@ function contractSetupRolesStep(){
   if (employeeWishesEl && !employeeWishesEl.hasAttribute('data-listener-added')) {
     employeeWishesEl.addEventListener('input', (e) => {
       contractState.employee_wishes = e.target.value;
-      contractUpdateSectionStatus();
+      contractUpdateSectionStatusLight();
     });
     employeeWishesEl.setAttribute('data-listener-added', 'true');
   }
@@ -4853,13 +5147,17 @@ function contractSetupRolesStep(){
   if (leaderEl && !leaderEl.hasAttribute('data-listener-added')) {
     leaderEl.addEventListener('input', (e) => {
       contractState.leader_actions = e.target.value;
-      contractUpdateSectionStatus();
+      contractUpdateSectionStatusLight();
     });
     leaderEl.setAttribute('data-listener-added', 'true');
   }
 
-  // Load colleague support data
-  contractLoadColleagueSupport();
+  // Load colleague support data kun første gang
+  const colleagueEl = $('contractColleagueSupport');
+  if (colleagueEl && !colleagueEl.hasAttribute('data-loaded')) {
+    contractLoadColleagueSupport();
+    colleagueEl.setAttribute('data-loaded', 'true');
+  }
 }
 
 async function contractLoadColleagueSupport() {
@@ -5035,6 +5333,8 @@ function contractUpdateSectionStatus(){
     actStatus.innerHTML = `<span class="status-text complete">${totalTips} aktiviteter valgt</span>`;
     $('contractRolesSection').classList.add('active');
     contractSetupRolesStep();
+    // Opdater 30/60/90 mål og team roller når aktiviteter er valgt
+    contractUpdateGoalsAndRoles();
   } else if (compCount > 0) {
     actStatus.innerHTML = `<span class="status-text">Vælg aktiviteter</span>`;
     $('contractRolesSection').classList.remove('active');
@@ -5042,7 +5342,12 @@ function contractUpdateSectionStatus(){
     actStatus.innerHTML = `<span class="status-text">Vælg først kompetencer</span>`;
   }
 
-  // 3) Roller
+  // 3) Roller - opdateres via contractUpdateSectionStatusLight under tekstindtastning
+  contractUpdateSectionStatusLight();
+}
+
+// Letvægts version der kun opdaterer roller og oversigt uden at genindlæse alt
+function contractUpdateSectionStatusLight(){
   const rolesStatus = $('contractRolesStatus');
   const hasEmployeeActions = contractState.employee_actions?.trim();
   const hasEmployeeWishes = contractState.employee_wishes?.trim();
@@ -5060,6 +5365,168 @@ function contractUpdateSectionStatus(){
 
   contractUpdateProgress();
 }
+
+function contractUpdateProgress(){
+  let done = 0;
+  if (contractState.selectedCompetencies.size > 0) done++;
+  let totalTips = 0;
+  for (const s of contractState.selectedTips.values()) totalTips += s.size;
+  if (totalTips > 0 && contractState.selectedCompetencies.size > 0) done++;
+  if (contractState.roles.size > 0) done++;
+  if (contractState.roles.size > 0 && contractState.followup_date) done++;
+
+  const pct = Math.round((done/4)*100);
+  $('contractProgressText').textContent = `${done}/4 sektioner færdige`;
+  $('contractProgressFill').style.width = `${pct}%`;
+
+  const allComplete = done >= 3; // min. kompetencer + aktiviteter + roller
+  $('contractSaveFinalBtn').disabled = !allComplete;
+  $('contractExportPdfBtn').disabled = !allComplete;
+}
+
+function contractUpdateGoalsAndRoles(){
+  contractUpdate306090Goals();
+  contractUpdateTeamRoles();
+}
+
+function contractUpdate306090Goals(){
+  const container = $('contractGoalsContainer');
+  if (!container) return;
+
+  const selected306090 = [];
+
+  // 1) Forsøg først ud fra valgte tips i kontrakten
+  for (const [categoryId, tipIds] of contractState.selectedTips.entries()) {
+    const tips = contractAvailableTips.get(categoryId) || [];
+    const category = contractAvailableCompetencies.find(c => c.category_id === categoryId)?.category_name || 'Ukendt';
+
+    tipIds.forEach(tipId => {
+      const tip = tips.find(t => t.id === tipId);
+      if (!tip) return;
+
+      // Brug plan_30/60/90 hvis tilgængelig
+      if (tip.plan_30 || tip.plan_60 || tip.plan_90) {
+        if (tip.plan_30) selected306090.push({ period: '30', text: tip.plan_30, category });
+        if (tip.plan_60) selected306090.push({ period: '60', text: tip.plan_60, category });
+        if (tip.plan_90) selected306090.push({ period: '90', text: tip.plan_90, category });
+      }
+      // Fallback: brug time_horizon (30/60/90) + titel/description
+      else if (tip.time_horizon && ['30','60','90'].includes(String(tip.time_horizon))) {
+        selected306090.push({
+          period: String(tip.time_horizon),
+          text: tip.title || tip.description || 'Aktivitet',
+          category
+        });
+      }
+    });
+  }
+
+  // 2) Sidste fallback: læs direkte fra 30/60/90-tidslinjen i Resultater-fanen
+  if (selected306090.length === 0) {
+    [['30','#plan-30 .plan-bin'], ['60','#plan-60 .plan-bin'], ['90','#plan-90 .plan-bin']].forEach(([period, sel]) => {
+      const chips = document.querySelectorAll(`${sel} .plan-chip`);
+      chips.forEach(chip => {
+        const text = (chip.getAttribute('title') || chip.textContent || '').trim();
+        if (text) selected306090.push({ period, text, category: '—' });
+      });
+    });
+  }
+
+  if (!selected306090.length) {
+    container.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;margin:0">Ingen 30/60/90 mål valgt</p>';
+    return;
+  }
+
+  const grouped = { '30': [], '60': [], '90': [] };
+  selected306090.forEach(g => { if (grouped[g.period]) grouped[g.period].push(g); });
+
+  let html = '';
+  [['30','Første 30 dage'], ['60','Dag 31-60'], ['90','Dag 61-90']].forEach(([period, label]) => {
+    if (!grouped[period].length) return;
+    html += `<div style="margin-bottom:12px">
+      <div style="font-weight:600;font-size:0.8rem;color:var(--success);margin-bottom:4px">${label}:</div>`;
+    grouped[period].forEach(goal => {
+      html += `<div style="background:rgba(34,197,94,0.08);border:1px solid var(--success);padding:6px 8px;margin-bottom:4px;border-radius:4px;font-size:0.8rem">
+        <div style="font-weight:500">${goal.category}</div>
+        <div style="color:var(--text-secondary)">${goal.text}</div>
+      </div>`;
+    });
+    html += '</div>';
+  });
+
+  container.innerHTML = html;
+}
+
+function contractUpdateTeamRoles(){
+  const container = $('contractRolesContainer');
+  if (!container) return;
+
+  // Hent valgte team roller baseret på aktuelle filtre fra result siden
+  contractGetSelectedTeamRoles().then(roles => {
+    if (!roles || roles.length === 0) {
+      container.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;margin:0">Ingen team roller valgt</p>';
+      return;
+    }
+
+    let html = '';
+    roles.forEach(role => {
+      const competencies = (role.competencies || []).join(', ');
+      html += `<div style="background:rgba(59,130,246,0.08);border-left:3px solid var(--info);padding:8px;margin-bottom:8px;border-radius:4px">
+        <div style="font-weight:600;font-size:0.85rem;margin-bottom:2px">${role.name}</div>
+        <div style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:4px">${role.description}</div>
+        <div style="font-size:0.7rem;color:var(--muted)">Kompetencer: ${competencies}</div>
+      </div>`;
+    });
+
+    container.innerHTML = html;
+  }).catch(err => {
+    console.error('Fejl ved indlæsning af team roller:', err);
+    container.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;margin:0">Fejl ved indlæsning af roller</p>';
+  });
+}
+
+async function contractGetSelectedTeamRoles(){
+  try {
+    if (!contractState.project_id || !contractState.target_id) return [];
+
+    // 1) Læs eksplicit valgte roller fra Resultater (afkrydsede "Passer")
+    const checked = Array.from(document.querySelectorAll('#teamRoleCards input[type="checkbox"]:checked'));
+    if (checked.length) {
+      return checked.map(cb => ({
+        name: cb.dataset.roleName || 'Rolle',
+        description: '',
+        competencies: []
+      }));
+    }
+
+    // 2) Fallback: relevante roller ud fra de valgte kompetencer i kontrakten
+    const { data: teamRoles, error } = await supabase
+      .from('team_roles')
+      .select('name, short_code, description, competencies:team_role_competencies(competency_name)')
+      .order('name');
+    if (error) throw error;
+
+    const selectedCompetencyNames = Array.from(contractState.selectedCompetencies)
+      .map(cid => contractAvailableCompetencies.find(c => c.category_id === cid)?.category_name)
+      .filter(Boolean);
+
+    const relevantRoles = (teamRoles || []).filter(role => {
+      const roleCompetencies = (role.competencies || []).map(c => c.competency_name);
+      return roleCompetencies.some(comp => selectedCompetencyNames.includes(comp));
+    });
+
+    return relevantRoles.map(role => ({
+      name: role.name,
+      description: role.description || '',
+      competencies: (role.competencies || []).map(c => c.competency_name)
+    }));
+
+  } catch (error) {
+    console.error('Fejl ved hentning af team roller:', error);
+    return [];
+  }
+}
+
 
 function contractSetupEventListeners(){
   // Projekt valg
@@ -5246,10 +5713,20 @@ function contractStartOver(){
   $('contractEmployeeActions').innerHTML = '';
   $('contractLeaderActions').innerHTML = '';
   $('contractOverviewContent').innerHTML = '';
+  $('contractGoalsContainer').innerHTML = '<p style="color:var(--muted);font-size:0.85rem;margin:0">Vælg først kompetencer og aktiviteter</p>';
+  $('contractRolesContainer').innerHTML = '<p style="color:var(--muted);font-size:0.85rem;margin:0">Ingen roller valgt</p>';
   const followup = $('contractFollowupDate'); if (followup) followup.value = '';
 
   contractUpdateSectionStatus();
 }
+
+function contractUpdateGoalsAndRoles(){
+  contractUpdate306090Goals();
+  contractUpdateTeamRoles();
+}
+
+
+
 
 // Hjælpefunktion: indsæt AI-knap + loading overlay én gang
 function ensureContractUiExtras() {
