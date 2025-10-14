@@ -2825,28 +2825,45 @@ if (!window.__coachDismissBound) {
   function restoreTeamRoleState() {
     const pid = $('selProject2')?.value;
     const tid = $('selTarget')?.value;
-    if (!pid || !tid) return;
+    if (!pid || !tid) {
+      console.log('Springer over team rolle gendannelse - mangler pid eller tid');
+      return;
+    }
     
     const key = `teamrole_state_${pid}_${tid}`;
     const savedState = sessionStorage.getItem(key);
-    if (!savedState) return;
+    if (!savedState) {
+      console.log('Ingen gemt team rolle tilstand fundet for:', key);
+      return;
+    }
     
     try {
       const checkedRoles = JSON.parse(savedState);
       console.log('Gendanner team roller:', checkedRoles);
+      console.log('Antal checkboxes i DOM:', document.querySelectorAll('#teamRoleCards input[type="checkbox"]').length);
       
-      checkedRoles.forEach(({ roleId }) => {
-        const checkbox = document.querySelector(`#teamRoleCards input[data-role-id="${roleId}"]`);
-        if (checkbox && !checkbox.checked) {
+      let restoredCount = 0;
+      checkedRoles.forEach(({ roleId, roleName }) => {
+        // Prøv forskellige selectors
+        let checkbox = document.querySelector(`#teamRoleCards input[type="checkbox"][data-role-id="${roleId}"]`);
+        
+        if (checkbox) {
+          console.log(`Fandt checkbox for rolle ${roleName} (${roleId})`);
           checkbox.checked = true;
+          restoredCount++;
+          
           // Trigger visuelt feedback
-          const card = checkbox.closest('div[style*="border-radius: 12px"]');
+          const card = checkbox.closest('div[style*="border-radius"]');
           if (card) {
             card.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.15)';
             card.style.transform = 'translateY(-1px)';
           }
+        } else {
+          console.warn(`Kunne ikke finde checkbox for rolle ${roleName} (${roleId})`);
         }
       });
+      
+      console.log(`Gendannede ${restoredCount} af ${checkedRoles.length} team roller`);
     } catch (e) {
       console.error('Fejl ved gendannelse af team roller:', e);
     }
@@ -2972,6 +2989,12 @@ if (!window.__coachDismissBound) {
         
         cardsContainer.appendChild(roleCard);
       });
+      
+      // Gendan gemte checkbox valg efter kort er blevet renderet
+      // Vent lidt så DOM er fuldt opdateret
+      setTimeout(() => {
+        restoreTeamRoleState();
+      }, 150);
 
     } catch (err) {
       console.error('Fejl ved hentning af teamroller:', err);
