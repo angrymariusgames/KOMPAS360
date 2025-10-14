@@ -992,8 +992,12 @@
                 <h4 style="margin:0 0 16px 0;text-align:center;color:var(--brand)">👨‍💼 Leder støtter</h4>
                 <textarea id="contractLeaderActions" class="input" style="width:100%;min-height:120px;resize:vertical" placeholder="Skriv hvordan lederen støtter..."></textarea>
               </div>
-              <div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:16px">
+              <div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:16px;position:relative">
                 <h4 style="margin:0 0 16px 0;text-align:center;color:var(--brand)">🤝 Kollega støtte</h4>
+                <label style="position:absolute;top:12px;right:12px;display:flex;align-items:center;gap:4px;cursor:pointer;font-size:0.8rem;color:var(--muted)">
+                  <input type="checkbox" id="includeColleagueSupport" checked style="cursor:pointer">
+                  <span>Medtag</span>
+                </label>
                 <div id="contractColleagueSupport">
                   <!-- Kollega støtte indlæses automatisk -->
                 </div>
@@ -1003,10 +1007,14 @@
             <!-- Valgte 30/60/90 Mål og Team Roller -->
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
               <!-- Valgte 30/60/90 Mål -->
-              <div style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px">
+              <div style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;position:relative">
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
                   <div style="background:var(--success);color:white;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700">📅</div>
                   <h4 style="margin:0;font-size:0.95rem;font-weight:600">Valgte 30/60/90 Mål</h4>
+                  <label style="position:absolute;top:12px;right:12px;display:flex;align-items:center;gap:4px;cursor:pointer;font-size:0.8rem;color:var(--muted)">
+                    <input type="checkbox" id="include306090Goals" checked style="cursor:pointer">
+                    <span>Medtag</span>
+                  </label>
                 </div>
                 <div id="contractGoalsContainer" style="max-height:200px;overflow-y:auto">
                   <p style="color:var(--muted);font-size:0.85rem;margin:0">Vælg først kompetencer og aktiviteter</p>
@@ -1014,10 +1022,14 @@
               </div>
 
               <!-- Valgte Team Roller -->
-              <div style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px">
+              <div style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;position:relative">
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
                   <div style="background:var(--info);color:white;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700">🧩</div>
                   <h4 style="margin:0;font-size:0.95rem;font-weight:600">Valgte Team Roller</h4>
+                  <label style="position:absolute;top:12px;right:12px;display:flex;align-items:center;gap:4px;cursor:pointer;font-size:0.8rem;color:var(--muted)">
+                    <input type="checkbox" id="includeTeamRoles" checked style="cursor:pointer">
+                    <span>Medtag</span>
+                  </label>
                 </div>
                 <div id="contractRolesContainer" style="max-height:200px;overflow-y:auto">
                   <p style="color:var(--muted);font-size:0.85rem;margin:0">Ingen roller valgt</p>
@@ -4907,7 +4919,10 @@ let contractState = {
   contract_id: null,
   employee_actions: '',
   employee_wishes: '',
-  leader_actions: ''
+  leader_actions: '',
+  include_team_roles: true,        // Vis team roller i kontrakt (standard: true)
+  include_colleague_support: true, // Vis kollega støtte i kontrakt (standard: true)
+  include_306090_goals: true       // Vis 30/60/90 mål i kontrakt (standard: true)
 };
 
 let contractAvailableCompetencies = []; // fra v_template_categories
@@ -5433,6 +5448,7 @@ function contractSetupOverview(){
   const projTxt = projSel?.options[projSel.selectedIndex]?.text || 'Ikke valgt';
   const targTxt = targSel?.options[targSel.selectedIndex]?.text || 'Ikke valgt';
 
+
   let html = `<h4>📋 Udviklingskontrakt — Oversigt</h4>
   <div style="margin:16px 0">
     <strong>Projekt:</strong> ${projTxt}<br>
@@ -5494,6 +5510,39 @@ function contractSetupOverview(){
     html += '</div>';
   } else {
     html += '<p style="color:var(--muted)">Ingen roller defineret endnu</p>';
+  }
+
+  // Kollega støtte (kun hvis medtaget)
+  if (contractState.include_colleague_support) {
+    html += '<h5>🤝 Kollega støtte:</h5>';
+    const colleagueEl = $('contractColleagueSupport');
+    if (colleagueEl && colleagueEl.innerHTML.trim() && !colleagueEl.innerHTML.includes('Ingen egnede kollegaer')) {
+      html += `<div style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px;margin-top:8px">${colleagueEl.innerHTML}</div>`;
+    } else {
+      html += '<p style="color:var(--muted)">Ingen kollega forslag</p>';
+    }
+  }
+
+  // 30/60/90 Mål (kun hvis medtaget)
+  if (contractState.include_306090_goals) {
+    html += '<h5>📅 30/60/90 Mål:</h5>';
+    const goalsEl = $('contractGoalsContainer');
+    if (goalsEl && goalsEl.innerHTML.trim() && !goalsEl.innerHTML.includes('Ingen 30/60/90 mål')) {
+      html += `<div style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px;margin-top:8px">${goalsEl.innerHTML}</div>`;
+    } else {
+      html += '<p style="color:var(--muted)">Ingen 30/60/90 mål valgt</p>';
+    }
+  }
+
+  // Team Roller (kun hvis medtaget)
+  if (contractState.include_team_roles) {
+    html += '<h5>🧩 Team Roller:</h5>';
+    const rolesEl = $('contractRolesContainer');
+    if (rolesEl && rolesEl.innerHTML.trim() && !rolesEl.innerHTML.includes('Ingen roller valgt')) {
+      html += `<div style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px;margin-top:8px">${rolesEl.innerHTML}</div>`;
+    } else {
+      html += '<p style="color:var(--muted)">Ingen team roller valgt</p>';
+    }
   }
 
   el.innerHTML = html;
@@ -5759,6 +5808,32 @@ async function contractGetSelectedTeamRoles(){
 
 
 function contractSetupEventListeners(){
+  // Checkbox event listeners for medtag/skjul funktioner
+  const include306090 = $('include306090Goals');
+  const includeTeamRoles = $('includeTeamRoles');
+  const includeColleague = $('includeColleagueSupport');
+  
+  if (include306090) {
+    include306090.addEventListener('change', (e) => {
+      contractState.include_306090_goals = e.target.checked;
+      contractSetupOverview();
+    });
+  }
+  
+  if (includeTeamRoles) {
+    includeTeamRoles.addEventListener('change', (e) => {
+      contractState.include_team_roles = e.target.checked;
+      contractSetupOverview();
+    });
+  }
+  
+  if (includeColleague) {
+    includeColleague.addEventListener('change', (e) => {
+      contractState.include_colleague_support = e.target.checked;
+      contractSetupOverview();
+    });
+  }
+  
   // Projekt valg
   $('contractProjectSelect').addEventListener('change', async (e)=>{
     const projectId = e.target.value || null;
@@ -5851,6 +5926,17 @@ async function contractLoadFromFile() {
       contractState.employee_actions = data.employee_actions || '';
       contractState.employee_wishes = data.employee_wishes || '';
       contractState.leader_actions = data.leader_actions || '';
+      contractState.include_team_roles = data.include_team_roles !== undefined ? data.include_team_roles : true;
+      contractState.include_colleague_support = data.include_colleague_support !== undefined ? data.include_colleague_support : true;
+      contractState.include_306090_goals = data.include_306090_goals !== undefined ? data.include_306090_goals : true;
+      
+      // Opdater checkboxes
+      const include306090 = $('include306090Goals');
+      const includeTeamRoles = $('includeTeamRoles');
+      const includeColleague = $('includeColleagueSupport');
+      if (include306090) include306090.checked = contractState.include_306090_goals;
+      if (includeTeamRoles) includeTeamRoles.checked = contractState.include_team_roles;
+      if (includeColleague) includeColleague.checked = contractState.include_colleague_support;
       
       // Kompetencer
       contractState.selectedCompetencies = new Set(
@@ -5976,7 +6062,10 @@ async function contractSave(isDraft){
       roles: contractSerializeRoles(),
       employee_actions: contractState.employee_actions || '',
       employee_wishes: contractState.employee_wishes || '',
-      leader_actions: contractState.leader_actions || ''
+      leader_actions: contractState.leader_actions || '',
+      include_team_roles: contractState.include_team_roles,
+      include_colleague_support: contractState.include_colleague_support,
+      include_306090_goals: contractState.include_306090_goals
     };
 
     // Download som UDV fil (KOMPAS standard format)
@@ -6109,6 +6198,15 @@ async function contractGeneratePdfHtml(project, person) {
         ` : ''}
       </div>
       
+      <!-- Kollega støtte (kun hvis medtaget) -->
+      ${contractState.include_colleague_support ? await contractGenerateColleagueSupportPdfSection() : ''}
+      
+      <!-- 30/60/90 Mål (kun hvis medtaget) -->
+      ${contractState.include_306090_goals ? await contractGenerate306090PdfSection() : ''}
+      
+      <!-- Team Roller (kun hvis medtaget) -->
+      ${contractState.include_team_roles ? await contractGenerateTeamRolesPdfSection() : ''}
+      
       <!-- Footer -->
       <div style="margin-top:30px;padding-top:16px;border-top:1px solid #e2e8f0;text-align:center;color:#64748b;font-size:12px">
         <p style="margin:0"><strong>Genereret af KOMPAS Udviklingskontrakt System</strong></p>
@@ -6116,6 +6214,51 @@ async function contractGeneratePdfHtml(project, person) {
       </div>
     </div>
   `;
+}
+
+async function contractGenerateColleagueSupportPdfSection() {
+  const colleagueEl = $('contractColleagueSupport');
+  if (!colleagueEl || !colleagueEl.innerHTML.trim() || colleagueEl.innerHTML.includes('Ingen egnede kollegaer')) {
+    return '';
+  }
+  
+  return `
+  <div style="margin-bottom:20px">
+    <h3 style="color:#1e293b;margin:0 0 12px 0">🤝 Kollega støtte</h3>
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px">
+      ${colleagueEl.innerHTML}
+    </div>
+  </div>`;
+}
+
+async function contractGenerate306090PdfSection() {
+  const goalsEl = $('contractGoalsContainer');
+  if (!goalsEl || !goalsEl.innerHTML.trim() || goalsEl.innerHTML.includes('Ingen 30/60/90 mål')) {
+    return '';
+  }
+  
+  return `
+  <div style="margin-bottom:20px">
+    <h3 style="color:#1e293b;margin:0 0 12px 0">📅 30/60/90 Mål</h3>
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px">
+      ${goalsEl.innerHTML}
+    </div>
+  </div>`;
+}
+
+async function contractGenerateTeamRolesPdfSection() {
+  const rolesEl = $('contractRolesContainer');
+  if (!rolesEl || !rolesEl.innerHTML.trim() || rolesEl.innerHTML.includes('Ingen roller valgt')) {
+    return '';
+  }
+  
+  return `
+  <div style="margin-bottom:20px">
+    <h3 style="color:#1e293b;margin:0 0 12px 0">🧩 Team Roller</h3>
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px">
+      ${rolesEl.innerHTML}
+    </div>
+  </div>`;
 }
 
 function contractStartOver(){
@@ -6129,6 +6272,17 @@ function contractStartOver(){
   contractState.employee_actions = '';
   contractState.employee_wishes = '';
   contractState.leader_actions = '';
+  contractState.include_team_roles = true;
+  contractState.include_colleague_support = true;
+  contractState.include_306090_goals = true;
+
+  // Nulstil checkboxes
+  const include306090 = $('include306090Goals');
+  const includeTeamRoles = $('includeTeamRoles');
+  const includeColleague = $('includeColleagueSupport');
+  if (include306090) include306090.checked = true;
+  if (includeTeamRoles) includeTeamRoles.checked = true;
+  if (includeColleague) includeColleague.checked = true;
 
   // ryd UI
   document.querySelectorAll('.contract-competency-card.selected').forEach(x=>x.classList.remove('selected'));
