@@ -5553,49 +5553,9 @@ function contractSetupOverview(){
     html += '<h5>📅 30/60/90 Mål:</h5>';
     const goalsEl = $('contractGoalsContainer');
     if (goalsEl && goalsEl.innerHTML.trim() && !goalsEl.innerHTML.includes('Ingen 30/60/90 mål')) {
-      // Vis alle mål med fuld tekst, ikke bare overskrifter
+      // Kopier den faktiske HTML fra contractGoalsContainer direkte
       html += `<div style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px;margin-top:8px">`;
-      html += `<div><strong>Første 30 dage:</strong></div>`;
-      const goals30 = Array.from(document.querySelectorAll('#contractGoalsContainer [data-period="30"]'));
-      if (goals30.length > 0) {
-        goals30.forEach(g => {
-          const text = g.getAttribute('data-text') || g.textContent;
-          const category = g.getAttribute('data-category') || '';
-          html += `<div style="margin:8px 0;padding-left:12px;border-left:2px solid var(--brand)">`;
-          if (category) html += `<em style="color:var(--brand);font-size:0.85rem">${category}:</em> `;
-          html += `${text}</div>`;
-        });
-      } else {
-        html += `<div style="color:var(--muted);margin:8px 0">Ingen mål defineret</div>`;
-      }
-      
-      html += `<div style="margin-top:16px"><strong>Dag 31-60:</strong></div>`;
-      const goals60 = Array.from(document.querySelectorAll('#contractGoalsContainer [data-period="60"]'));
-      if (goals60.length > 0) {
-        goals60.forEach(g => {
-          const text = g.getAttribute('data-text') || g.textContent;
-          const category = g.getAttribute('data-category') || '';
-          html += `<div style="margin:8px 0;padding-left:12px;border-left:2px solid var(--brand)">`;
-          if (category) html += `<em style="color:var(--brand);font-size:0.85rem">${category}:</em> `;
-          html += `${text}</div>`;
-        });
-      } else {
-        html += `<div style="color:var(--muted);margin:8px 0">Ingen mål defineret</div>`;
-      }
-      
-      html += `<div style="margin-top:16px"><strong>Dag 61-90:</strong></div>`;
-      const goals90 = Array.from(document.querySelectorAll('#contractGoalsContainer [data-period="90"]'));
-      if (goals90.length > 0) {
-        goals90.forEach(g => {
-          const text = g.getAttribute('data-text') || g.textContent;
-          const category = g.getAttribute('data-category') || '';
-          html += `<div style="margin:8px 0;padding-left:12px;border-left:2px solid var(--brand)">`;
-          if (category) html += `<em style="color:var(--brand);font-size:0.85rem">${category}:</em> `;
-          html += `${text}</div>`;
-        });
-      } else {
-        html += `<div style="color:var(--muted);margin:8px 0">Ingen mål defineret</div>`;
-      }
+      html += goalsEl.innerHTML;
       html += `</div>`;
     } else {
       html += '<p style="color:var(--muted)">Ingen 30/60/90 mål valgt</p>';
@@ -6308,45 +6268,7 @@ async function contractGeneratePdfHtml(project, person) {
       </div>
       
       <!-- 30/60/90 Mål (kun hvis medtaget) MED FULD TEKST -->
-      ${contractState.include_306090_goals ? `
-      <div style="margin-bottom:20px">
-        <h3 style="color:#1e293b;margin:0 0 12px 0">📅 30/60/90 Mål</h3>
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px">
-          <div style="margin-bottom:16px">
-            <strong style="color:#667eea">Første 30 dage:</strong>
-            ${Array.from(document.querySelectorAll('#contractGoalsContainer [data-period="30"]')).map(g => {
-              const text = g.getAttribute('data-text') || g.textContent;
-              const category = g.getAttribute('data-category') || '';
-              return `<div style="margin:6px 0 6px 12px;padding-left:8px;border-left:2px solid #667eea;font-size:12px">
-                ${category ? `<em style="color:#667eea">${category}:</em> ` : ''}${text}
-              </div>`;
-            }).join('') || '<div style="color:#94a3b8;font-style:italic;margin-left:12px;font-size:12px">Ingen mål defineret</div>'}
-          </div>
-          
-          <div style="margin-bottom:16px">
-            <strong style="color:#667eea">Dag 31-60:</strong>
-            ${Array.from(document.querySelectorAll('#contractGoalsContainer [data-period="60"]')).map(g => {
-              const text = g.getAttribute('data-text') || g.textContent;
-              const category = g.getAttribute('data-category') || '';
-              return `<div style="margin:6px 0 6px 12px;padding-left:8px;border-left:2px solid #667eea;font-size:12px">
-                ${category ? `<em style="color:#667eea">${category}:</em> ` : ''}${text}
-              </div>`;
-            }).join('') || '<div style="color:#94a3b8;font-style:italic;margin-left:12px;font-size:12px">Ingen mål defineret</div>'}
-          </div>
-          
-          <div>
-            <strong style="color:#667eea">Dag 61-90:</strong>
-            ${Array.from(document.querySelectorAll('#contractGoalsContainer [data-period="90"]')).map(g => {
-              const text = g.getAttribute('data-text') || g.textContent;
-              const category = g.getAttribute('data-category') || '';
-              return `<div style="margin:6px 0 6px 12px;padding-left:8px;border-left:2px solid #667eea;font-size:12px">
-                ${category ? `<em style="color:#667eea">${category}:</em> ` : ''}${text}
-              </div>`;
-            }).join('') || '<div style="color:#94a3b8;font-style:italic;margin-left:12px;font-size:12px">Ingen mål defineret</div>'}
-          </div>
-        </div>
-      </div>
-      ` : ''}
+      ${contractState.include_306090_goals ? await contractGenerate306090PdfSection() : ''}
       
       <!-- Team Roller (kun hvis medtaget) MED FULD BESKRIVELSE -->
       ${contractState.include_team_roles ? `
@@ -6416,11 +6338,48 @@ async function contractGenerate306090PdfSection() {
     return '';
   }
   
+  // Parse den eksisterende HTML struktur og konverter til PDF-venlig format
+  let pdfHtml = '';
+  
+  // Find alle periode-sektioner (divs med font-weight:600 indeholder periode labels)
+  const periodSections = Array.from(goalsEl.children);
+  
+  periodSections.forEach(section => {
+    const label = section.querySelector('[style*="font-weight:600"]');
+    const goalsDiv = section.querySelector('[style*="margin-bottom:8px"]')?.parentElement;
+    
+    if (label && goalsDiv) {
+      const periodLabel = label.textContent.trim();
+      const goalDivs = Array.from(goalsDiv.querySelectorAll('[style*="rgba(34,197,94"]'));
+      
+      pdfHtml += `<div style="margin-bottom:12px">
+        <strong style="color:#667eea;font-size:13px">${periodLabel}</strong>`;
+      
+      if (goalDivs.length > 0) {
+        goalDivs.forEach(goalDiv => {
+          const category = goalDiv.querySelector('[style*="font-weight:500"]')?.textContent?.trim() || '';
+          const text = goalDiv.querySelector('[style*="text-secondary"]')?.textContent?.trim() || goalDiv.textContent.trim();
+          
+          pdfHtml += `<div style="margin:6px 0 6px 12px;padding:8px;background:white;border-left:3px solid #667eea;border-radius:4px;font-size:11px">`;
+          if (category && category !== '—') {
+            pdfHtml += `<div style="color:#667eea;font-weight:600;margin-bottom:2px">${category}</div>`;
+          }
+          pdfHtml += `<div style="color:#475569">${text}</div>`;
+          pdfHtml += `</div>`;
+        });
+      } else {
+        pdfHtml += `<div style="color:#94a3b8;font-style:italic;margin-left:12px;font-size:11px">Ingen mål defineret</div>`;
+      }
+      
+      pdfHtml += `</div>`;
+    }
+  });
+  
   return `
   <div style="margin-bottom:20px">
     <h3 style="color:#1e293b;margin:0 0 12px 0">📅 30/60/90 Mål</h3>
-    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px">
-      ${goalsEl.innerHTML}
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px">
+      ${pdfHtml}
     </div>
   </div>`;
 }
