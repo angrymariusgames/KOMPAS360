@@ -322,6 +322,7 @@
   <div class="tabs">
     <button class="tab active" data-tab="login">Log ind</button>
     <button class="tab" data-tab="activate">Aktivér konto</button>
+    <button class="tab" data-tab="reset">Nulstil kode</button>
   </div>
   
   <div class="content">
@@ -342,6 +343,10 @@
         
         <button type="submit" class="btn primary">Log ind</button>
       </form>
+      
+      <p class="help-text" style="text-align:center;margin-top:16px">
+        <a class="link" onclick="switchTab('reset')">Glemt adgangskode?</a>
+      </p>
       
       <div class="divider">
         <span>Ny bruger?</span>
@@ -449,6 +454,52 @@
         <a class="link" onclick="switchTab('login')">Log ind her</a>
       </p>
     </div>
+    
+    <!-- Reset Password Panel -->
+    <div id="reset-panel" class="panel">
+      <div id="reset-message"></div>
+      
+      <!-- Step 1: Request reset -->
+      <div id="reset-step1" class="reset-step">
+        <h3 style="margin-bottom:20px">Nulstil adgangskode</h3>
+        
+        <p class="help-text" style="margin-bottom:20px">
+          Indtast din email, så sender vi dig et link til at nulstille din adgangskode.
+        </p>
+        
+        <form id="reset-form">
+          <div class="form-group">
+            <label for="reset-email">Email</label>
+            <input type="email" id="reset-email" class="input" required 
+                   placeholder="din@email.dk">
+          </div>
+          
+          <button type="submit" class="btn primary">Send nulstillingslink</button>
+        </form>
+      </div>
+      
+      <!-- Step 2: Confirmation -->
+      <div id="reset-step2" class="reset-step" style="display:none">
+        <div class="message success">
+          <h3 style="margin-bottom:8px">Email sendt!</h3>
+          <p>Vi har sendt et link til at nulstille din adgangskode til din email.</p>
+        </div>
+        
+        <p class="help-text" style="margin:24px 0;text-align:center">
+          Tjek din indbakke og følg linket i emailen for at oprette en ny adgangskode.
+        </p>
+        
+        <button class="btn primary" onclick="switchTab('login')">Tilbage til login</button>
+      </div>
+      
+      <div class="divider">
+        <span>Husker du din kode?</span>
+      </div>
+      
+      <p class="help-text" style="text-align:center">
+        <a class="link" onclick="switchTab('login')">Log ind her</a>
+      </p>
+    </div>
   </div>
   
   <div class="footer">
@@ -518,6 +569,35 @@ $('login-form').addEventListener('submit', async (e) => {
     }
   } catch (error) {
     showMessage('login-message', error.message || 'Login fejlede', 'error');
+  }
+});
+
+// Reset password form
+$('reset-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  
+  const email = $('reset-email').value.trim().toLowerCase();
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Sender...';
+  
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password.html`
+    });
+    
+    if (error) throw error;
+    
+    // Show success step
+    $('reset-step1').style.display = 'none';
+    $('reset-step2').style.display = 'block';
+    
+  } catch (error) {
+    console.error('Reset error:', error);
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Send nulstillingslink';
+    showMessage('reset-message', error.message || 'Fejl ved afsendelse af email', 'error');
   }
 });
 
