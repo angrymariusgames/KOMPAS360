@@ -1052,15 +1052,20 @@
                 document.getElementById('progress-bar').classList.add('hidden');
                 document.getElementById('success').classList.remove('hidden');
                 
-                // Show "Evaluate another" button only if project is NOT anonymous and there are remaining targets
+                // Handle "Evaluate another" button
                 if (!state.project.is_anonymous) {
-                    // Remove evaluated target from list
+                    // For non-anonymous: Remove evaluated target from list
                     const evaluatedTargetIndex = state.project.people.findIndex(p => p.id === state.selectedTarget);
                     if (evaluatedTargetIndex !== -1) {
                         state.project.people.splice(evaluatedTargetIndex, 1);
                     }
                     
                     // Show button only if there are remaining people to evaluate
+                    if (state.project.people.length > 0) {
+                        document.getElementById('evaluate-another-section').style.display = 'block';
+                    }
+                } else {
+                    // For anonymous: Always show button (can evaluate same person again)
                     if (state.project.people.length > 0) {
                         document.getElementById('evaluate-another-section').style.display = 'block';
                     }
