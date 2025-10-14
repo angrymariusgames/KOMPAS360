@@ -5674,7 +5674,7 @@ function contractUpdateSectionStatus(){
     compSection.classList.add('active');
     // 2) Aktiviteter åbnes når der er kompetencer
     $('contractActivitiesSection').classList.add('active');
-    // FJERNET: contractLoadTipsForSelected(); - tips skal kun loades én gang
+    // ⚠️ INTET kald til contractLoadTipsForSelected() her.
   } else {
     compStatus.innerHTML = `<span class="status-text">0 valgt</span>`;
     compSection.classList.remove('active');
@@ -5703,6 +5703,7 @@ function contractUpdateSectionStatus(){
   // 3) Roller - opdateres via contractUpdateSectionStatusLight under tekstindtastning
   contractUpdateSectionStatusLight();
 }
+
 
 // Letvægts version der kun opdaterer roller og oversigt uden at genindlæse alt
 function contractUpdateSectionStatusLight(){
@@ -6678,115 +6679,62 @@ async function generateAISuggestion() {
     if (error) throw error;
     if (!rec) throw new Error('Ingen anbefalingsdata');
 
-    // Debug output
+    // Debug
     debugCoachingRecommendations(rec);
 
-    // Saml kun udviklingskategori-ID'er (de lave scorer der skal forbedres)
+    // Udviklingskategorier
     const developCategoryIds = new Set();
-    const validUdvikleArr = [];
-    
-    // Kun udviklingskategorier - ikke fastholdelses kategorier
     (rec.udvikle || []).forEach(item => {
-      if (item && item.category_id) {
-        developCategoryIds.add(item.category_id);
-        validUdvikleArr.push(item);
-      }
+      if (item?.category_id) developCategoryIds.add(item.category_id);
     });
-
     if (developCategoryIds.size === 0) {
       alert('Ingen udviklingskategorier fundet for personen.');
       return;
     }
 
-    console.log(`Fundet ${developCategoryIds.size} udviklingskategorier fra coaching:`, Array.from(developCategoryIds));
-
-    // Sikr at alle kompetencer er indlæst først
+    // Sikr kompetencer er indlæst
     const templateSelect = document.getElementById('contractProjectSelect');
-    const selectedOption = templateSelect?.selectedOptions[0];
-    const templateId = selectedOption?.dataset.templateId;
-
+    const templateId = templateSelect?.selectedOptions[0]?.dataset.templateId;
     if (templateId && contractAvailableCompetencies.length === 0) {
-      console.log('Indlæser alle kompetencer for template:', templateId);
       await contractLoadCompetencies(templateId);
     }
 
-    // IKKE filtrer contractAvailableCompetencies - behold alle 16 kompetencer
-    // så brugeren kan se og vælge fra alle kompetencer
-    console.log(`Viser alle ${contractAvailableCompetencies.length} kompetencer i listen`);
-
-    // Re-render kompetence grid med alle kompetencer
-    contractRenderCompetencies();
-
-    // Nulstil alle valg
+    // Marker valgte kompetencer i state + UI
     contractState.selectedCompetencies.clear();
-    contractState.selectedTips.clear();
-    contractState.roles.clear();
-
-    // Auto-select kun de 3 udviklingskategorier fra coaching
-    developCategoryIds.forEach(cid => {
-      contractState.selectedCompetencies.add(cid);
+    developCategoryIds.forEach(id => contractState.selectedCompetencies.add(id));
+    document.querySelectorAll('.contract-competency-card').forEach(card => {
+      const cid = card.dataset.competencyId;
+      card.classList.toggle('selected', contractState.selectedCompetencies.has(cid));
     });
 
-    // Opdater UI på kompetencekort (markér kun udviklingskategorierne som selected)
-    setTimeout(() => {
-      document.querySelectorAll('.contract-competency-card').forEach(card => {
-        const cid = card.dataset.competencyId;
-        if (contractState.selectedCompetencies.has(cid)) {
-          card.classList.add('selected');
-          console.log('Markerede udviklingskompetence som valgt:', cid);
-        } else {
-          card.classList.remove('selected');
-        }
-      });
-    }, 100);
-
-    // VIGTIGT: Clear tip cache før hentning for at sikre dismissed tips filtreres
-    contractAvailableTips.clear();
-    
-    // Hent tips for de valgte coaching kategorier (med dismissed filter)
-    console.log('Henter tips med dismissed filter...');
+    // Hent tips EN gang (med dismissed-filter)
     await contractLoadTipsForSelected();
-    
-    // Log hvor mange tips der blev hentet efter filtrering
-    let totalTipsAfterFilter = 0;
-    contractAvailableTips.forEach((tips, catId) => {
-      console.log(`Kategori ${catId}: ${tips.length} tips efter dismissed filter`);
-      totalTipsAfterFilter += tips.length;
-    });
-    console.log(`Total tips efter dismissed filter: ${totalTipsAfterFilter}`);
-    
-    // Auto-vælg tips (kun de der er tilbage efter filtrering)
-    autoSelectTipsForDevelop(validUdvikleArr);
-    
-    // Manuel UI opdatering uden at genindlæse tips
-    const compCount = contractState.selectedCompetencies.size;
-    const compStatus = $('contractCompetenciesStatus');
-    const compSection = $('contractCompetenciesSection');
-    
-    if (compCount > 0) {
-      compStatus.innerHTML = `<span class="status-text complete">${compCount} valgt</span>`;
-      compSection.classList.add('active');
-      $('contractActivitiesSection').classList.add('active');
-    }
-    
-    // Opdater aktiviteter status
-    let totalTips = 0;
-    for (const s of contractState.selectedTips.values()) totalTips += s.size;
+
+    // Render det vi allerede har hentet
+    contractRenderTips();
+
+    // ✅ Manuel UI-opdatering (ingen genindlæsning af tips herfra)
+    $('contractCompetenciesSection').classList.add('active');
+    $('contractCompetenciesStatus').innerHTML = `<span class="status-text complete">${contractState.selectedCompetencies.size} valgt</span>`;
+    $('contractActivitiesSection').classList.add('active');
+
+    let totalSelected = 0;
+    for (const s of contractState.selectedTips.values()) totalSelected += s.size;
     const actStatus = $('contractActivitiesStatus');
-    if (totalTips > 0 && compCount > 0) {
-      actStatus.innerHTML = `<span class="status-text complete">${totalTips} aktiviteter valgt</span>`;
-      $('contractRolesSection').classList.add('active');
-      contractSetupRolesStep();
-      contractUpdateGoalsAndRoles();
-    } else if (compCount > 0) {
-      actStatus.innerHTML = `<span class="status-text">Vælg aktiviteter</span>`;
+    if (actStatus) {
+      actStatus.innerHTML = totalSelected > 0 
+        ? `<span class="status-text complete">${totalSelected} aktiviteter valgt</span>`
+        : `<span class="status-text">Vælg aktiviteter</span>`;
     }
-    
-    // Opdater roller og oversigt
+
+    $('contractRolesSection').classList.add('active');
+    contractSetupRolesStep();
+    contractUpdateGoalsAndRoles();    // 30/60/90 + teamroller
     contractUpdateSectionStatusLight();
-    
+    contractUpdateProgress();
+
   } catch (err) {
-    console.error('AI-forslag fejl:', err);
+    console.error('Fejl ved auto-load af coaching data:', err);
     alert('Kunne ikke generere AI-forslag: ' + (err.message || err));
   } finally {
     const ovl = document.getElementById('loadingOverlay');
