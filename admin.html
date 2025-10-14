@@ -4768,6 +4768,9 @@ async function initContractTabOnce(){
 
   // UI-tilføjelser til AI-knap + overlay
   ensureContractUiExtras?.();
+  
+  // Tilføj Indlæs knap
+  contractSetupLoadButton();
 
   // Fyld projekter + bind events
   await contractLoadProjects();
@@ -5654,74 +5657,110 @@ function contractSetupEventListeners(){
 }
 
 async function contractMaybeLoadExistingContract(){
-  try {
-    if (!contractState.project_id || !contractState.target_id) return;
+  // Denne funktion er ikke længere nødvendig da vi ikke gemmer i database
+  // Brugeren skal manuelt uploade JSON fil via "Indlæs kontrakt" knap
+  return;
+}
+
+// Ny funktion til at indlæse fra JSON fil
+async function contractLoadFromFile() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
     
-    // Hent eksisterende kontrakt fra Supabase
-    const { data, error } = await supabase
-      .from('development_contracts')
-      .select('*')
-      .eq('project_id', contractState.project_id)
-      .eq('target_id', contractState.target_id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (error) {
-      console.warn('Fejl ved indlæsning af kontrakt:', error);
-      return;
-    }
-
-    if (data) {
-      const dc = data;
-      contractState.contract_id = dc.id;
-      contractState.followup_date = dc.followup_date || null;
-      contractState.version = dc.version || 1;
-
-      // kompetencer
-      contractState.selectedCompetencies = new Set(dc.selected_competencies || []);
-      // tegn kompetencer som valgte
-      contractAvailableCompetencies.forEach(c=>{
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      
+      // Validér data
+      if (!data.project || !data.target) {
+        throw new Error('Ugyldig kontrakt fil');
+      }
+      
+      // Tjek om projekt og person matcher
+      if (contractState.project_id && data.project.id !== contractState.project_id) {
+        if (!confirm('Kontrakten er fra et andet projekt. Vil du skifte projekt?')) {
+          return;
+        }
+        // Skift projekt i dropdown
+        const projSel = $('contractProjectSelect');
+        if (projSel) projSel.value = data.project.id;
+      }
+      
+      // Indlæs data
+      contractState.contract_id = 'loaded_' + Date.now();
+      contractState.project_id = data.project.id;
+      contractState.target_id = data.target.id;
+      contractState.followup_date = data.followup_date || null;
+      contractState.employee_actions = data.employee_actions || '';
+      contractState.employee_wishes = data.employee_wishes || '';
+      contractState.leader_actions = data.leader_actions || '';
+      
+      // Kompetencer
+      contractState.selectedCompetencies = new Set(
+        (data.competencies || []).map(c => c.id)
+      );
+      
+      // Tips
+      contractState.selectedTips = new Map();
+      Object.keys(data.tips || {}).forEach(catId => {
+        contractState.selectedTips.set(catId, new Set(data.tips[catId] || []));
+      });
+      
+      // Roller
+      contractState.roles = new Map();
+      Object.keys(data.roles || {}).forEach(tipIdStr => {
+        const tipId = parseInt(tipIdStr);
+        contractState.roles.set(tipId, data.roles[tipIdStr]);
+      });
+      
+      // Opdater UI
+      await contractLoadTargets(data.project.id);
+      const targSel = $('contractTargetSelect');
+      if (targSel) targSel.value = data.target.id;
+      
+      // Indlæs kompetencer og tegn UI
+      const projSel = $('contractProjectSelect');
+      const templateId = projSel?.selectedOptions[0]?.dataset.templateId;
+      if (templateId) {
+        await contractLoadCompetencies(templateId);
+      }
+      
+      // Marker valgte kompetencer
+      contractAvailableCompetencies.forEach(c => {
         const card = document.querySelector(`.contract-competency-card[data-competency-id="${c.category_id}"]`);
         if (!card) return;
-        if (contractState.selectedCompetencies.has(c.category_id)) card.classList.add('selected');
-        else card.classList.remove('selected');
+        if (contractState.selectedCompetencies.has(c.category_id)) {
+          card.classList.add('selected');
+        } else {
+          card.classList.remove('selected');
+        }
       });
-
-      // tips
-      contractState.selectedTips = new Map();
-      const selectedTipsObj = dc.selected_tips || {};
-      Object.keys(selectedTipsObj).forEach(catId => {
-        contractState.selectedTips.set(catId, new Set(selectedTipsObj[catId] || []));
-      });
-
-      // roller
-      contractState.roles = new Map();
-      const rolesObj = dc.roles_assignments || {};
-      Object.keys(rolesObj).forEach(tipIdStr => {
-        const tipId = parseInt(tipIdStr);
-        contractState.roles.set(tipId, rolesObj[tipIdStr]);
-      });
-
-      // tekstfelter
-      contractState.employee_actions = dc.employee_actions || '';
-      contractState.employee_wishes = dc.employee_wishes || '';
-      contractState.leader_actions = dc.leader_actions || '';
-
-      // tegn tips + roller
+      
+      // Indlæs tips og roller
       await contractLoadTipsForSelected();
       contractSetupRolesStep();
       contractSetupOverview();
-
-      // udfyld dato felt hvis findes
+      
+      // Udfyld dato
       const followup = $('contractFollowupDate');
       if (followup) followup.value = contractState.followup_date || '';
-
+      
       contractUpdateSectionStatus();
+      
+      alert('Kontrakt indlæst ✅');
+      
+    } catch (error) {
+      console.error('Fejl ved indlæsning:', error);
+      alert('Fejl ved indlæsning af kontrakt: ' + error.message);
     }
-  } catch (e) {
-    console.warn('Kunne ikke indlæse eksisterende kontrakt:', e);
-  }
+  };
+  
+  input.click();
 }
 
 function contractSerializeSelectedTips(){
@@ -5747,47 +5786,63 @@ async function contractSave(isDraft){
       return;
     }
     
+    // Hent projekt og person navne
+    const { data: project } = await supabase
+      .from('projects')
+      .select('title')
+      .eq('id', contractState.project_id)
+      .single();
+    
+    const { data: person } = await supabase
+      .from('project_people')
+      .select('full_name')
+      .eq('id', contractState.target_id)
+      .single();
+
+    // Byg kontrakt data
     const contractData = {
-      project_id: contractState.project_id,
-      target_id: contractState.target_id,
-      title: 'Udviklingskontrakt',
-      selected_competencies: Array.from(contractState.selectedCompetencies),
-      selected_tips: contractSerializeSelectedTips(),
-      roles_assignments: contractSerializeRoles(),
+      version: 1,
+      created_at: new Date().toISOString(),
+      is_draft: !!isDraft,
+      project: {
+        id: contractState.project_id,
+        title: project?.title || 'Ukendt Projekt'
+      },
+      target: {
+        id: contractState.target_id,
+        name: person?.full_name || 'Ukendt Person'
+      },
       followup_date: contractState.followup_date,
+      competencies: Array.from(contractState.selectedCompetencies).map(cid => {
+        const comp = contractAvailableCompetencies.find(x => x.category_id === cid);
+        return {
+          id: cid,
+          name: comp?.category_name || 'Ukendt'
+        };
+      }),
+      tips: contractSerializeSelectedTips(),
+      roles: contractSerializeRoles(),
       employee_actions: contractState.employee_actions || '',
       employee_wishes: contractState.employee_wishes || '',
-      leader_actions: contractState.leader_actions || '',
-      is_draft: !!isDraft,
-      version: contractState.version || 1
+      leader_actions: contractState.leader_actions || ''
     };
 
-    let result;
-    if (contractState.contract_id) {
-      // Opdater eksisterende kontrakt
-      const { data, error } = await supabase
-        .from('development_contracts')
-        .update(contractData)
-        .eq('id', contractState.contract_id)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      result = data;
-    } else {
-      // Opret ny kontrakt
-      const { data, error } = await supabase
-        .from('development_contracts')
-        .insert([contractData])
-        .select()
-        .single();
-      
-      if (error) throw error;
-      result = data;
-      contractState.contract_id = result.id;
-    }
+    // Download som JSON fil
+    const jsonStr = JSON.stringify(contractData, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const filename = `Udviklingskontrakt_${person?.full_name.replace(/ /g, '_')}_${new Date().toISOString().split('T')[0]}.json`;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 
-    alert(isDraft ? 'Kladde gemt ✅' : 'Endelig kontrakt gemt ✅');
+    contractState.contract_id = 'local_' + Date.now(); // Lokal ID for session
+    
+    alert(isDraft ? 'Kladde gemt som JSON ✅\n\nFilen er downloadet til din computer.' : 'Endelig kontrakt gemt som JSON ✅\n\nFilen er downloadet til din computer.');
     contractUpdateSectionStatus();
   } catch (e) {
     console.error('Gem fejl:', e);
@@ -5939,6 +5994,31 @@ function contractStartOver(){
   const followup = $('contractFollowupDate'); if (followup) followup.value = '';
 
   contractUpdateSectionStatus();
+}
+
+// Tilføj "Indlæs kontrakt" knap functionality
+function contractSetupLoadButton() {
+  const stickyActions = $('contractStickyActions');
+  if (!stickyActions) return;
+  
+  // Find knap-container
+  const btnContainer = stickyActions.querySelector('[style*="display:flex;gap:12px"]');
+  if (!btnContainer) return;
+  
+  // Tilføj "Indlæs" knap hvis den ikke findes
+  if (!$('contractLoadBtn')) {
+    const loadBtn = document.createElement('button');
+    loadBtn.id = 'contractLoadBtn';
+    loadBtn.className = 'btn ghost';
+    loadBtn.innerHTML = '📁 Indlæs kontrakt';
+    loadBtn.onclick = contractLoadFromFile;
+    
+    // Indsæt før "Start forfra" knappen
+    const startOverBtn = $('contractStartOverBtn');
+    if (startOverBtn) {
+      btnContainer.insertBefore(loadBtn, startOverBtn);
+    }
+  }
 }
 
 function contractUpdateGoalsAndRoles(){
