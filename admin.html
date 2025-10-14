@@ -1122,9 +1122,11 @@ window.addEventListener('load', function() {
   let radar = null;
   let user = null;
   let currentEditProject = null; // Track which project is being edited
+  let contractTipsReloadTimeout = null; // debounce for tip-load
 
   // State management for temporary people (before project is saved)
   let temporaryPeople = [];
+
 
   const SUPABASE_URL = "https://wsrstyrsuwhcmmlmnbrz.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzcnN0eXJzdXdoY21tbG1uYnJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MTU0NTIsImV4cCI6MjA3MTE5MTQ1Mn0.Rf3Z3bQGjV5CKXKZr6IMOjzPdbhVJCh3SwuvlkpxUD0";
@@ -1189,12 +1191,12 @@ window.addEventListener('load', function() {
                       
                       // Vent lidt mere så contractAutoLoadFromCoaching() når at køre
                       await new Promise(resolve => setTimeout(resolve, 200));
-                      
-                      // Genindlæs tips for at sikre dismissed tips fra Resultat-fanen er filtreret
+
+                      // Ingen genindlæsning her – tips hentes allerede af auto/AI-flow. Kun re-render.
                       if (contractState.selectedCompetencies.size > 0) {
-                        console.log('Genindlæser tips efter fane-skift for at filtrere dismissed tips...');
-                        await contractLoadTipsForSelected();
+                        contractRenderTips();
                       }
+
                     }
                   }, 100);
                 }
@@ -5071,8 +5073,10 @@ function contractToggleCompetency(competencyId, card) {
     card.classList.add('selected');
   }
   
-  // Opdater forslag dynamisk når valgte kompetencer ændres
-  contractLoadTipsForSelected();
+  // Opdater forslag dynamisk når valgte kompetencer ændres (debounced)
+  clearTimeout(contractTipsReloadTimeout);
+  contractTipsReloadTimeout = setTimeout(() => { contractLoadTipsForSelected(); }, 150);
+
   
   // Genindlæs kollega support når kompetencer ændres
   const colleagueEl = $('contractColleagueSupport');
@@ -5099,11 +5103,12 @@ async function contractLoadTipsForSelected() {
     return;
   }
 
-  // Sekvenslås: markér dette kald som “nyeste”
+  // Sekvenslås: markér dette kald som nyeste
   const loadToken = ++contractTipsLoadToken;
 
   try {
-    console.log('Henter tips fra Coaching fra Resultater fanen...');
+    console.log('Henter tips fra Coaching fra Resultater fanen.');
+
 
     
     // Hent coaching anbefalinger for at identificere udviklings- og fastholdelseskategorier
@@ -5246,13 +5251,14 @@ async function contractLoadTipsForSelected() {
 
     // Drop forældede loads: kun seneste må rende UI
     if (loadToken !== contractTipsLoadToken) {
-      console.log('Droppes: forældet tips-load, et nyere kald har overtaget.');
+      console.log('Droppes: forældet tips-load – nyere kald har overtaget.');
       return;
     }
 
     contractRenderTips();
     
   } catch (e) {
+
     console.error('Fejl ved indlæsning af tips:', e);
     container.innerHTML = '<div style="color:var(--error)">Fejl ved indlæsning af tips: ' + (e.message || e) + '</div>';
   }
