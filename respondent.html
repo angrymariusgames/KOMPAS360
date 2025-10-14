@@ -601,6 +601,11 @@
                 <div class="success-icon">✅</div>
                 <h2 style="margin-bottom: 1rem; color: var(--success);">Tak for din evaluering!</h2>
                 <p style="color: var(--text-light);">Din besvarelse er blevet gemt.</p>
+                <div id="evaluate-another-section" style="margin-top: 2rem; display: none;">
+                    <button id="evaluate-another-btn" class="submit-btn" style="background: linear-gradient(135deg, var(--primary) 0%, #764ba2 100%);">
+                        Bedøm en anden person
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -982,6 +987,36 @@
             
             // Submit button
             document.getElementById('submit-btn').addEventListener('click', submitResponse);
+            
+            // Evaluate another button
+            document.getElementById('evaluate-another-btn').addEventListener('click', function() {
+                // Reset state for new evaluation
+                state.selectedTarget = null;
+                state.selectedType = null;
+                state.answers = {};
+                
+                // Hide success and show form
+                document.getElementById('success').classList.add('hidden');
+                document.getElementById('form-container').classList.remove('hidden');
+                document.getElementById('progress-bar').classList.remove('hidden');
+                
+                // Re-render targets (now with evaluated person removed)
+                renderTargets();
+                
+                // Reset selections visually
+                document.querySelectorAll('.target-option').forEach(el => el.classList.remove('selected'));
+                document.querySelectorAll('.type-option').forEach(el => el.classList.remove('selected'));
+                
+                // Reset all question answers
+                document.querySelectorAll('.rating-input').forEach(input => input.checked = false);
+                document.querySelectorAll('.sg-input').forEach(input => input.checked = false);
+                
+                // Update progress
+                updateProgress();
+                
+                // Scroll to top
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
         }
 
         async function submitResponse() {
@@ -1016,6 +1051,20 @@
                 document.getElementById('form-container').classList.add('hidden');
                 document.getElementById('progress-bar').classList.add('hidden');
                 document.getElementById('success').classList.remove('hidden');
+                
+                // Show "Evaluate another" button only if project is NOT anonymous and there are remaining targets
+                if (!state.project.is_anonymous) {
+                    // Remove evaluated target from list
+                    const evaluatedTargetIndex = state.project.people.findIndex(p => p.id === state.selectedTarget);
+                    if (evaluatedTargetIndex !== -1) {
+                        state.project.people.splice(evaluatedTargetIndex, 1);
+                    }
+                    
+                    // Show button only if there are remaining people to evaluate
+                    if (state.project.people.length > 0) {
+                        document.getElementById('evaluate-another-section').style.display = 'block';
+                    }
+                }
                 
             } catch (error) {
                 console.error('Submission error:', error);
