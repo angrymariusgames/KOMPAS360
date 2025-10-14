@@ -1177,17 +1177,26 @@ window.addEventListener('load', function() {
                 if (dstProj && dstProj.value !== srcProj) {
                   dstProj.value = srcProj;
                   // loader targets/kompetencer mv.
-                  contractOnProjectChange();
+                  await contractOnProjectChange();
                 }
                 if (srcTarget) {
                   // vent et tick så targetlisten er fyldt
-                  setTimeout(() => {
+                  setTimeout(async () => {
                     const dstTarget = $('contractTargetSelect');
                     if (dstTarget) {
                       dstTarget.value = srcTarget;
                       dstTarget.dispatchEvent(new Event('change'));
+                      
+                      // Vent lidt mere så contractAutoLoadFromCoaching() når at køre
+                      await new Promise(resolve => setTimeout(resolve, 200));
+                      
+                      // Genindlæs tips for at sikre dismissed tips fra Resultat-fanen er filtreret
+                      if (contractState.selectedCompetencies.size > 0) {
+                        console.log('Genindlæser tips efter fane-skift for at filtrere dismissed tips...');
+                        await contractLoadTipsForSelected();
+                      }
                     }
-                  }, 0);
+                  }, 100);
                 }
               }
             } catch(e) {
@@ -6014,6 +6023,17 @@ async function contractAutoLoadFromCoaching(){
     
   } catch (err) {
     console.error('Fejl ved auto-load af coaching data:', err);
+  }
+}
+
+// Funktion til at genindlæse tips når fanen åbnes
+async function contractReloadTipsIfNeeded() {
+  // Genindlæs kun hvis både projekt, målperson og kompetencer er valgt
+  if (contractState.project_id && 
+      contractState.target_id && 
+      contractState.selectedCompetencies.size > 0) {
+    console.log('Genindlæser tips for at sikre dismissed tips er filtreret...');
+    await contractLoadTipsForSelected();
   }
 }
 
