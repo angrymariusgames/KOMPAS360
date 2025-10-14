@@ -5216,10 +5216,21 @@ async function contractLoadTipsForSelected() {
       await loadFallbackTips(competencyIds, dismissedIds);
     }
 
+    // Fjern kun kategorier der STADIG ikke har tips efter fallback
+    const finalCategoriesToRemove = new Set();
+    categoriesToRemove.forEach(categoryId => {
+      // Tjek om kategorien stadig ikke har tips efter fallback
+      if (!contractAvailableTips.has(categoryId) || contractAvailableTips.get(categoryId).length === 0) {
+        finalCategoriesToRemove.add(categoryId);
+      } else {
+        console.log(`Kategori ${categoryId} blev reddet af fallback - beholder den`);
+      }
+    });
+
     // Fjern kategorier uden aktive tips fra selectedCompetencies
-    if (categoriesToRemove.size > 0) {
-      console.log('Fjerner kategorier uden aktive tips:', Array.from(categoriesToRemove));
-      categoriesToRemove.forEach(categoryId => {
+    if (finalCategoriesToRemove.size > 0) {
+      console.log('Fjerner kategorier uden aktive tips efter fallback:', Array.from(finalCategoriesToRemove));
+      finalCategoriesToRemove.forEach(categoryId => {
         contractState.selectedCompetencies.delete(categoryId);
         contractState.selectedTips.delete(categoryId);
         
