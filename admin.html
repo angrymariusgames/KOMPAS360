@@ -2445,16 +2445,16 @@ if (!window.__coachDismissBound) {
 }
 
   // Byg drag/drop-plan ud fra de råd, der lige nu vises i 📈 Udvikle (kun overskrifter)
-  function updateCoachingPlan(/* data ikke påkrævet */) {
+    function updateCoachingPlan(/* data ikke pÃ¥krÃ¦vet */) {
     const pool = document.getElementById('plan-pool');
     const timeline = document.getElementById('coaching-timeline');
     if (!pool || !timeline) return;
 
-    // 1) Saml alle aktive råd fra Udvikle (en chip pr. tip_id)
+    // 1) Saml alle aktive rÃ¥d fra Udvikle (en chip pr. tip_id)
     const tipLines = Array.from(document.querySelectorAll('.tip-line[data-tip-id][data-title]'));
     const tips = tipLines.map(line => ({
       id: line.getAttribute('data-tip-id'),
-      title: line.getAttribute('data-title') || 'Råd'
+      title: line.getAttribute('data-title') || 'RÃ¥d'
     })).filter(t => t.id);
 
     // 2) Nulstil UI (behold plan-overskrifterne)
@@ -2465,7 +2465,7 @@ if (!window.__coachDismissBound) {
     // 3) Opret chips i puljen
     tips.forEach(t => pool.appendChild(createPlanChip(t.id, t.title)));
 
-    // 4) Init drop-zoner (kun én gang)
+    // 4) Init drop-zoner (kun Ã©n gang)
     if (!window.__planDndBound) {
       window.__planDndBound = true;
       makeDroppable(pool);
@@ -2474,6 +2474,9 @@ if (!window.__coachDismissBound) {
         if (box) makeDroppable(box.querySelector('.plan-bin'));
       });
     }
+    
+    // 5) Gendan gemte placeringer
+    restore306090PlanState();
   }
 
   // Helper: lav en draggable chip
@@ -2514,6 +2517,9 @@ if (!window.__coachDismissBound) {
           const chip = document.querySelector(`.plan-chip[data-tip-id="${id}"]`);
           if (!chip) return;
           targetEl.appendChild(chip); // flyt chippen
+          
+          // Gem placeringen i sessionStorage
+          save306090PlanState();
         }
         targetEl.style.outline = 'none';
       });
@@ -2726,6 +2732,126 @@ if (!window.__coachDismissBound) {
     await generateRadarChart();
   };
 
+// === SESSIONSTO​RAGE FUNKTIONER FOR RESULTATER FANE ===
+  
+  // Gem 30/60/90 plan tilstand
+  function save306090PlanState() {
+    const pid = $('selProject2')?.value;
+    const tid = $('selTarget')?.value;
+    if (!pid || !tid) return;
+    
+    const key = `plan_state_${pid}_${tid}`;
+    const state = {
+      plan30: [],
+      plan60: [],
+      plan90: []
+    };
+    
+    // Gem alle chips fra hver bin
+    [
+      { period: 'plan30', selector: '#plan-30 .plan-bin .plan-chip' },
+      { period: 'plan60', selector: '#plan-60 .plan-bin .plan-chip' },
+      { period: 'plan90', selector: '#plan-90 .plan-bin .plan-chip' }
+    ].forEach(({ period, selector }) => {
+      const chips = document.querySelectorAll(selector);
+      chips.forEach(chip => {
+        state[period].push({
+          id: chip.getAttribute('data-tip-id'),
+          title: chip.getAttribute('title')
+        });
+      });
+    });
+    
+    sessionStorage.setItem(key, JSON.stringify(state));
+    console.log('30/60/90 plan gemt:', state);
+  }
+  
+  // Gendan 30/60/90 plan tilstand
+  function restore306090PlanState() {
+    const pid = $('selProject2')?.value;
+    const tid = $('selTarget')?.value;
+    if (!pid || !tid) return;
+    
+    const key = `plan_state_${pid}_${tid}`;
+    const savedState = sessionStorage.getItem(key);
+    if (!savedState) return;
+    
+    try {
+      const state = JSON.parse(savedState);
+      console.log('Gendanner 30/60/90 plan:', state);
+      
+      // Flyt chips til de gemte positioner
+      [
+        { period: 'plan30', binId: 'plan-30' },
+        { period: 'plan60', binId: 'plan-60' },
+        { period: 'plan90', binId: 'plan-90' }
+      ].forEach(({ period, binId }) => {
+        const bin = document.querySelector(`#${binId} .plan-bin`);
+        if (!bin) return;
+        
+        state[period].forEach(chipData => {
+          const chip = document.querySelector(`.plan-chip[data-tip-id="${chipData.id}"]`);
+          if (chip) {
+            bin.appendChild(chip);
+          }
+        });
+      });
+    } catch (e) {
+      console.error('Fejl ved gendannelse af 30/60/90 plan:', e);
+    }
+  }
+  
+  // Gem team rolle tilstand
+  function saveTeamRoleState() {
+    const pid = $('selProject2')?.value;
+    const tid = $('selTarget')?.value;
+    if (!pid || !tid) return;
+    
+    const key = `teamrole_state_${pid}_${tid}`;
+    const checkedRoles = [];
+    
+    document.querySelectorAll('#teamRoleCards input[type="checkbox"]:checked').forEach(cb => {
+      checkedRoles.push({
+        roleId: cb.dataset.roleId,
+        roleName: cb.dataset.roleName
+      });
+    });
+    
+    sessionStorage.setItem(key, JSON.stringify(checkedRoles));
+    console.log('Team roller gemt:', checkedRoles);
+  }
+  
+  // Gendan team rolle tilstand
+  function restoreTeamRoleState() {
+    const pid = $('selProject2')?.value;
+    const tid = $('selTarget')?.value;
+    if (!pid || !tid) return;
+    
+    const key = `teamrole_state_${pid}_${tid}`;
+    const savedState = sessionStorage.getItem(key);
+    if (!savedState) return;
+    
+    try {
+      const checkedRoles = JSON.parse(savedState);
+      console.log('Gendanner team roller:', checkedRoles);
+      
+      checkedRoles.forEach(({ roleId }) => {
+        const checkbox = document.querySelector(`#teamRoleCards input[data-role-id="${roleId}"]`);
+        if (checkbox && !checkbox.checked) {
+          checkbox.checked = true;
+          // Trigger visuelt feedback
+          const card = checkbox.closest('div[style*="border-radius: 12px"]');
+          if (card) {
+            card.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.15)';
+            card.style.transform = 'translateY(-1px)';
+          }
+        }
+      });
+    } catch (e) {
+      console.error('Fejl ved gendannelse af team roller:', e);
+    }
+  }
+
   // Navigation mellem targets
   function updateNavigationButtons() {
     const targetSelect = $('selTarget');
@@ -2756,7 +2882,7 @@ if (!window.__coachDismissBound) {
 
   // Team roller cards (Top-4 via RPC teamrole_top4) med beskrivelse + kompetencer
   async function loadTeamRoleDropdown(projectId, targetId) {
-    // Brug parametre hvis de er givet, ellers læs fra DOM
+    // Brug parametre hvis de er givet, ellers lÃ¦s fra DOM
     const pid = projectId || $('selProject2').value;
     const tid = targetId || $('selTarget').value;
     const cardsContainer = $('teamRoleCards');
@@ -2766,7 +2892,7 @@ if (!window.__coachDismissBound) {
     if (!cardsContainer) return;
 
     if (!pid || !tid) {
-      cardsContainer.innerHTML = '<div style="text-align: center; color: #718096; padding: 40px;">Vælg projekt og målperson først for at se teamroller.</div>';
+      cardsContainer.innerHTML = '<div style="text-align: center; color: #718096; padding: 40px;">VÃ¦lg projekt og mÃ¥lperson fÃ¸rst for at se teamroller.</div>';
       return;
     }
     
@@ -2876,6 +3002,9 @@ if (!window.__coachDismissBound) {
       card.style.boxShadow = 'none';
       card.style.transform = 'none';
     }
+    
+    // Gem valget i sessionStorage
+    saveTeamRoleState();
   };
 
   // Funktion til at generere SVG KOMPAS hjul
@@ -5842,8 +5971,6 @@ async function contractSave(isDraft){
     URL.revokeObjectURL(url);
 
     contractState.contract_id = 'local_' + Date.now(); // Lokal ID for session
-    
-    alert(isDraft ? 'Kladde gemt som UDV ✅\n\nFilen er downloadet til din computer.\n\nFiltype: KOMPAS Udviklingskontrakt (.udv)' : 'Endelig kontrakt gemt som UDV ✅\n\nFilen er downloadet til din computer.\n\nFiltype: KOMPAS Udviklingskontrakt (.udv)');
     contractUpdateSectionStatus();
   } catch (e) {
     console.error('Gem fejl:', e);
