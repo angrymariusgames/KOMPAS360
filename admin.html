@@ -2986,7 +2986,17 @@ if (!window.__coachDismissBound) {
                 </div>
               </div>
               <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; background: white; padding: 4px 8px; border-radius: 12px; border: 1px solid #e2e8f0; font-size: 0.8em;">
-                <input type="checkbox" data-role-id="${r.role_id}" data-role-name="${r.role_name}" onchange="toggleTeamRole(this)" style="margin: 0; transform: scale(0.8);">
+                <input type="checkbox" 
+                  data-role-id="${r.role_id}" 
+                  data-role-name="${r.role_name}" 
+                  data-role-rank="${rank}"
+                  data-role-pct="${pct}"
+                  data-role-description="${(r.description || '').replace(/"/g, '&quot;')}"
+                  data-role-comp1="${r.comp1 || ''}"
+                  data-role-comp2="${r.comp2 || ''}"
+                  data-role-comp3="${r.comp3 || ''}"
+                  onchange="toggleTeamRole(this)" 
+                  style="margin: 0; transform: scale(0.8);">
                 <span style="font-weight: 500; color: #4a5568;">Passer</span>
               </label>
             </div>
@@ -5791,11 +5801,11 @@ function contractUpdateTeamRoles(){
 
     let html = '';
     roles.forEach(role => {
-      const competencies = (role.competencies || []).join(', ');
+      const competencies = (role.competencies || []).join(' - ');
       html += `<div style="background:rgba(59,130,246,0.08);border-left:3px solid var(--info);padding:8px;margin-bottom:8px;border-radius:4px">
-        <div style="font-weight:600;font-size:0.85rem;margin-bottom:2px">${role.name}</div>
-        <div style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:4px">${role.description}</div>
-        <div style="font-size:0.7rem;color:var(--muted)">Kompetencer: ${competencies}</div>
+        <div style="font-weight:600;font-size:0.9rem;margin-bottom:2px;color:var(--info)">#${role.rank} ${role.name} - ${role.pct}%</div>
+        <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:4px">${role.description}</div>
+        <div style="font-size:0.75rem;color:var(--muted)">${competencies}</div>
       </div>`;
     });
 
@@ -5810,14 +5820,24 @@ async function contractGetSelectedTeamRoles(){
   try {
     if (!contractState.project_id || !contractState.target_id) return [];
 
-    // 1) Læs eksplicit valgte roller fra Resultater (afkrydsede "Passer")
+    // 1) Læs eksplicit valgte roller fra Resultater (afkrydsede "Passer") MED FULD INFO
     const checked = Array.from(document.querySelectorAll('#teamRoleCards input[type="checkbox"]:checked'));
     if (checked.length) {
-      return checked.map(cb => ({
-        name: cb.dataset.roleName || 'Rolle',
-        description: '',
-        competencies: []
-      }));
+      return checked.map(cb => {
+        const comps = [
+          cb.dataset.roleComp1,
+          cb.dataset.roleComp2,
+          cb.dataset.roleComp3
+        ].filter(Boolean);
+        
+        return {
+          rank: cb.dataset.roleRank || '',
+          name: cb.dataset.roleName || 'Rolle',
+          pct: cb.dataset.rolePct || '0.0',
+          description: cb.dataset.roleDescription || '',
+          competencies: comps
+        };
+      });
     }
 
     // 2) Fallback: relevante roller ud fra de valgte kompetencer i kontrakten
@@ -6385,16 +6405,27 @@ async function contractGenerate306090PdfSection() {
 }
 
 async function contractGenerateTeamRolesPdfSection() {
-  const rolesEl = $('contractRolesContainer');
-  if (!rolesEl || !rolesEl.innerHTML.trim() || rolesEl.innerHTML.includes('Ingen roller valgt')) {
+  const roles = await contractGetSelectedTeamRoles();
+  
+  if (!roles || roles.length === 0) {
     return '';
   }
+  
+  let rolesHtml = '';
+  roles.forEach(role => {
+    const competencies = (role.competencies || []).join(' - ');
+    rolesHtml += `<div style="padding:10px;background:white;border:1px solid #e2e8f0;border-left:3px solid #667eea;margin-bottom:8px;border-radius:4px">
+      <div style="font-weight:600;font-size:13px;color:#667eea;margin-bottom:4px">#${role.rank} ${role.name} - ${role.pct}%</div>
+      <div style="font-size:11px;color:#475569;margin-bottom:4px">${role.description}</div>
+      <div style="font-size:10px;color:#94a3b8">${competencies}</div>
+    </div>`;
+  });
   
   return `
   <div style="margin-bottom:20px">
     <h3 style="color:#1e293b;margin:0 0 12px 0">🧩 Team Roller</h3>
     <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px">
-      ${rolesEl.innerHTML}
+      ${rolesHtml}
     </div>
   </div>`;
 }
