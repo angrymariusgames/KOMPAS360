@@ -5449,30 +5449,55 @@ function contractSetupOverview(){
   const targTxt = targSel?.options[targSel.selectedIndex]?.text || 'Ikke valgt';
 
 
-  let html = `<h4>📋 Udviklingskontrakt — Oversigt</h4>
+  let html = `<h4>📋 Udviklingskontrakt – Oversigt</h4>
   <div style="margin:16px 0">
     <strong>Projekt:</strong> ${projTxt}<br>
     <strong>Målperson:</strong> ${targTxt}<br>
     <strong>Opfølgningsdato:</strong> ${contractState.followup_date || 'Ikke sat'}
   </div>`;
 
-  // Kompetencer
+  // Kompetencer - VIS FULDE BESKRIVELSER
   if (contractState.selectedCompetencies.size > 0) {
-    html += '<h5>Valgte kompetencer:</h5><ul>';
+    html += '<h5>Valgte kompetencer:</h5>';
     contractState.selectedCompetencies.forEach(cid=>{
       const c = contractAvailableCompetencies.find(x=>x.category_id===cid);
-      html += `<li>${c?.category_name || 'Ukendt'}</li>`;
+      if (c) {
+        html += `<div style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px;margin-bottom:8px">`;
+        html += `<strong style="color:var(--brand)">${c.category_name}</strong><br>`;
+        if (c.synopsis) html += `<div style="margin-top:4px;font-size:0.9rem"><em>${c.synopsis}</em></div>`;
+        if (c.importance) html += `<div style="margin-top:4px;font-size:0.9rem">Vigtighed: ${c.importance}</div>`;
+        if (c.why_matters) html += `<div style="margin-top:4px;font-size:0.9rem">Hvorfor det betyder noget: ${c.why_matters}</div>`;
+        html += `</div>`;
+      }
     });
-    html += '</ul>';
   } else {
     html += '<p style="color:var(--muted)">Ingen kompetencer valgt endnu</p>';
   }
 
-  // Aktiviteter
+  // Aktiviteter - VIS ALLE VALGTE AKTIVITETER FULDT UD
   let totalActivities = 0;
   for (const tips of contractState.selectedTips.values()) totalActivities += tips.size;
   if (totalActivities > 0) {
-    html += `<h5>Aktiviteter:</h5><p>${totalActivities} aktiviteter valgt</p>`;
+    html += `<h5>Aktiviteter (${totalActivities} valgt):</h5>`;
+    for (const [categoryId, tipIds] of contractState.selectedTips.entries()) {
+      const category = contractAvailableCompetencies.find(c => c.category_id === categoryId);
+      const tips = contractAvailableTips.get(categoryId) || [];
+      
+      html += `<div style="margin-bottom:16px"><strong style="color:var(--brand)">${category?.category_name || 'Kompetence'}:</strong></div>`;
+      
+      tipIds.forEach(tipId => {
+        const tip = tips.find(t => t.id === tipId);
+        if (tip) {
+          html += `<div style="background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--brand);border-radius:6px;padding:12px;margin-bottom:8px">`;
+          html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">`;
+          html += `<span style="background:var(--brand);color:white;padding:2px 8px;border-radius:4px;font-size:0.75rem">${contractMethodLabel(tip.method)}</span>`;
+          html += `<strong>${tip.title}</strong>`;
+          html += `</div>`;
+          html += `<div style="font-size:0.9rem;color:var(--text)">${tip.description}</div>`;
+          html += `</div>`;
+        }
+      });
+    }
   } else {
     html += '<p style="color:var(--muted)">Ingen aktiviteter valgt endnu</p>';
   }
@@ -5523,23 +5548,80 @@ function contractSetupOverview(){
     }
   }
 
-  // 30/60/90 Mål (kun hvis medtaget)
+  // 📅 30/60/90 Mål (kun hvis medtaget) - VIS FULDT UD
   if (contractState.include_306090_goals) {
     html += '<h5>📅 30/60/90 Mål:</h5>';
     const goalsEl = $('contractGoalsContainer');
     if (goalsEl && goalsEl.innerHTML.trim() && !goalsEl.innerHTML.includes('Ingen 30/60/90 mål')) {
-      html += `<div style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px;margin-top:8px">${goalsEl.innerHTML}</div>`;
+      // Vis alle mål med fuld tekst, ikke bare overskrifter
+      html += `<div style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px;margin-top:8px">`;
+      html += `<div><strong>Første 30 dage:</strong></div>`;
+      const goals30 = Array.from(document.querySelectorAll('#contractGoalsContainer [data-period="30"]'));
+      if (goals30.length > 0) {
+        goals30.forEach(g => {
+          const text = g.getAttribute('data-text') || g.textContent;
+          const category = g.getAttribute('data-category') || '';
+          html += `<div style="margin:8px 0;padding-left:12px;border-left:2px solid var(--brand)">`;
+          if (category) html += `<em style="color:var(--brand);font-size:0.85rem">${category}:</em> `;
+          html += `${text}</div>`;
+        });
+      } else {
+        html += `<div style="color:var(--muted);margin:8px 0">Ingen mål defineret</div>`;
+      }
+      
+      html += `<div style="margin-top:16px"><strong>Dag 31-60:</strong></div>`;
+      const goals60 = Array.from(document.querySelectorAll('#contractGoalsContainer [data-period="60"]'));
+      if (goals60.length > 0) {
+        goals60.forEach(g => {
+          const text = g.getAttribute('data-text') || g.textContent;
+          const category = g.getAttribute('data-category') || '';
+          html += `<div style="margin:8px 0;padding-left:12px;border-left:2px solid var(--brand)">`;
+          if (category) html += `<em style="color:var(--brand);font-size:0.85rem">${category}:</em> `;
+          html += `${text}</div>`;
+        });
+      } else {
+        html += `<div style="color:var(--muted);margin:8px 0">Ingen mål defineret</div>`;
+      }
+      
+      html += `<div style="margin-top:16px"><strong>Dag 61-90:</strong></div>`;
+      const goals90 = Array.from(document.querySelectorAll('#contractGoalsContainer [data-period="90"]'));
+      if (goals90.length > 0) {
+        goals90.forEach(g => {
+          const text = g.getAttribute('data-text') || g.textContent;
+          const category = g.getAttribute('data-category') || '';
+          html += `<div style="margin:8px 0;padding-left:12px;border-left:2px solid var(--brand)">`;
+          if (category) html += `<em style="color:var(--brand);font-size:0.85rem">${category}:</em> `;
+          html += `${text}</div>`;
+        });
+      } else {
+        html += `<div style="color:var(--muted);margin:8px 0">Ingen mål defineret</div>`;
+      }
+      html += `</div>`;
     } else {
       html += '<p style="color:var(--muted)">Ingen 30/60/90 mål valgt</p>';
     }
   }
 
-  // Team Roller (kun hvis medtaget)
+  // Team Roller (kun hvis medtaget) - VIS FULDT UD
   if (contractState.include_team_roles) {
     html += '<h5>🧩 Team Roller:</h5>';
     const rolesEl = $('contractRolesContainer');
     if (rolesEl && rolesEl.innerHTML.trim() && !rolesEl.innerHTML.includes('Ingen roller valgt')) {
-      html += `<div style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px;margin-top:8px">${rolesEl.innerHTML}</div>`;
+      // Vis alle roller med fuld beskrivelse og kompetencer
+      html += `<div style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px;margin-top:8px">`;
+      const roleCards = Array.from(document.querySelectorAll('#contractRolesContainer > div'));
+      roleCards.forEach(card => {
+        const name = card.querySelector('[style*="font-weight:600"]')?.textContent || 'Rolle';
+        const description = card.querySelector('[style*="text-secondary"]')?.textContent || '';
+        const competencies = card.querySelector('[style*="muted"]')?.textContent || '';
+        
+        html += `<div style="margin-bottom:12px;padding:8px;background:white;border:1px solid var(--line);border-radius:4px">`;
+        html += `<strong style="color:var(--brand)">${name}</strong><br>`;
+        if (description) html += `<div style="margin-top:4px;font-size:0.9rem">${description}</div>`;
+        if (competencies) html += `<div style="margin-top:4px;font-size:0.85rem;color:var(--muted)">${competencies}</div>`;
+        html += `</div>`;
+      });
+      html += `</div>`;
     } else {
       html += '<p style="color:var(--muted)">Ingen team roller valgt</p>';
     }
@@ -6128,17 +6210,46 @@ async function contractGeneratePdfHtml(project, person) {
   const projTxt = project.title || 'Projekt';
   const persTxt = person.full_name || 'Person';
   
-  // Hent kompetence navne
-  const competencyNames = [];
+  // Hent kompetencer med beskrivelser
+  const competenciesHtml = [];
   for (const cid of contractState.selectedCompetencies) {
     const comp = contractAvailableCompetencies.find(x => x.category_id === cid);
-    if (comp) competencyNames.push(comp.category_name);
+    if (comp) {
+      let compHtml = `<div style="padding:12px;background:#f8fafc;border-left:3px solid #667eea;margin-bottom:12px;border-radius:4px">`;
+      compHtml += `<strong style="color:#667eea;font-size:16px">${comp.category_name}</strong><br>`;
+      if (comp.synopsis) compHtml += `<div style="margin-top:6px;font-size:13px;font-style:italic">${comp.synopsis}</div>`;
+      if (comp.importance) compHtml += `<div style="margin-top:6px;font-size:12px"><strong>Vigtighed:</strong> ${comp.importance}</div>`;
+      if (comp.why_matters) compHtml += `<div style="margin-top:6px;font-size:12px"><strong>Hvorfor det betyder noget:</strong> ${comp.why_matters}</div>`;
+      compHtml += `</div>`;
+      competenciesHtml.push(compHtml);
+    }
   }
   
-  // Tæl aktiviteter
+  // Hent alle aktiviteter med fuld beskrivelse
+  const activitiesHtml = [];
   let totalActivities = 0;
-  for (const tips of contractState.selectedTips.values()) {
-    totalActivities += tips.size;
+  for (const [categoryId, tipIds] of contractState.selectedTips.entries()) {
+    const category = contractAvailableCompetencies.find(c => c.category_id === categoryId);
+    const tips = contractAvailableTips.get(categoryId) || [];
+    
+    if (tipIds.size > 0) {
+      activitiesHtml.push(`<div style="margin-bottom:16px"><strong style="color:#667eea;font-size:14px">${category?.category_name || 'Kompetence'}:</strong></div>`);
+      
+      tipIds.forEach(tipId => {
+        const tip = tips.find(t => t.id === tipId);
+        if (tip) {
+          totalActivities++;
+          let tipHtml = `<div style="padding:10px;background:white;border:1px solid #e2e8f0;border-left:3px solid #667eea;margin-bottom:8px;border-radius:4px">`;
+          tipHtml += `<div style="margin-bottom:6px">`;
+          tipHtml += `<span style="background:#667eea;color:white;padding:2px 8px;border-radius:3px;font-size:10px;margin-right:8px">${contractMethodLabel(tip.method)}</span>`;
+          tipHtml += `<strong style="font-size:13px">${tip.title}</strong>`;
+          tipHtml += `</div>`;
+          tipHtml += `<div style="font-size:12px;color:#475569">${tip.description}</div>`;
+          tipHtml += `</div>`;
+          activitiesHtml.push(tipHtml);
+        }
+      });
+    }
   }
 
   return `
@@ -6158,18 +6269,16 @@ async function contractGeneratePdfHtml(project, person) {
         </div>
       </div>
       
-      <!-- Kompetencer -->
+      <!-- Kompetencer MED FULDE BESKRIVELSER -->
       <div style="margin-bottom:20px">
-        <h3 style="color:#1e293b;margin:0 0 12px 0">🎯 Valgte Kompetencer (${competencyNames.length})</h3>
-        <ul style="list-style:none;padding:0">
-          ${competencyNames.map(name => `<li style="padding:8px;background:#f8fafc;border-left:3px solid #667eea;margin-bottom:4px">${name}</li>`).join('')}
-        </ul>
+        <h3 style="color:#1e293b;margin:0 0 12px 0">🎯 Valgte Kompetencer (${competenciesHtml.length})</h3>
+        ${competenciesHtml.join('')}
       </div>
       
-      <!-- Aktiviteter -->
+      <!-- Aktiviteter MED FULDE BESKRIVELSER -->
       <div style="margin-bottom:20px">
-        <h3 style="color:#1e293b;margin:0 0 12px 0">💡 Aktiviteter</h3>
-        <p style="padding:12px;background:#f8fafc;border-radius:6px">${totalActivities} aktiviteter valgt til udvikling</p>
+        <h3 style="color:#1e293b;margin:0 0 12px 0">💡 Aktiviteter (${totalActivities} valgt)</h3>
+        ${activitiesHtml.length > 0 ? activitiesHtml.join('') : '<p style="color:#94a3b8;font-style:italic">Ingen aktiviteter valgt</p>'}
       </div>
       
       <!-- Roller og Aftaler -->
@@ -6198,6 +6307,67 @@ async function contractGeneratePdfHtml(project, person) {
         ` : ''}
       </div>
       
+      <!-- 30/60/90 Mål (kun hvis medtaget) MED FULD TEKST -->
+      ${contractState.include_306090_goals ? `
+      <div style="margin-bottom:20px">
+        <h3 style="color:#1e293b;margin:0 0 12px 0">📅 30/60/90 Mål</h3>
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px">
+          <div style="margin-bottom:16px">
+            <strong style="color:#667eea">Første 30 dage:</strong>
+            ${Array.from(document.querySelectorAll('#contractGoalsContainer [data-period="30"]')).map(g => {
+              const text = g.getAttribute('data-text') || g.textContent;
+              const category = g.getAttribute('data-category') || '';
+              return `<div style="margin:6px 0 6px 12px;padding-left:8px;border-left:2px solid #667eea;font-size:12px">
+                ${category ? `<em style="color:#667eea">${category}:</em> ` : ''}${text}
+              </div>`;
+            }).join('') || '<div style="color:#94a3b8;font-style:italic;margin-left:12px;font-size:12px">Ingen mål defineret</div>'}
+          </div>
+          
+          <div style="margin-bottom:16px">
+            <strong style="color:#667eea">Dag 31-60:</strong>
+            ${Array.from(document.querySelectorAll('#contractGoalsContainer [data-period="60"]')).map(g => {
+              const text = g.getAttribute('data-text') || g.textContent;
+              const category = g.getAttribute('data-category') || '';
+              return `<div style="margin:6px 0 6px 12px;padding-left:8px;border-left:2px solid #667eea;font-size:12px">
+                ${category ? `<em style="color:#667eea">${category}:</em> ` : ''}${text}
+              </div>`;
+            }).join('') || '<div style="color:#94a3b8;font-style:italic;margin-left:12px;font-size:12px">Ingen mål defineret</div>'}
+          </div>
+          
+          <div>
+            <strong style="color:#667eea">Dag 61-90:</strong>
+            ${Array.from(document.querySelectorAll('#contractGoalsContainer [data-period="90"]')).map(g => {
+              const text = g.getAttribute('data-text') || g.textContent;
+              const category = g.getAttribute('data-category') || '';
+              return `<div style="margin:6px 0 6px 12px;padding-left:8px;border-left:2px solid #667eea;font-size:12px">
+                ${category ? `<em style="color:#667eea">${category}:</em> ` : ''}${text}
+              </div>`;
+            }).join('') || '<div style="color:#94a3b8;font-style:italic;margin-left:12px;font-size:12px">Ingen mål defineret</div>'}
+          </div>
+        </div>
+      </div>
+      ` : ''}
+      
+      <!-- Team Roller (kun hvis medtaget) MED FULD BESKRIVELSE -->
+      ${contractState.include_team_roles ? `
+      <div style="margin-bottom:20px">
+        <h3 style="color:#1e293b;margin:0 0 12px 0">🧩 Team Roller</h3>
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px">
+          ${Array.from(document.querySelectorAll('#contractRolesContainer > div')).map(card => {
+            const name = card.querySelector('[style*="font-weight:600"]')?.textContent || 'Rolle';
+            const description = card.querySelector('[style*="text-secondary"]')?.textContent || '';
+            const competencies = card.querySelector('[style*="muted"]')?.textContent || '';
+            
+            return `<div style="padding:12px;background:white;border:1px solid #e2e8f0;margin-bottom:8px;border-radius:4px;border-left:3px solid #667eea">
+              <strong style="color:#667eea;font-size:14px">${name}</strong><br>
+              ${description ? `<div style="margin-top:6px;font-size:12px;color:#475569">${description}</div>` : ''}
+              ${competencies ? `<div style="margin-top:6px;font-size:11px;color:#94a3b8">${competencies}</div>` : ''}
+            </div>`;
+          }).join('') || '<p style="color:#94a3b8;font-style:italic;font-size:12px">Ingen roller valgt</p>'}
+        </div>
+      </div>
+      ` : ''}
+      
       <!-- Kollega støtte (kun hvis medtaget) -->
       ${contractState.include_colleague_support ? await contractGenerateColleagueSupportPdfSection() : ''}
       
@@ -6214,6 +6384,15 @@ async function contractGeneratePdfHtml(project, person) {
       </div>
     </div>
   `;
+}
+
+// Hjælpefunktion til at lave metode labels læsbare
+function contractMethodLabel(method){
+  const m = {
+    self: 'Selv', colleague: 'Kollega', leader_employee: 'Leder',
+    group: 'Gruppe', external: 'Ekstern', course: 'Kursus'
+  };
+  return m[method] || method;
 }
 
 async function contractGenerateColleagueSupportPdfSection() {
