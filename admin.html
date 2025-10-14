@@ -5133,12 +5133,17 @@ async function contractLoadTipsForSelected() {
           // Hent tips direkte fra coaching_tip tabellen baseret på lave typer
           const methods = (item.low_types || ['self', 'peer']).map(toMethod);
           
-          const { data: rawTips } = await supabase
+          const { data: rawTips, error: tipsError } = await supabase
             .from('coaching_tip')
             .select('id,title,description,method,sort_order,impact,effort,time_horizon,plan_30,plan_60,plan_90')
             .eq('category_id', item.category_id)
             .in('method', methods)
             .order('sort_order', { ascending: true });
+
+          if (tipsError) {
+            console.error('Fejl ved hentning af tips:', tipsError);
+            continue; // Skip denne kategori og fortsæt med næste
+          }
           
           const tips = (rawTips || [])
             .filter(r => !dismissedIds.has(r.id))
@@ -5225,15 +5230,29 @@ async function contractLoadTipsForSelected() {
 }
 
 async function loadFallbackTips(competencyIds, dismissedIds) {
+  console.log('Bruger fallback - henter fra v_coaching_tip_enriched');
+  console.log('Dismissed tip IDs:', Array.from(dismissedIds));
+  
   const { data: tips, error } = await supabase
     .from('v_coaching_tip_enriched')
     .select('*')
     .in('category_id', competencyIds);
     
-  if (error) throw error;
+  if (error) {
+    console.error('Fallback fejl:', error);
+    throw error;
+  }
+
+  console.log(`Hentet ${tips?.length || 0} tips før dismissed filter`);
 
   (tips || [])
-    .filter(t => !dismissedIds.has(t.id))
+    .filter(t => {
+      const isDismissed = dismissedIds.has(t.id);
+      if (isDismissed) {
+        console.log(`Filtrerer dismissed tip: ${t.title} (${t.id})`);
+      }
+      return !isDismissed;
+    })
     .forEach(tip => {
       const enhancedTip = {
         ...tip,
@@ -5246,6 +5265,8 @@ async function loadFallbackTips(competencyIds, dismissedIds) {
       }
       contractAvailableTips.get(tip.category_id).push(enhancedTip);
     });
+    
+  console.log(`Efter dismissed filter: ${Array.from(contractAvailableTips.values()).flat().length} tips total`);
 }
 
 function contractRenderTips() {
