@@ -5666,7 +5666,7 @@ async function contractMaybeLoadExistingContract(){
 async function contractLoadFromFile() {
   const input = document.createElement('input');
   input.type = 'file';
-  input.accept = '.json';
+  input.accept = '.udv,.json';
   
   input.onchange = async (e) => {
     const file = e.target.files[0];
@@ -5827,13 +5827,14 @@ async function contractSave(isDraft){
       leader_actions: contractState.leader_actions || ''
     };
 
-    // Download som JSON fil
+    // Download som UDV fil (KOMPAS standard format)
     const jsonStr = JSON.stringify(contractData, null, 2);
-    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const blob = new Blob([jsonStr], { type: 'application/kompas-contract+json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    const filename = `Udviklingskontrakt_${person?.full_name.replace(/ /g, '_')}_${new Date().toISOString().split('T')[0]}.json`;
+    const d = new Date().toISOString().slice(0,10).replaceAll('-','');
+    const filename = `Kontrakt_${person?.full_name.replace(/ /g, '_')}_${d}.udv`;
     a.download = filename;
     document.body.appendChild(a);
     a.click();
@@ -5842,7 +5843,7 @@ async function contractSave(isDraft){
 
     contractState.contract_id = 'local_' + Date.now(); // Lokal ID for session
     
-    alert(isDraft ? 'Kladde gemt som JSON ✅\n\nFilen er downloadet til din computer.' : 'Endelig kontrakt gemt som JSON ✅\n\nFilen er downloadet til din computer.');
+    alert(isDraft ? 'Kladde gemt som UDV ✅\n\nFilen er downloadet til din computer.\n\nFiltype: KOMPAS Udviklingskontrakt (.udv)' : 'Endelig kontrakt gemt som UDV ✅\n\nFilen er downloadet til din computer.\n\nFiltype: KOMPAS Udviklingskontrakt (.udv)');
     contractUpdateSectionStatus();
   } catch (e) {
     console.error('Gem fejl:', e);
