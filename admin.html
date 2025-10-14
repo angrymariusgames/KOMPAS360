@@ -5239,8 +5239,8 @@ async function contractLoadTipsForSelected() {
         if (card) card.classList.remove('selected');
       });
       
-      // Opdater section status efter fjernelse
-      contractUpdateSectionStatus();
+      // IKKE kald contractUpdateSectionStatus() her - det skaber loop!
+      // Lad kalderen selv opdatere status hvis nødvendigt
     }
 
     console.log('Tips loaded for categories:', Array.from(contractAvailableTips.keys()).length);
