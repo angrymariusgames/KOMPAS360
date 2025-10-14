@@ -5127,6 +5127,17 @@ function contractSetupRolesStep(){
   const employeeWishesEl = $('contractEmployeeWishes');  
   const leaderEl = $('contractLeaderActions');
   
+  // Udfyld felterne hvis der er data i contractState
+  if (employeeEl && contractState.employee_actions) {
+    employeeEl.value = contractState.employee_actions;
+  }
+  if (employeeWishesEl && contractState.employee_wishes) {
+    employeeWishesEl.value = contractState.employee_wishes;
+  }
+  if (leaderEl && contractState.leader_actions) {
+    leaderEl.value = contractState.leader_actions;
+  }
+  
   // Set up event listeners for text areas - brug en letvægts status opdatering
   if (employeeEl && !employeeEl.hasAttribute('data-listener-added')) {
     employeeEl.addEventListener('input', (e) => {
@@ -5260,10 +5271,12 @@ document.addEventListener('click', (e) => {
 
 function contractSetupOverview(){
   const el = $('contractOverviewContent');
+  if (!el) return;
+  
   const projSel = $('contractProjectSelect');
   const targSel = $('contractTargetSelect');
-  const projTxt = projSel.options[projSel.selectedIndex]?.text || 'Ikke valgt';
-  const targTxt = targSel.options[targSel.selectedIndex]?.text || 'Ikke valgt';
+  const projTxt = projSel?.options[projSel.selectedIndex]?.text || 'Ikke valgt';
+  const targTxt = targSel?.options[targSel.selectedIndex]?.text || 'Ikke valgt';
 
   let html = `<h4>📋 Udviklingskontrakt — Oversigt</h4>
   <div style="margin:16px 0">
@@ -5272,17 +5285,61 @@ function contractSetupOverview(){
     <strong>Opfølgningsdato:</strong> ${contractState.followup_date || 'Ikke sat'}
   </div>`;
 
-  html += '<h5>Valgte kompetencer:</h5><ul>';
-  contractState.selectedCompetencies.forEach(cid=>{
-    const c = contractAvailableCompetencies.find(x=>x.category_id===cid);
-    html += `<li>${c?.category_name || 'Ukendt'}</li>`;
-  });
-  html += '</ul>';
+  // Kompetencer
+  if (contractState.selectedCompetencies.size > 0) {
+    html += '<h5>Valgte kompetencer:</h5><ul>';
+    contractState.selectedCompetencies.forEach(cid=>{
+      const c = contractAvailableCompetencies.find(x=>x.category_id===cid);
+      html += `<li>${c?.category_name || 'Ukendt'}</li>`;
+    });
+    html += '</ul>';
+  } else {
+    html += '<p style="color:var(--muted)">Ingen kompetencer valgt endnu</p>';
+  }
 
+  // Aktiviteter
   let totalActivities = 0;
   for (const tips of contractState.selectedTips.values()) totalActivities += tips.size;
-  html += `<h5>Aktiviteter:</h5><p>${totalActivities} aktiviteter valgt</p>`;
-  html += `<h5>Roller:</h5><p>${contractState.roles.size} handlinger defineret</p>`;
+  if (totalActivities > 0) {
+    html += `<h5>Aktiviteter:</h5><p>${totalActivities} aktiviteter valgt</p>`;
+  } else {
+    html += '<p style="color:var(--muted)">Ingen aktiviteter valgt endnu</p>';
+  }
+
+  // Roller og aftaler - vis tekstfelt indhold
+  html += '<h5>Roller og aftaler:</h5>';
+  const hasEmployeeActions = contractState.employee_actions?.trim();
+  const hasEmployeeWishes = contractState.employee_wishes?.trim();
+  const hasLeaderActions = contractState.leader_actions?.trim();
+  
+  if (hasEmployeeActions || hasEmployeeWishes || hasLeaderActions) {
+    html += '<div style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px;margin-top:8px">';
+    
+    if (hasEmployeeActions) {
+      html += `<div style="margin-bottom:12px">
+        <strong style="color:var(--brand)">👤 Medarbejder gør:</strong>
+        <p style="margin:4px 0 0 0;color:var(--text)">${contractState.employee_actions.replace(/\n/g, '<br>')}</p>
+      </div>`;
+    }
+    
+    if (hasEmployeeWishes) {
+      html += `<div style="margin-bottom:12px">
+        <strong style="color:var(--brand)">💭 Medarbejder ønsker:</strong>
+        <p style="margin:4px 0 0 0;color:var(--text)">${contractState.employee_wishes.replace(/\n/g, '<br>')}</p>
+      </div>`;
+    }
+    
+    if (hasLeaderActions) {
+      html += `<div>
+        <strong style="color:var(--brand)">👨‍💼 Leder støtter:</strong>
+        <p style="margin:4px 0 0 0;color:var(--text)">${contractState.leader_actions.replace(/\n/g, '<br>')}</p>
+      </div>`;
+    }
+    
+    html += '</div>';
+  } else {
+    html += '<p style="color:var(--muted)">Ingen roller defineret endnu</p>';
+  }
 
   el.innerHTML = html;
 }
@@ -5357,23 +5414,41 @@ function contractUpdateSectionStatusLight(){
   if (rolesCompleted) {
     rolesStatus.innerHTML = `<span class="status-text complete">Roller defineret</span>`;
     $('contractOverviewSection').classList.add('active');
-    contractSetupOverview();
   } else {
     rolesStatus.innerHTML = `<span class="status-text">Udfyld tekstfelterne</span>`;
-    $('contractOverviewSection').classList.remove('active');
+    // Aktiver oversigten alligevel hvis der er noget indhold at vise
+    if (hasEmployeeActions || hasEmployeeWishes || hasLeaderActions) {
+      $('contractOverviewSection').classList.add('active');
+    } else {
+      $('contractOverviewSection').classList.remove('active');
+    }
   }
 
+  // Opdater oversigten hver gang (ikke kun når alt er komplet)
+  contractSetupOverview();
   contractUpdateProgress();
 }
 
 function contractUpdateProgress(){
   let done = 0;
+  
+  // 1. Kompetencer
   if (contractState.selectedCompetencies.size > 0) done++;
+  
+  // 2. Aktiviteter
   let totalTips = 0;
   for (const s of contractState.selectedTips.values()) totalTips += s.size;
   if (totalTips > 0 && contractState.selectedCompetencies.size > 0) done++;
-  if (contractState.roles.size > 0) done++;
-  if (contractState.roles.size > 0 && contractState.followup_date) done++;
+  
+  // 3. Roller - check tekstfelterne i stedet for roles Map
+  const hasEmployeeActions = contractState.employee_actions?.trim();
+  const hasEmployeeWishes = contractState.employee_wishes?.trim();
+  const hasLeaderActions = contractState.leader_actions?.trim();
+  const rolesCompleted = hasEmployeeActions && hasEmployeeWishes && hasLeaderActions;
+  if (rolesCompleted) done++;
+  
+  // 4. Opfølgningsdato
+  if (contractState.followup_date) done++;
 
   const pct = Math.round((done/4)*100);
   $('contractProgressText').textContent = `${done}/4 sektioner færdige`;
@@ -5616,6 +5691,11 @@ async function contractMaybeLoadExistingContract(){
         contractState.roles.set(tipId, rolesObj[tipIdStr]);
       });
 
+      // tekstfelter
+      contractState.employee_actions = dc.employee_actions || '';
+      contractState.employee_wishes = dc.employee_wishes || '';
+      contractState.leader_actions = dc.leader_actions || '';
+
       // tegn tips + roller
       await contractLoadTipsForSelected();
       contractSetupRolesStep();
@@ -5663,6 +5743,9 @@ async function contractSave(isDraft){
       tips: contractSerializeSelectedTips(),
       roles: contractSerializeRoles(),
       followup_date: contractState.followup_date,
+      employee_actions: contractState.employee_actions || '',
+      employee_wishes: contractState.employee_wishes || '',
+      leader_actions: contractState.leader_actions || '',
       is_draft: !!isDraft
     };
 
@@ -5706,12 +5789,19 @@ function contractStartOver(){
   contractState.roles.clear();
   contractState.followup_date = null;
   contractState.contract_id = null;
+  contractState.employee_actions = '';
+  contractState.employee_wishes = '';
+  contractState.leader_actions = '';
 
   // ryd UI
   document.querySelectorAll('.contract-competency-card.selected').forEach(x=>x.classList.remove('selected'));
   $('contractTipsContainer').innerHTML = '';
-  $('contractEmployeeActions').innerHTML = '';
-  $('contractLeaderActions').innerHTML = '';
+  const employeeEl = $('contractEmployeeActions');
+  const employeeWishesEl = $('contractEmployeeWishes');
+  const leaderEl = $('contractLeaderActions');
+  if (employeeEl) employeeEl.value = '';
+  if (employeeWishesEl) employeeWishesEl.value = '';
+  if (leaderEl) leaderEl.value = '';
   $('contractOverviewContent').innerHTML = '';
   $('contractGoalsContainer').innerHTML = '<p style="color:var(--muted);font-size:0.85rem;margin:0">Vælg først kompetencer og aktiviteter</p>';
   $('contractRolesContainer').innerHTML = '<p style="color:var(--muted);font-size:0.85rem;margin:0">Ingen roller valgt</p>';
