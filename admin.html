@@ -5656,15 +5656,27 @@ function contractSetupEventListeners(){
 async function contractMaybeLoadExistingContract(){
   try {
     if (!contractState.project_id || !contractState.target_id) return;
-    const url = `/contract-data?project_id=${encodeURIComponent(contractState.project_id)}&target_id=${encodeURIComponent(contractState.target_id)}`;
-    const resp = await fetch(url);
-    if (!resp.ok) return;
-    const data = await resp.json(); // { contract, competencies, tips }
+    
+    // Hent eksisterende kontrakt fra Supabase
+    const { data, error } = await supabase
+      .from('development_contracts')
+      .select('*')
+      .eq('project_id', contractState.project_id)
+      .eq('target_id', contractState.target_id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    if (data && data.contract && data.contract.id) {
-      const dc = data.contract;
+    if (error) {
+      console.warn('Fejl ved indlæsning af kontrakt:', error);
+      return;
+    }
+
+    if (data) {
+      const dc = data;
       contractState.contract_id = dc.id;
       contractState.followup_date = dc.followup_date || null;
+      contractState.version = dc.version || 1;
 
       // kompetencer
       contractState.selectedCompetencies = new Set(dc.selected_competencies || []);
@@ -5734,29 +5746,46 @@ async function contractSave(isDraft){
       alert('Vælg både projekt og målperson først.');
       return;
     }
-    const title = 'Udviklingskontrakt';
-    const payload = {
+    
+    const contractData = {
       project_id: contractState.project_id,
       target_id: contractState.target_id,
-      title,
-      competencies: Array.from(contractState.selectedCompetencies),
-      tips: contractSerializeSelectedTips(),
-      roles: contractSerializeRoles(),
+      title: 'Udviklingskontrakt',
+      selected_competencies: Array.from(contractState.selectedCompetencies),
+      selected_tips: contractSerializeSelectedTips(),
+      roles_assignments: contractSerializeRoles(),
       followup_date: contractState.followup_date,
       employee_actions: contractState.employee_actions || '',
       employee_wishes: contractState.employee_wishes || '',
       leader_actions: contractState.leader_actions || '',
-      is_draft: !!isDraft
+      is_draft: !!isDraft,
+      version: contractState.version || 1
     };
 
-    const res = await fetch('/save-contract', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(payload)
-    });
-    if (!res.ok) throw new Error('Kunne ikke gemme kontrakt');
-    const json = await res.json();
-    contractState.contract_id = json.contract_id || contractState.contract_id;
+    let result;
+    if (contractState.contract_id) {
+      // Opdater eksisterende kontrakt
+      const { data, error } = await supabase
+        .from('development_contracts')
+        .update(contractData)
+        .eq('id', contractState.contract_id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      result = data;
+    } else {
+      // Opret ny kontrakt
+      const { data, error } = await supabase
+        .from('development_contracts')
+        .insert([contractData])
+        .select()
+        .single();
+      
+      if (error) throw error;
+      result = data;
+      contractState.contract_id = result.id;
+    }
 
     alert(isDraft ? 'Kladde gemt ✅' : 'Endelig kontrakt gemt ✅');
     contractUpdateSectionStatus();
@@ -5768,17 +5797,119 @@ async function contractSave(isDraft){
 
 async function contractExportPdf(){
   try {
+    // Gem først hvis ikke gemt
     if (!contractState.contract_id) {
-      // gem endelig hvis ikke gemt, så vi har et id
       await contractSave(false);
-      if (!contractState.contract_id) throw new Error('Kontrakt-ID mangler');
+      if (!contractState.contract_id) throw new Error('Kontrakt skal gemmes først');
     }
-    const url = `/contract-pdf?contract_id=${encodeURIComponent(contractState.contract_id)}`;
-    window.open(url, '_blank');
+
+    // Hent projekt og person data
+    const { data: project } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', contractState.project_id)
+      .single();
+    
+    const { data: person } = await supabase
+      .from('project_people')
+      .select('*')
+      .eq('id', contractState.target_id)
+      .single();
+
+    // Generer HTML til PDF
+    const htmlContent = await contractGeneratePdfHtml(project, person);
+    
+    // Brug den eksisterende generatePDFFromHTML funktion
+    const filename = `Udviklingskontrakt_${person.full_name.replace(/ /g, '_')}.pdf`;
+    await generatePDFFromHTML(htmlContent, filename);
+    
   } catch (e) {
     console.error('PDF fejl:', e);
     alert('Fejl ved PDF eksport: ' + e.message);
   }
+}
+
+async function contractGeneratePdfHtml(project, person) {
+  const projTxt = project.title || 'Projekt';
+  const persTxt = person.full_name || 'Person';
+  
+  // Hent kompetence navne
+  const competencyNames = [];
+  for (const cid of contractState.selectedCompetencies) {
+    const comp = contractAvailableCompetencies.find(x => x.category_id === cid);
+    if (comp) competencyNames.push(comp.category_name);
+  }
+  
+  // Tæl aktiviteter
+  let totalActivities = 0;
+  for (const tips of contractState.selectedTips.values()) {
+    totalActivities += tips.size;
+  }
+
+  return `
+    <div style="font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:20px;background:#fff">
+      <!-- Header -->
+      <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;padding:20px;border-radius:8px;margin-bottom:20px;text-align:center">
+        <h1 style="margin:0 0 8px 0;font-size:24px">📋 Udviklingskontrakt</h1>
+        <p style="margin:0;font-size:14px;opacity:0.9">${projTxt}</p>
+      </div>
+      
+      <!-- Basis info -->
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:20px">
+        <h3 style="margin:0 0 12px 0;color:#1e293b">Kontrakt Information</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div><strong>Målperson:</strong> ${persTxt}</div>
+          <div><strong>Opfølgningsdato:</strong> ${contractState.followup_date || 'Ikke sat'}</div>
+        </div>
+      </div>
+      
+      <!-- Kompetencer -->
+      <div style="margin-bottom:20px">
+        <h3 style="color:#1e293b;margin:0 0 12px 0">🎯 Valgte Kompetencer (${competencyNames.length})</h3>
+        <ul style="list-style:none;padding:0">
+          ${competencyNames.map(name => `<li style="padding:8px;background:#f8fafc;border-left:3px solid #667eea;margin-bottom:4px">${name}</li>`).join('')}
+        </ul>
+      </div>
+      
+      <!-- Aktiviteter -->
+      <div style="margin-bottom:20px">
+        <h3 style="color:#1e293b;margin:0 0 12px 0">💡 Aktiviteter</h3>
+        <p style="padding:12px;background:#f8fafc;border-radius:6px">${totalActivities} aktiviteter valgt til udvikling</p>
+      </div>
+      
+      <!-- Roller og Aftaler -->
+      <div style="margin-bottom:20px">
+        <h3 style="color:#1e293b;margin:0 0 12px 0">🤝 Roller og Aftaler</h3>
+        
+        ${contractState.employee_actions ? `
+        <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:12px;margin-bottom:12px">
+          <h4 style="margin:0 0 8px 0;color:#0369a1">👤 Medarbejder gør:</h4>
+          <p style="margin:0;white-space:pre-wrap">${contractState.employee_actions}</p>
+        </div>
+        ` : ''}
+        
+        ${contractState.employee_wishes ? `
+        <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;padding:12px;margin-bottom:12px">
+          <h4 style="margin:0 0 8px 0;color:#92400e">💭 Medarbejder ønsker:</h4>
+          <p style="margin:0;white-space:pre-wrap">${contractState.employee_wishes}</p>
+        </div>
+        ` : ''}
+        
+        ${contractState.leader_actions ? `
+        <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:12px">
+          <h4 style="margin:0 0 8px 0;color:#166534">👨‍💼 Leder støtter:</h4>
+          <p style="margin:0;white-space:pre-wrap">${contractState.leader_actions}</p>
+        </div>
+        ` : ''}
+      </div>
+      
+      <!-- Footer -->
+      <div style="margin-top:30px;padding-top:16px;border-top:1px solid #e2e8f0;text-align:center;color:#64748b;font-size:12px">
+        <p style="margin:0"><strong>Genereret af KOMPAS Udviklingskontrakt System</strong></p>
+        <p style="margin:4px 0 0 0">Oprettet: ${new Date().toLocaleDateString('da-DK')}</p>
+      </div>
+    </div>
+  `;
 }
 
 function contractStartOver(){
