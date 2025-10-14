@@ -5122,6 +5122,9 @@ async function contractLoadTipsForSelected() {
       .eq('dismissed', true);
     const dismissedIds = new Set((dismissed || []).map(x => x.tip_id));
     
+    // Track kategorier der fejler, så de kan få fallback
+    const failedCategories = new Set();
+    
     if (!coachingError && coachingData && (coachingData.udvikle || coachingData.fastholde)) {
       console.log('Bruger coaching anbefalinger fra Resultater fanen');
       
@@ -5142,6 +5145,7 @@ async function contractLoadTipsForSelected() {
 
           if (tipsError) {
             console.error('Fejl ved hentning af tips:', tipsError);
+            failedCategories.add(item.category_id); // Track fejlede kategorier
             continue; // Skip denne kategori og fortsæt med næste
           }
           
@@ -5158,7 +5162,10 @@ async function contractLoadTipsForSelected() {
               coaching_context: `Fra Coaching: Udvikling anbefalet (score: ${item.score})`,
               impact: r.impact,
               effort: r.effort,
-              time_horizon: r.time_horizon
+              time_horizon: r.time_horizon,
+              plan_30: r.plan_30,
+              plan_60: r.plan_60,
+              plan_90: r.plan_90
             }));
           
           if (tips.length > 0) {
@@ -5172,13 +5179,19 @@ async function contractLoadTipsForSelected() {
         if (competencyIds.includes(item.category_id)) {
           console.log(`Henter fasthold-tips for ${item.category_name} (score: ${item.score})`);
           
-          const { data: rawTips } = await supabase
+          const { data: rawTips, error: tipsError } = await supabase
             .from('coaching_tip')
             .select('id,title,description,method,sort_order,impact,effort,time_horizon')
             .eq('category_id', item.category_id)
             .in('method', ['self', 'colleague'])
             .order('impact', { ascending: false })
             .limit(2);
+          
+          if (tipsError) {
+            console.error('Fejl ved hentning af fasthold-tips:', tipsError);
+            failedCategories.add(item.category_id); // Track fejlede kategorier
+            continue;
+          }
           
           const tips = (rawTips || [])
             .filter(r => !dismissedIds.has(r.id))
@@ -5207,10 +5220,12 @@ async function contractLoadTipsForSelected() {
         }
       }
       
-      // Fallback for kompetencer uden coaching data
-      const missingCompetencies = competencyIds.filter(id => !contractAvailableTips.has(id));
+      // Fallback for kompetencer uden coaching data ELLER fejlede kategorier
+      const missingCompetencies = competencyIds.filter(id => 
+        !contractAvailableTips.has(id) || failedCategories.has(id)
+      );
       if (missingCompetencies.length > 0) {
-        console.log('Fallback til database for kompetencer uden coaching data:', missingCompetencies);
+        console.log('Fallback til database for kompetencer uden coaching data eller med fejl:', missingCompetencies);
         await loadFallbackTips(missingCompetencies, dismissedIds);
       }
       
