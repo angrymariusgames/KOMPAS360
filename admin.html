@@ -4946,6 +4946,9 @@ let contractState = {
 
 let contractAvailableCompetencies = []; // fra v_template_categories
 let contractAvailableTips = new Map();   // Map<category_id, Tip[]>
+// Sekvenslås til asynkron tip-load (for at undgå race conditions)
+let contractTipsLoadToken = 0;
+
 
 
 async function initContractTabOnce(){
@@ -5096,8 +5099,12 @@ async function contractLoadTipsForSelected() {
     return;
   }
 
+  // Sekvenslås: markér dette kald som “nyeste”
+  const loadToken = ++contractTipsLoadToken;
+
   try {
     console.log('Henter tips fra Coaching fra Resultater fanen...');
+
     
     // Hent coaching anbefalinger for at identificere udviklings- og fastholdelseskategorier
     const { data: coachingData, error: coachingError } = await supabase.rpc('get_coaching_recommendations', {
@@ -5236,6 +5243,13 @@ async function contractLoadTipsForSelected() {
     }
 
     console.log('Tips loaded for categories:', Array.from(contractAvailableTips.keys()).length);
+
+    // Drop forældede loads: kun seneste må rende UI
+    if (loadToken !== contractTipsLoadToken) {
+      console.log('Droppes: forældet tips-load, et nyere kald har overtaget.');
+      return;
+    }
+
     contractRenderTips();
     
   } catch (e) {
@@ -5243,6 +5257,7 @@ async function contractLoadTipsForSelected() {
     container.innerHTML = '<div style="color:var(--error)">Fejl ved indlæsning af tips: ' + (e.message || e) + '</div>';
   }
 }
+
 
 async function loadFallbackTips(competencyIds, dismissedIds) {
   console.log('Bruger fallback - henter fra v_coaching_tip_enriched');
