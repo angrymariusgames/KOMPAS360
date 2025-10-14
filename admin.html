@@ -5222,9 +5222,12 @@ async function contractLoadTipsForSelected() {
             }));
           
           if (tips.length > 0) {
-            // Tilføj til eksisterende tips eller opret nye
+            // Tilføj til eksisterende tips eller opret nye (uden at duplikere)
             if (contractAvailableTips.has(item.category_id)) {
-              contractAvailableTips.get(item.category_id).push(...tips);
+              contractAvailableTips.set(
+                item.category_id,
+                contractAvailableTips.get(item.category_id).concat(tips)
+              );
             } else {
               contractAvailableTips.set(item.category_id, tips);
             }
@@ -6086,14 +6089,15 @@ async function contractAutoLoadFromCoaching(){
 
 // Funktion til at genindlæse tips når fanen åbnes
 async function contractReloadTipsIfNeeded() {
-  // Genindlæs kun hvis både projekt, målperson og kompetencer er valgt
+  // Undgå unødige genindlæsninger: brug eksisterende, allerede filtrerede data
   if (contractState.project_id && 
       contractState.target_id && 
       contractState.selectedCompetencies.size > 0) {
-    console.log('Genindlæser tips for at sikre dismissed tips er filtreret...');
-    await contractLoadTipsForSelected();
+    console.log('Springer reload over – bruger allerede filtrerede contractAvailableTips.');
+    contractRenderTips();
   }
 }
+
 
 // Ny funktion til at indlæse fra JSON fil
 async function contractLoadFromFile() {
@@ -6728,8 +6732,11 @@ async function generateAISuggestion() {
       card.classList.toggle('selected', contractState.selectedCompetencies.has(cid));
     });
 
-    // Hent tips EN gang (med dismissed-filter)
+    // Hent tips ÉN gang (med dismissed-filter), og re-rendér kun fra contractAvailableTips
     await contractLoadTipsForSelected();
+    contractRenderTips();
+    if (ovl) ovl.style.display = 'none';
+
 
     // Render det vi allerede har hentet
     contractRenderTips();
