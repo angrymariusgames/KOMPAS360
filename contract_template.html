@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="utf-8" />
+  <title>KOMPAS • Udviklingskontrakt (PDF skabelon)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    /* Arver farvepalette fra admin via CSS variabler */
+    :root{
+      --bg1:#667eea; --bg2:#764ba2; --ink:#2d3748; --muted:#718096;
+      --card:#ffffff; --line:#e2e8f0; --brand:#667eea; --radius:20px;
+      --success:#48bb78; --error:#f56565;
+      --surface:#f8fafc; --info:#3b82f6; --text-secondary:#64748b;
+    }
+    html,body{margin:0;padding:0;background:#fff;color:var(--ink);font-family:"Segoe UI",Tahoma,Arial,sans-serif}
+    /* A4 @ ~96dpi: 794 x 1123 px. Vi bygger layout efter denne bredde. */
+    .page{width:794px;min-height:1123px;box-sizing:border-box;padding:20px 24px;display:grid;grid-template-rows:auto auto 1fr auto;gap:14px}
+    .hdr{
+      background:linear-gradient(135deg,var(--brand) 0%, #ff6b7a 100%);
+      color:#fff;border-radius:12px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between
+    }
+    .hdr h1{margin:0;font-size:20px;font-weight:700}
+    .hdr .meta{font-size:12px;opacity:.9;text-align:right}
+    .topGrid{
+      display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:12px;min-height:520px;
+    }
+    .card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px}
+    .section-title{margin:0 0 8px 0;color:var(--brand);font-weight:700;font-size:14px}
+    .pill{display:inline-block;background:var(--brand);color:#fff;border-radius:999px;padding:2px 8px;font-size:11px}
+    .muted{color:var(--text-secondary)}
+    .kv{display:grid;grid-template-columns:max-content 1fr;gap:6px 10px;font-size:12px}
+    .role-block p{margin:4px 0 0 0;white-space:pre-line}
+    /* Udviklingshjul-cellen: 1/4 af siden (øverste højre) */
+    .wheel{display:flex;align-items:center;justify-content:center;height:100%;}
+    .wheel > .card{height:100%;display:flex;flex-direction:column}
+    .wheel h3{margin:0 0 6px 0;color:#1e293b;font-size:12px}
+    .wheel .svgwrap{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden}
+    .svgwrap svg{max-width:100%;max-height:100%}
+    /* Nederste halvdel */
+    .bottomHalf{min-height:520px;display:grid;grid-template-rows:auto 1fr;gap:10px}
+    .twoCol{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .list{display:grid;gap:8px}
+    .chip{display:inline-block;border:1px solid var(--line);border-left:3px solid var(--brand);border-radius:6px;padding:8px;background:#fff}
+    .chip .label{font-size:12px;color:var(--brand);font-weight:600}
+    .chip .desc{font-size:12px;margin-top:4px}
+    .foot{border-top:1px solid var(--line);padding-top:10px;text-align:center;color:var(--text-secondary);font-size:12px}
+    .next-meeting{display:flex;justify-content:space-between;gap:12px;align-items:flex-end}
+    .sig{border-top:1px solid var(--line);margin-top:32px;padding-top:6px;font-size:12px;color:var(--text-secondary)}
+    .sig .row{display:flex;gap:20px}
+    .sig .cell{flex:1}
+  </style>
+</head>
+<body>
+  <div class="page" id="page">
+    <!-- TOP: header/info -->
+    <div class="hdr">
+      <div>
+        <h1>📋 Udviklingskontrakt</h1>
+        <div class="muted">Projekt: <strong>{{PROJECT_TITLE}}</strong></div>
+      </div>
+      <div class="meta">
+        <div><strong>{{PERSON_NAME}}</strong>{{EMPLOYEE_NO}}</div>
+        <div>Oprettet: {{GENERATED_AT}}</div>
+      </div>
+    </div>
+
+    <!-- GRID 2x2: øverste venstre = roller/tekster, øverste højre = hjul; nederste venstre = info, nederste højre = frit (kan bruges senere) -->
+    <div class="topGrid">
+      <!-- Øverste venstre: tre tekstfelter -->
+      <div class="card role-block">
+        <div class="section-title">Aftaler — roller og ansvar</div>
+        {{EMPLOYEE_ACTIONS_BLOCK}}
+        {{EMPLOYEE_WISHES_BLOCK}}
+        {{LEADER_ACTIONS_BLOCK}}
+      </div>
+
+      <!-- Øverste højre: udviklingshjul fra Resultater (1/4 A4) -->
+      <div class="wheel">
+        <div class="card">
+          <h3>🎯 KOMPAS Kompetencehjul</h3>
+          <div class="svgwrap">{{WHEEL_SVG}}</div>
+        </div>
+      </div>
+
+      <!-- Nederste venstre af topGrid: kontrakt info -->
+      <div class="card">
+        <div class="section-title">Info</div>
+        <div class="kv">
+          <div class="muted">Målperson</div><div>{{PERSON_NAME}}</div>
+          <div class="muted">Projekt</div><div>{{PROJECT_TITLE}}</div>
+          <div class="muted">Opfølgning</div><div>{{FOLLOWUP_DATE}}</div>
+          <div class="muted">Skabelon</div><div>{{TEMPLATE_NAME}}</div>
+        </div>
+      </div>
+
+      <!-- Nederste højre af topGrid: plads til badges/opsummering -->
+      <div class="card">
+        <div class="section-title">Opsummering</div>
+        <div class="muted">{{SUMMARY_TEXT}}</div>
+      </div>
+    </div>
+
+    <!-- Nederste halvdel: alt øvrigt fra rubrik 4 -->
+    <div class="bottomHalf">
+      <div class="twoCol">
+        <!-- Venstre: Kompetencer (fulde beskrivelser) -->
+        <div class="card">
+          <div class="section-title">🏆 Valgte kompetencer</div>
+          <div class="list">
+            {{COMPETENCIES_HTML}}
+          </div>
+        </div>
+
+        <!-- Højre: Udviklingsaktiviteter (tips) -->
+        <div class="card">
+          <div class="section-title">🛠️ Udviklingsaktiviteter</div>
+          <div class="list">
+            {{ACTIVITIES_HTML}}
+          </div>
+        </div>
+      </div>
+
+      <!-- Kollega støtte + 30/60/90 + Teamroller -->
+      <div class="twoCol">
+        <div class="card">
+          <div class="section-title">🤝 Kollega støtte</div>
+          <div>{{COLLEAGUE_SUPPORT_HTML}}</div>
+        </div>
+        <div class="card">
+          <div class="section-title">📅 30/60/90 Mål</div>
+          <div>{{GOALS_306090_HTML}}</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">🧩 Team Roller</div>
+        <div>{{TEAM_ROLES_HTML}}</div>
+      </div>
+    </div>
+
+    <!-- BUND: aftale om næste samtale -->
+    <div class="card next-meeting">
+      <div>
+        <div class="section-title">🤝 Aftale om næste samtale</div>
+        <div class="muted">Dato: <strong>{{FOLLOWUP_DATE}}</strong></div>
+        <div class="muted">Sted / format: ____________________________________________</div>
+      </div>
+      <div class="sig">
+        <div class="row">
+          <div class="cell">
+            <div class="muted">Medarbejder</div>
+            <div style="height:28px"></div>
+            <div>______________________________</div>
+          </div>
+          <div class="cell">
+            <div class="muted">Leder</div>
+            <div style="height:28px"></div>
+            <div>______________________________</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="foot">
+      Genereret af KOMPAS Udviklingskontrakt • {{GENERATED_AT}}
+    </div>
+  </div>
+</body>
+</html>
