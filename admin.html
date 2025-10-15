@@ -5077,7 +5077,7 @@ function contractToggleCompetency(competencyId, card) {
   contractUpdateSectionStatus();
 }
 
-async function contractLoadTipsForSelected(){
+async function contractLoadTipsForSelected() {
   const container = $('contractTipsContainer');
   if (contractState.selectedCompetencies.size === 0) {
     container.innerHTML = '<div style="color:var(--muted);padding:20px;text-align:center">Vælg først kompetencer</div>';
@@ -5099,6 +5099,7 @@ async function contractLoadTipsForSelected(){
         .select('tip_id, category_id, dismissed')
         .eq('project_id', contractState.project_id)
         .eq('target_id', contractState.target_id);
+
       (st || []).forEach(r => {
         if (r.dismissed) {
           if (!dismissedByCat.has(r.category_id)) dismissedByCat.set(r.category_id, new Set());
@@ -5110,56 +5111,68 @@ async function contractLoadTipsForSelected(){
     // 1) person-specifikke tips fra Resultater (kun hvis ⚡ er brugt)
     const personTipsByCategory = new Map();
     if (usePersonData && contractState.project_id && contractState.target_id) {
-      const { data: coachingData } = await supabase.rpc('get_coaching_recommendations', {
+      const { data: coachingData, error } = await supabase.rpc('get_coaching_recommendations', {
         p_project_id: contractState.project_id,
         p_target_id: contractState.target_id,
         p_types: ['self','peer','leader'],
         p_limit_keep: 5,
         p_limit_develop: 8
       });
+      if (error) console.warn('get_coaching_recommendations fejl:', error);
 
       if (coachingData) {
-        const personTips = [];
-        if (Array.isArray(coachingData.tips)) personTips.push(...coachingData.tips);
-        if (Array.isArray(coachingData.develop_tips)) personTips.push(...coachingData.develop_tips);
-        if (Array.isArray(coachingData.selected_tips)) personTips.push(...coachingData.selected_tips);
+        // Brug KUN tilbageværende tips fra Resultater → 📈 Udvikle
+        // (dvs. allerede filtreret for dismissed i SQL)
+        (coachingData.udvikle || []).forEach(cat => {
+          const cid = cat?.category_id;
+          if (!cid || !competencyIds.includes(cid)) return;
 
-        personTips.forEach(tip => {
-          if (!tip?.category_id || !competencyIds.includes(tip.category_id)) return;
-          const dis = dismissedByCat.get(tip.category_id);
-          if (dis && dis.has(tip.id)) return;
-          if (!personTipsByCategory.has(tip.category_id)) personTipsByCategory.set(tip.category_id, []);
-          const m = tip.method === 'peer' ? 'colleague'
-                  : tip.method === 'leader' ? 'leader_employee'
-                  : tip.method;
-          personTipsByCategory.get(tip.category_id).push({ ...tip, method: m });
+          const dismissed = dismissedByCat.get(cid) || new Set();
+          const items = Array.isArray(cat.how_to_develop) ? cat.how_to_develop : [];
+
+          items.forEach(t => {
+            const tipId = t?.tip_id;
+            if (!tipId || dismissed.has(tipId)) return;
+
+            if (!personTipsByCategory.has(cid)) personTipsByCategory.set(cid, []);
+            const m = t.method === 'peer' ? 'colleague'
+                    : t.method === 'leader' ? 'leader_employee'
+                    : t.method;
+            personTipsByCategory.get(cid).push({
+              id: tipId,
+              category_id: cid,
+              method: m,
+              title: t.title || '(uden titel)',
+              description: t.description || ''
+            });
+          });
         });
       }
     }
 
-    // 2) sæt persondata hvor vi har det, ellers DB-fallback pr. kategori
+    // 2) Hvis ⚡ er brugt: brug KUN persondata (ingen fallback).
+    //    Ellers: fald tilbage til kataloget.
     for (const cid of competencyIds) {
       const current = personTipsByCategory.get(cid) || [];
-      if (current.length > 0) {
-        contractAvailableTips.set(cid, current);
+      if (usePersonData) {
+        contractAvailableTips.set(cid, current); // kan være tomt → "Ingen forslag fundet"
         continue;
       }
 
-      const { data: dbTips } = await supabase
+      const { data: dbTips, error: dbErr } = await supabase
         .from('v_coaching_tip_enriched')
         .select('*')
         .eq('category_id', cid)
-        .order('sort_order, created_at', { ascending: true });
+        .order('sort_order', { ascending: true });
 
-      const dismissed = usePersonData ? (dismissedByCat.get(cid) || new Set()) : new Set();
-      const mapped = (dbTips || [])
-        .filter(t => !dismissed.has(t.id))
-        .map(t => {
-          const m = t.method === 'peer' ? 'colleague'
-                  : t.method === 'leader' ? 'leader_employee'
-                  : t.method;
-          return { ...t, method: m };
-        });
+      if (dbErr) console.warn('v_coaching_tip_enriched fejl:', dbErr);
+
+      const mapped = (dbTips || []).map(t => {
+        const m = t.method === 'peer' ? 'colleague'
+                : t.method === 'leader' ? 'leader_employee'
+                : t.method;
+        return { ...t, method: m };
+      });
 
       contractAvailableTips.set(cid, mapped);
     }
@@ -5172,7 +5185,6 @@ async function contractLoadTipsForSelected(){
     container.innerHTML = '<div style="color:var(--error)">Fejl ved indlæsning af tips: ' + (e.message || e) + '</div>';
   }
 }
-
 
 async function loadFallbackTips(competencyIds, dismissedIds) {
   const { data: tips, error } = await supabase
@@ -5810,28 +5822,19 @@ async function contractGetSelectedTeamRoles(){
       });
     }
 
-    // 2) Fallback: relevante roller ud fra de valgte kompetencer i kontrakten
-    const { data: teamRoles, error } = await supabase
-      .from('team_roles')
-      .select('name, short_code, description, competencies:team_role_competencies(competency_name)')
-      .order('name');
+    // 2) Fallback: brug beregnet top-4 for målpersonen (undgår 400-fejl fra ugyldigt select)
+    const pid = contractState.project_id;
+    const tid = contractState.target_id;
+    const { data: top4, error } = await supabase.rpc('teamrole_top4', { pid, tid });
     if (error) throw error;
 
-    const selectedCompetencyNames = Array.from(contractState.selectedCompetencies)
-      .map(cid => contractAvailableCompetencies.find(c => c.category_id === cid)?.category_name)
-      .filter(Boolean);
-
-    const relevantRoles = (teamRoles || []).filter(role => {
-      const roleCompetencies = (role.competencies || []).map(c => c.competency_name);
-      return roleCompetencies.some(comp => selectedCompetencyNames.includes(comp));
-    });
-
-    return relevantRoles.map(role => ({
-      name: role.name,
-      description: role.description || '',
-      competencies: (role.competencies || []).map(c => c.competency_name)
+    return (top4 || []).map(r => ({
+      rank: r.rank,
+      name: r.role_name,
+      pct: r.score_pct,
+      description: r.description || '',
+      competencies: [r.comp1, r.comp2, r.comp3].filter(Boolean)
     }));
-
   } catch (error) {
     console.error('Fejl ved hentning af team roller:', error);
     return [];
