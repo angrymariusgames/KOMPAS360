@@ -5223,11 +5223,17 @@ async function contractLoadTipsForSelected() {
       }
       
       // Fallback for kompetencer uden coaching data
-      const missingCompetencies = competencyIds.filter(id => !contractAvailableTips.has(id));
+      // VIGTIGT: Kør IKKE fallback for kategorier, som faktisk var i coachingData.udvikle,
+      // selv hvis de endte med 0 tips (fx fordi alle tips blev rødt-krydset i Resultater).
+      const hadCoachingDevelop = new Set((coachingData.udvikle || []).map(x => x.category_id));
+      const missingCompetencies = competencyIds.filter(id =>
+        !contractAvailableTips.has(id) && !hadCoachingDevelop.has(id)
+      );
       if (missingCompetencies.length > 0) {
         console.log('Fallback til database for kompetencer uden coaching data:', missingCompetencies);
         await loadFallbackTips(missingCompetencies, dismissedIds);
       }
+
       
     } else {
       // Komplet fallback hvis coaching data ikke er tilgængelig
