@@ -5130,35 +5130,55 @@ async function contractLoadTipsForSelected() {
         if (competencyIds.includes(item.category_id)) {
           console.log(`Henter udviklings-tips for ${item.category_name} (score: ${item.score})`);
           
-          // Hent tips direkte fra coaching_tip tabellen baseret på lave typer
-          const methods = (item.low_types || ['self', 'peer']).map(toMethod);
-          
-          const { data: rawTips } = await supabase
-            .from('coaching_tip')
-            .select('id,title,description,method,sort_order,impact,effort,time_horizon,plan_30,plan_60,plan_90')
-            .eq('category_id', item.category_id)
-            .in('method', methods)
-            .order('sort_order', { ascending: true });
-          
-          const tips = (rawTips || [])
-            .filter(r => !dismissedIds.has(r.id))
-            .map(r => ({
-              id: r.id,
-              title: r.title,
-              description: r.description,
-              method: r.method,
-              category_id: item.category_id,
-              category_name: item.category_name,
-              priority: 'coaching_develop',
-              coaching_context: `Fra Coaching: Udvikling anbefalet (score: ${item.score})`,
-              impact: r.impact,
-              effort: r.effort,
-              time_horizon: r.time_horizon
-            }));
-          
+          // Brug i første række de tips, som Resultater-RPC allerede har filtreret (respekterer rødt kryds)
+          let tips = [];
+          if (Array.isArray(item.how_to_develop) && item.how_to_develop.length) {
+            tips = item.how_to_develop
+              .filter(t => t && t.tip_id && !dismissedIds.has(t.tip_id))
+              .map(t => ({
+                id: t.tip_id,
+                title: t.title,
+                description: t.description,
+                method: t.method, // 'self' | 'colleague' | 'leader_employee'
+                category_id: item.category_id,
+                category_name: item.category_name,
+                priority: 'coaching_develop',
+                coaching_context: `Fra Coaching: Udvikling anbefalet (score: ${item.score})`,
+                impact: t.impact,
+                effort: t.effort,
+                time_horizon: t.time_horizon
+              }));
+          } else {
+            // Fallback: hent direkte fra kataloget på baggrund af lave typer
+            const methods = (item.low_types || ['self', 'peer']).map(toMethod);
+            const { data: rawTips } = await supabase
+              .from('coaching_tip')
+              .select('id,title,description,method,sort_order,impact,effort,time_horizon,plan_30,plan_60,plan_90')
+              .eq('category_id', item.category_id)
+              .in('method', methods)
+              .order('sort_order', { ascending: true });
+
+            tips = (rawTips || [])
+              .filter(r => !dismissedIds.has(r.id))
+              .map(r => ({
+                id: r.id,
+                title: r.title,
+                description: r.description,
+                method: r.method,
+                category_id: item.category_id,
+                category_name: item.category_name,
+                priority: 'coaching_develop',
+                coaching_context: `Fra Coaching: Udvikling anbefalet (score: ${item.score})`,
+                impact: r.impact,
+                effort: r.effort,
+                time_horizon: r.time_horizon
+              }));
+          }
+
           if (tips.length > 0) {
             contractAvailableTips.set(item.category_id, tips);
           }
+
         }
       }
       
