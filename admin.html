@@ -21,6 +21,11 @@
       --bg1:#667eea; --bg2:#764ba2; --ink:#2d3748; --muted:#718096;
       --card:#ffffff; --line:#e2e8f0; --brand:#667eea; --radius:20px;
       --success:#48bb78; --error:#f56565;
+
+      /* Til kontrakt-sektionen (manglede og blev brugt i HTML/JS) */
+      --surface:#f8fafc;
+      --info:#3b82f6;
+      --text-secondary:#64748b;
     }
     
     body{
@@ -910,7 +915,7 @@
           <div>
             <label>Projekt</label>
             <select id="contractProjectSelect" class="select" style="width:100%">
-              <option value="">Vælg projekt...</option>
+              <option value="">— Vælg projekt —</option>
             </select>
           </div>
           <div>
@@ -1135,7 +1140,15 @@ window.addEventListener('load', function() {
   // Tab-navigation
   document.querySelectorAll('.tabbtn').forEach(btn => {
     btn.onclick = async () => {
-            
+      // Hvis vi forlader Udviklingskontrakt, så gem midlertidig tilstand
+      try {
+        if (document.getElementById('tab-contract')?.style.display === 'block') {
+          contractSaveSessionState?.();
+        }
+      } catch (e) {
+        console.warn('Kunne ikke autosave kontrakt:', e);
+      }
+
       // fjern active fra alle
       document.querySelectorAll('.tabbtn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
@@ -1148,7 +1161,7 @@ window.addEventListener('load', function() {
       // vis valgt sektion
       const target = $('tab-' + btn.dataset.tab);
       if(target) target.style.display = 'block'; 
-      // Vis/skjul "Opret nyt projekt" knappen afhÃ¦ngig af fane
+      // Vis/skjul "Opret nyt projekt" knappen afhængig af fane
       const createBtn = $('createNewProjectBtn');
       if(btn.dataset.tab === 'projects') {
         createBtn.style.display = 'inline-block';
@@ -1156,87 +1169,59 @@ window.addEventListener('load', function() {
         createBtn.style.display = 'none';
       }
       
-      // Automatisk data loading nÃ¥r specifikke faner Ã¥bnes
+      // Automatisk data loading når specifikke faner åbnes
       await handleTabDataLoading(btn.dataset.tab);
     };
   });
   
-    // Funktion til at håndtere automatisk data loading ved tab skift
-    async function handleTabDataLoading(tabName) {
-      try {
-        switch(tabName) {
-          case 'contract':
-            await initContractTabOnce();
-
-            // Synk projekt/målperson fra Resultater → Kontrakt
-            try {
-              const srcProj = $('selProject2')?.value;
-              const srcTarget = $('selTarget')?.value;
-              if (srcProj) {
-                const dstProj = $('contractProjectSelect');
-                if (dstProj && dstProj.value !== srcProj) {
-                  dstProj.value = srcProj;
-                  // loader targets/kompetencer mv.
-                  await contractOnProjectChange();
-                }
-                if (srcTarget) {
-                  // vent et tick så targetlisten er fyldt
-                  setTimeout(() => {
-                    const dstTarget = $('contractTargetSelect');
-                    if (dstTarget) {
-                      dstTarget.value = srcTarget;
-                      // Ingen auto-forvalg fra Resultater: change resetter blot state
-                      dstTarget.dispatchEvent(new Event('change'));
-                    }
-                  }, 100);
-                }
-
-              }
-            } catch(e) {
-              console.warn('Kontrakt sync fejlede:', e);
-            }
-
-            // Vis 30/60/90 + Teamroller ud fra nuværende valg
-            contractUpdateGoalsAndRoles();
-            break;
-          case 'results':
-
-            // Opdater resultater fanen når den åbnes
-            const currentProject = $('selProject2').value;
-            const currentTarget = $('selTarget').value;
-            
-            if(currentProject && currentTarget) {
-              console.log('Auto-opdaterer resultater for projekt:', currentProject, 'target:', currentTarget);
-              await generateRadarChart();
-            } else if(currentProject) {
-              // Hvis projekt er valgt men ingen target, trigger projekt change event
-              console.log('Auto-loader personer for projekt:', currentProject);
-              const event = new Event('change');
-              $('selProject2').dispatchEvent(event);
-            }
-            break;
-            
-          case 'teambuilding':
-            // Opdater teambuilding fanen når den åbnes
-            const teamProject = $('selProject3').value;
-            
-            if(teamProject) {
-              console.log('Auto-opdaterer teambuilding for projekt:', teamProject);
-              await loadTeamBuildingData();
-            }
-            break;
-            
-          default:
-            // Ingen special handling for andre faner
-            break;
+// Funktion til at håndtere automatisk data loading ved tab skift
+async function handleTabDataLoading(tabName) {
+  try {
+    switch (tabName) {
+      case 'contract': {
+        await initContractTabOnce();
+        // Synk fra Resultater → Kontrakt (projekt/target + auto-udviklingskategorier + tips)
+        try {
+          await syncResultsSelectionToContract();
+        } catch (e) {
+          console.warn('Kontrakt sync fejlede:', e);
         }
-      } catch(error) {
-        console.error('Fejl ved auto-loading af tab data:', error);
+        // Gendan evt. midlertidig kontrakt-tilstand fra sessionStorage
+        try {
+          await contractRestoreSessionState?.();
+        } catch (e) {
+          console.warn('Kunne ikke gendanne kontrakt fra session:', e);
+        }
+        // Sikr at tips er genindlæst hvis der er valgt kompetencer
+        await contractReloadTipsIfNeeded?.();
+        // Opdater mål/roller/overblik + progress
+        contractUpdateGoalsAndRoles?.();
+        contractSetupOverview?.();
+        contractUpdateProgress?.();
+        break;
       }
+      case 'results': {
+        const currentProject = $('selProject2').value;
+        const currentTarget = $('selTarget').value;
+        if (currentProject && currentTarget) {
+          await generateRadarChart();
+        } else if (currentProject) {
+          $('selProject2').dispatchEvent(new Event('change'));
+        }
+        break;
+      }
+      case 'teambuilding': {
+        const teamProject = $('selProject3').value;
+        if (teamProject) await loadTeamBuildingData();
+        break;
+      }
+      default:
+        break;
     }
-
-
-
+  } catch (error) {
+    console.error('Fejl ved auto-loading af tab data:', error);
+  }
+}
   // Logout
   $('logoutBtn').onclick = async ()=>{ 
     await supabase.auth.signOut(); 
@@ -2341,7 +2326,7 @@ window.showLargeProjectQR = (url, title) => {
           tips = (raw || [])
             .filter(r => !dismissedIds.includes(r.id))
             .map(r => ({
-              id: r.id,
+              tip_id: r.id,
               title: r.title,
               description: r.description,
               method: r.method
@@ -4395,151 +4380,6 @@ $('btnZip').onclick = () => {
     return domainTotals;
   }
 
-  function generateTeamRadar() {
-    const selectedMembers = teamData.filter(p => p.selected);
-    if (selectedMembers.length === 0) return;
-
-    // Calculate max values per category across selected members
-    const maxValues = categories.map(cat => {
-      let maxVal = 0;
-      selectedMembers.forEach(person => {
-        const avg = calculateAverage(person, cat.category_id);
-        if (avg !== null && avg > maxVal) {
-          maxVal = avg;
-        }
-      });
-      return maxVal || null;
-    });
-
-    // Same radar structure as results but with team max values
-    const orderedCategories = [
-      '', 'Fleksibilitet', 'Nytænkning', 'Helhedsorientering', 'Fremtidsorientering',
-      '', 'Håndtering af pres', 'Beslutningstagning', 'Styring', 'Initiativ',
-      '', 'Analytisk tænkning', 'Faglighed', 'Planlægning', 'Ressourcebevidsthed',
-      '', 'Samarbejde', 'Udvikling af andre', 'Motivere andre', 'Kommunikation'
-    ];
-
-    const teamMaxData = orderedCategories.map(catName => {
-      if (catName === '') return null;
-      const cat = categories.find(c => c.category_name === catName);
-      if (!cat) return null;
-      const catIndex = categories.findIndex(c => c.category_id === cat.category_id);
-      return maxValues[catIndex];
-    });
-
-    // Plugin til at tegne kvadrant baggrunde (samme som resultater)
-    const quadrantBackgroundPlugin = {
-      id: 'quadrantBackground',
-      beforeDatasetsDraw: (chart) => {
-        const {ctx, chartArea: {top, bottom, left, right}, scales: {r}} = chart;
-        const centerX = r.xCenter;
-        const centerY = r.yCenter;
-        const radius = r.drawingArea;
-        
-        ctx.save();
-        
-        // Funktion til at tegne en sektor
-        const drawSector = (startAngle, endAngle, color) => {
-          ctx.beginPath();
-          ctx.moveTo(centerX, centerY);
-          ctx.arc(centerX, centerY, radius, startAngle, endAngle);
-          ctx.closePath();
-          ctx.fillStyle = color;
-          ctx.fill();
-        };
-        
-        // Konverter grader til radianer (Chart.js bruger -90° som start)
-        const degToRad = (deg) => (deg - 90) * Math.PI / 180;
-        
-        // Tegn de 4 kvadrant baggrunde
-        // Fornyelse (øverst højre) - støvet grøn  
-        drawSector(degToRad(0), degToRad(90), 'rgba(34, 139, 34, 0.08)');
-        
-        // Resultater (nederst højre) - støvet rød
-        drawSector(degToRad(90), degToRad(180), 'rgba(220, 20, 60, 0.08)');
-        
-        // Stabilitet (nederst venstre) - støvet grå
-        drawSector(degToRad(180), degToRad(270), 'rgba(128, 128, 128, 0.08)');
-        
-        // Relationer (øverst venstre) - støvet blå
-        drawSector(degToRad(270), degToRad(360), 'rgba(100, 149, 237, 0.08)');
-        
-        ctx.restore();
-      }
-    };
-
-    const ctx = $('teamRadar').getContext('2d');
-    if (teamRadar) teamRadar.destroy();
-
-    teamRadar = new Chart(ctx, {
-      type: 'radar',
-      data: {
-        labels: orderedCategories,
-        datasets: [{
-          label: 'Team Maximum',
-          data: teamMaxData,
-          borderColor: 'rgba(34, 197, 94, 1)',
-          backgroundColor: 'rgba(34, 197, 94, 0.15)',
-          pointBackgroundColor: 'rgba(34, 197, 94, 1)',
-          borderWidth: 3,
-          spanGaps: true
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,                 // fyld wrapperens faste højde
-        elements: {
-          line:  { tension: 0.2 },
-          point: { radius: 0, hitRadius: 6 }       // ingen punkter på kurverne
-        },
-        scales: {
-          r: {
-            beginAtZero: true,
-            min: 0,
-            max: 5,
-            grid: { circular: true },              // runde cirkler (som i KOMPAS)
-            ticks: { display: false },             // ingen “0..5” tal
-            angleLines: { color: 'rgba(0,0,0,0.08)' },
-            pointLabels: {
-              // vis rigtige kompetencenavne – ingen “Kategori x”
-              callback: (_, i) => labels[i] || '',
-              font: { size: 12, weight: 'bold' }
-            }
-          }
-        },
-        plugins: {
-          legend: { position: 'bottom' }
-        }
-      },
-      plugins: [quadrantBackgroundPlugin]
-    });
-
-    // Update domain percentages display
-    updateDomainPercentages();
-  }
-
-  function updateDomainPercentages() {
-    const percentages = calculateDomainPercentages();
-    const container = document.getElementById('domainPercentages');
-    
-    if (container) {
-      container.innerHTML = `
-        <div style="background:rgba(100, 149, 237, 0.1);padding:8px;border-radius:6px;margin-bottom:8px;border-left:4px solid rgba(100, 149, 237, 0.8)">
-          <strong>Relationer:</strong> ${percentages.relationer.toFixed(1)}%
-        </div>
-        <div style="background:rgba(128, 128, 128, 0.1);padding:8px;border-radius:6px;margin-bottom:8px;border-left:4px solid rgba(128, 128, 128, 0.8)">
-          <strong>Stabilitet:</strong> ${percentages.stabilitet.toFixed(1)}%
-        </div>
-        <div style="background:rgba(34, 139, 34, 0.1);padding:8px;border-radius:6px;margin-bottom:8px;border-left:4px solid rgba(34, 139, 34, 0.8)">
-          <strong>Fornyelse:</strong> ${percentages.fornyelse.toFixed(1)}%
-        </div>
-        <div style="background:rgba(220, 20, 60, 0.1);padding:8px;border-radius:6px;margin-bottom:8px;border-left:4px solid rgba(220, 20, 60, 0.8)">
-          <strong>Resultater:</strong> ${percentages.resultater.toFixed(1)}%
-        </div>
-      `;
-    }
-  }
-
   // Generate Team Radar Chart (MISSING FUNCTION)
   function generateTeamRadar() {
     const selectedMembers = teamData.filter(p => p.selected);
@@ -4919,29 +4759,151 @@ $('btnZip').onclick = () => {
 
 let contractInitialized = false;
 
-let contractState = {
+const contractState = {
   project_id: null,
   target_id: null,
-  selectedCompetencies: new Set(), // Set<category_id>
-  selectedTips: new Map(),         // Map<category_id, Set<tip_id>>
-  roles: new Map(),                // Map<tip_id, {employee_action, leader_action, status}>
-  followup_date: null,
-  version: 1,
-  is_draft: true,
   contract_id: null,
+  selectedCompetencies: new Set(),
+  selectedTips: new Map(),
+  roles: new Map(),
+  followup_date: null,
   employee_actions: '',
   employee_wishes: '',
   leader_actions: '',
-  include_team_roles: true,        // Vis team roller i kontrakt (standard: true)
-  include_colleague_support: true, // Vis kollega støtte i kontrakt (standard: true)
-  include_306090_goals: true,      // Vis 30/60/90 mål i kontrakt (standard: true)
-  ai_prefill_applied: false        // ⚡-flag: sættes true først når brugeren trykker "Generér forslag"
+  include_team_roles: true,
+  include_colleague_support: true,
+  include_306090_goals: true,
+  aiSuggestionsUsed: false // VIGTIG: tracker om ⚡ knappen er brugt
 };
-
 
 let contractAvailableCompetencies = []; // fra v_template_categories
 let contractAvailableTips = new Map();   // Map<category_id, Tip[]>
 
+// ——— SessionStorage helpers for Udviklingskontrakt (autosave mellem faneskift) ———
+function contractSessionKey(){
+  const pid = $('contractProjectSelect')?.value || contractState.project_id;
+  const tid = $('contractTargetSelect')?.value || contractState.target_id;
+  if (!pid || !tid) return null;
+  return `contract_state_${pid}_${tid}`;
+}
+
+function contractSerializeSelectedTips(){
+  const obj = {};
+  for (const [catId, set] of contractState.selectedTips.entries()) {
+    obj[catId] = Array.from(set);
+  }
+  return obj;
+}
+
+function contractSerializeRoles(){
+  const obj = {};
+  for (const [tipId, val] of contractState.roles.entries()) {
+    obj[tipId] = val;
+  }
+  return obj;
+}
+
+function contractSaveSessionState(){
+  const key = contractSessionKey();
+  if (!key) return;
+
+  const data = {
+    project: { id: contractState.project_id },
+    target:  { id: contractState.target_id },
+    followup_date: contractState.followup_date || null,
+    employee_actions: $('contractEmployeeActions')?.value ?? contractState.employee_actions ?? '',
+    employee_wishes:  $('contractEmployeeWishes')?.value ?? contractState.employee_wishes ?? '',
+    leader_actions:   $('contractLeaderActions')?.value ?? contractState.leader_actions ?? '',
+    include_team_roles:       !!contractState.include_team_roles,
+    include_colleague_support:!!contractState.include_colleague_support,
+    include_306090_goals:     !!contractState.include_306090_goals,
+    competencies: Array.from(contractState.selectedCompetencies).map(id => ({ id })),
+    tips:  contractSerializeSelectedTips(),
+    roles: contractSerializeRoles()
+  };
+
+  try {
+    sessionStorage.setItem(key, JSON.stringify(data));
+    // console.log('Kontrakt autosavet →', key, data);
+  } catch(e){
+    console.warn('Autosave (sessionStorage) fejlede:', e);
+  }
+}
+
+async function contractRestoreSessionState(){
+  const key = contractSessionKey();
+  if (!key) return;
+
+  const text = sessionStorage.getItem(key);
+  if (!text) return;
+
+  try {
+    const data = JSON.parse(text);
+
+    // Sørg for at projekt/målperson i dropdowns matcher
+    const projSel = $('contractProjectSelect');
+    if (projSel && projSel.value !== data.project.id) {
+      projSel.value = data.project.id;
+      await contractLoadTargets(data.project.id);
+    }
+    const targSel = $('contractTargetSelect');
+    if (targSel && data.target?.id) {
+      targSel.value = data.target.id;
+    }
+
+    // Opdater state
+    contractState.project_id = data.project.id;
+    contractState.target_id  = data.target.id;
+    contractState.followup_date = data.followup_date || null;
+    contractState.employee_actions = data.employee_actions || '';
+    contractState.employee_wishes  = data.employee_wishes  || '';
+    contractState.leader_actions   = data.leader_actions   || '';
+    contractState.include_team_roles       = data.include_team_roles ?? true;
+    contractState.include_colleague_support= data.include_colleague_support ?? true;
+    contractState.include_306090_goals     = data.include_306090_goals ?? true;
+
+    // Udfyld UI felter
+    $('include306090Goals')     && ( $('include306090Goals').checked     = contractState.include_306090_goals );
+    $('includeTeamRoles')       && ( $('includeTeamRoles').checked       = contractState.include_team_roles );
+    $('includeColleagueSupport')&& ( $('includeColleagueSupport').checked= contractState.include_colleague_support );
+    $('contractEmployeeActions')&& ( $('contractEmployeeActions').value  = contractState.employee_actions );
+    $('contractEmployeeWishes') && ( $('contractEmployeeWishes').value   = contractState.employee_wishes );
+    $('contractLeaderActions')  && ( $('contractLeaderActions').value    = contractState.leader_actions );
+
+    // Kompetencer, tips, roller
+    contractState.selectedCompetencies = new Set((data.competencies||[]).map(c=>c.id));
+    contractState.selectedTips = new Map();
+    Object.keys(data.tips || {}).forEach(catId => {
+      contractState.selectedTips.set(catId, new Set(data.tips[catId] || []));
+    });
+    contractState.roles = new Map();
+    Object.keys(data.roles || {}).forEach(tipIdStr => {
+      const tipId = parseInt(tipIdStr);
+      contractState.roles.set(tipId, data.roles[tipIdStr]);
+    });
+
+    // Indlæs kompetencer & tegn UI
+    const templateId = projSel?.selectedOptions[0]?.dataset.templateId;
+    if (templateId) await contractLoadCompetencies(templateId);
+
+    contractAvailableCompetencies.forEach(c => {
+      const card = document.querySelector(`.contract-competency-card[data-competency-id="${c.category_id}"]`);
+      if (!card) return;
+      if (contractState.selectedCompetencies.has(c.category_id)) card.classList.add('selected');
+      else card.classList.remove('selected');
+    });
+
+    await contractLoadTipsForSelected();
+    contractSetupRolesStep?.();
+    contractSetupOverview?.();
+    const followup = $('contractFollowupDate'); if (followup) followup.value = contractState.followup_date || '';
+
+    contractUpdateSectionStatus?.();
+    contractUpdateProgress?.();
+  } catch(e){
+    console.warn('Gendannelse af kontrakt fra session fejlede:', e);
+  }
+}
 
 async function initContractTabOnce(){
   if (contractInitialized) return;
@@ -4951,6 +4913,29 @@ async function initContractTabOnce(){
   ensureContractUiExtras?.();
   
   // Tilføj Indlæs knap
+  if (typeof contractSetupLoadButton !== 'function') {
+    function contractSetupLoadButton() {
+      // Placer knap i sticky action-bar (fallback: første kontrakt-sektion)
+      const actions = document
+        .getElementById('contractStickyActions')
+        ?.querySelector('div > div:last-child');
+      const fallbackContainer = document.querySelector('#tab-contract .section');
+      const host = actions || fallbackContainer;
+      if (!host) return;
+
+      // Undgå dubletter
+      if (document.getElementById('contractLoadBtn')) return;
+
+      const btn = document.createElement('button');
+      btn.id = 'contractLoadBtn';
+      btn.className = 'btn small';
+      btn.textContent = '📂 Indlæs kontrakt (UDV/JSON)';
+      btn.style.marginRight = '4px';
+      btn.addEventListener('click', contractLoadFromFile);
+      // Vis foran de øvrige handlingsknapper
+      host.prepend(btn);
+    }
+  }
   contractSetupLoadButton();
 
   // Fyld projekter + bind events
@@ -4961,8 +4946,25 @@ async function initContractTabOnce(){
   // Bind AI-knap (findes først efter ensureContractUiExtras)
   const aiBtn = document.getElementById('aiSuggestBtn');
   if (aiBtn) aiBtn.addEventListener('click', generateAISuggestion);
-}
 
+  // ——— Bind autosave på tekstfelter + toggles ———
+  const emp = $('contractEmployeeActions');
+  const wish = $('contractEmployeeWishes');
+  const lead = $('contractLeaderActions');
+  const follow = $('contractFollowupDate');
+  const inc306090 = $('include306090Goals');
+  const incTeam   = $('includeTeamRoles');
+  const incColl   = $('includeColleagueSupport');
+
+  emp   && emp.addEventListener('input',  e => { contractState.employee_actions = e.target.value;  contractSetupOverview?.(); contractUpdateProgress?.(); contractSaveSessionState?.(); });
+  wish  && wish.addEventListener('input', e => { contractState.employee_wishes  = e.target.value;  contractSetupOverview?.(); contractUpdateProgress?.(); contractSaveSessionState?.(); });
+  lead  && lead.addEventListener('input', e => { contractState.leader_actions   = e.target.value;  contractSetupOverview?.(); contractUpdateProgress?.(); contractSaveSessionState?.(); });
+  follow&& follow.addEventListener('change', e => { contractState.followup_date = e.target.value || null; contractUpdateSectionStatus?.(); contractSaveSessionState?.(); });
+
+  inc306090 && inc306090.addEventListener('change', () => contractSaveSessionState?.());
+  incTeam   && incTeam.addEventListener('change',   () => contractSaveSessionState?.());
+  incColl   && incColl.addEventListener('change',   () => contractSaveSessionState?.());
+}
 
 async function contractLoadProjects() {
   try {
@@ -4973,7 +4975,7 @@ async function contractLoadProjects() {
     if (error) throw error;
 
     const sel = $('contractProjectSelect');
-    sel.innerHTML = '<option value="">Vælg projekt.</option>';
+    sel.innerHTML = '<option value="">— Vælg projekt —</option>';
     (projects || []).forEach(p => {
       const opt = document.createElement('option');
       opt.value = p.id;
@@ -4996,7 +4998,7 @@ async function contractLoadTargets(projectId) {
     if (error) throw error;
 
     const sel = $('contractTargetSelect');
-    sel.innerHTML = '<option value="">Vælg målperson.</option>';
+    sel.innerHTML = '<option value="">— Vælg målperson —</option>';
     (people || []).forEach(p => {
       const opt = document.createElement('option');
       opt.value = p.id;
@@ -5080,106 +5082,149 @@ function contractToggleCompetency(competencyId, card) {
 async function contractLoadTipsForSelected() {
   const container = $('contractTipsContainer');
   if (contractState.selectedCompetencies.size === 0) {
-    container.innerHTML = '<div style="color:var(--muted);padding:20px;text-align:center">Vælg først kompetencer</div>';
+    container.innerHTML = '<div style="color:var(--muted);padding:20px">Vælg kompetencer først</div>';
+    return;
+  }
+  
+  const competencyIds = Array.from(contractState.selectedCompetencies);
+  
+  if (!contractState.project_id || !contractState.target_id) {
+    container.innerHTML = '<div style="color:var(--muted)">Vælg både projekt og målperson for at se tips.</div>';
     return;
   }
 
-  const competencyIds = Array.from(contractState.selectedCompetencies);
-  const usePersonData = !!contractState.ai_prefill_applied;
-
   try {
-    // start tomt pr. kategori
-    contractAvailableTips = new Map();
-
-    // dismissed pr. kategori
-    const dismissedByCat = new Map();
-    if (usePersonData && contractState.project_id && contractState.target_id) {
-      const { data: st } = await supabase
-        .from('coaching_tip_state')
-        .select('tip_id, category_id, dismissed')
-        .eq('project_id', contractState.project_id)
-        .eq('target_id', contractState.target_id);
-
-      (st || []).forEach(r => {
-        if (r.dismissed) {
-          if (!dismissedByCat.has(r.category_id)) dismissedByCat.set(r.category_id, new Set());
-          dismissedByCat.get(r.category_id).add(r.tip_id);
-        }
-      });
-    }
-
-    // 1) person-specifikke tips fra Resultater (kun hvis ⚡ er brugt)
-    const personTipsByCategory = new Map();
-    if (usePersonData && contractState.project_id && contractState.target_id) {
-      const { data: coachingData, error } = await supabase.rpc('get_coaching_recommendations', {
+    console.log('Henter tips for valgte kompetencer...');
+    
+    // Hent dismissed tips
+    const { data: dismissed } = await supabase
+      .from('coaching_tip_state')
+      .select('tip_id')
+      .eq('project_id', contractState.project_id)
+      .eq('target_id', contractState.target_id)
+      .eq('dismissed', true);
+    const dismissedIds = new Set((dismissed || []).map(x => x.tip_id));
+    
+    // Hent coaching anbefalinger kun hvis ⚡ knappen er brugt
+    let coachingData = null;
+    let coachingError = null;
+    if (contractState.aiSuggestionsUsed) {
+      const { data, error } = await supabase.rpc('get_coaching_recommendations', {
         p_project_id: contractState.project_id,
         p_target_id: contractState.target_id,
-        p_types: ['self','peer','leader'],
+        p_types: ['self', 'peer', 'leader'],
         p_limit_keep: 5,
-        p_limit_develop: 8
+        p_limit_develop: 3
       });
-      if (error) console.warn('get_coaching_recommendations fejl:', error);
-
-      if (coachingData) {
-        // Brug KUN tilbageværende tips fra Resultater → 📈 Udvikle
-        // (dvs. allerede filtreret for dismissed i SQL)
-        (coachingData.udvikle || []).forEach(cat => {
-          const cid = cat?.category_id;
-          if (!cid || !competencyIds.includes(cid)) return;
-
-          const dismissed = dismissedByCat.get(cid) || new Set();
-          const items = Array.isArray(cat.how_to_develop) ? cat.how_to_develop : [];
-
-          items.forEach(t => {
-            const tipId = t?.tip_id;
-            if (!tipId || dismissed.has(tipId)) return;
-
-            if (!personTipsByCategory.has(cid)) personTipsByCategory.set(cid, []);
-            const m = t.method === 'peer' ? 'colleague'
-                    : t.method === 'leader' ? 'leader_employee'
-                    : t.method;
-            personTipsByCategory.get(cid).push({
-              id: tipId,
-              category_id: cid,
-              method: m,
-              title: t.title || '(uden titel)',
-              description: t.description || ''
-            });
-          });
-        });
+      coachingError = error;
+      if (!coachingError) {
+        coachingData = data;
+        console.log('Bruger coaching anbefalinger fra Resultater');
       }
     }
-
-    // 2) Hvis ⚡ er brugt: brug KUN persondata (ingen fallback).
-    //    Ellers: fald tilbage til kataloget.
-    for (const cid of competencyIds) {
-      const current = personTipsByCategory.get(cid) || [];
-      if (usePersonData) {
-        contractAvailableTips.set(cid, current); // kan være tomt → "Ingen forslag fundet"
-        continue;
+    
+    contractAvailableTips.clear();
+    
+    // Helper funktion for at konvertere typer
+    const toMethod = (t) => t === 'self' ? 'self' : (t === 'peer' ? 'colleague' : 'leader_employee');
+    
+    if (!coachingError && coachingData && (coachingData.udvikle || coachingData.fastholde)) {
+      console.log('Bruger coaching anbefalinger fra Resultater fanen');
+      
+      // Proces udviklingskategorier
+      for (const item of (coachingData.udvikle || [])) {
+        if (competencyIds.includes(item.category_id)) {
+          console.log(`Henter udviklings-tips for ${item.category_name} (score: ${item.score})`);
+          
+          // Hent tips direkte fra coaching_tip tabellen baseret på lave typer
+          const methods = (item.low_types || ['self', 'peer']).map(toMethod);
+          
+          const { data: rawTips } = await supabase
+            .from('coaching_tip')
+            .select('id,title,description,method,sort_order,impact,effort,time_horizon,steps,micro_habits')
+            .eq('category_id', item.category_id)
+            .in('method', methods)
+            .order('sort_order', { ascending: true });
+          
+          const tips = (rawTips || [])
+            .filter(r => !dismissedIds.has(r.id))
+            .map(r => ({
+              id: r.id,
+              title: r.title,
+              description: r.description,
+              method: r.method,
+              category_id: item.category_id,
+              category_name: item.category_name,
+              priority: 'coaching_develop',
+              coaching_context: `Fra Coaching: Udvikling anbefalet (score: ${item.score})`,
+              impact: r.impact,
+              effort: r.effort,
+              time_horizon: r.time_horizon
+            }));
+          
+          if (tips.length > 0) {
+            contractAvailableTips.set(item.category_id, tips);
+          }
+        }
       }
+      
+      // Proces fastholdelseskategorier
+      for (const item of (coachingData.fastholde || [])) {
+        if (competencyIds.includes(item.category_id)) {
+          console.log(`Henter fasthold-tips for ${item.category_name} (score: ${item.score})`);
+          
+          const { data: rawTips } = await supabase
+            .from('coaching_tip')
+            .select('id,title,description,method,sort_order,impact,effort,time_horizon,steps,micro_habits')
+            .eq('category_id', item.category_id)
+            .in('method', ['self', 'colleague'])
+            .order('impact', { ascending: false })
+            .limit(2);
+          
+          const tips = (rawTips || [])
+            .filter(r => !dismissedIds.has(r.id))
+            .map(r => ({
+              id: r.id,
+              title: r.title,
+              description: r.description,
+              method: r.method,
+              category_id: item.category_id,
+              category_name: item.category_name,
+              priority: 'coaching_keep',
+              coaching_context: `Fra Coaching: Fasthold stærk kompetence (score: ${item.score})`,
+              impact: r.impact,
+              effort: r.effort,
+              time_horizon: r.time_horizon
+            }));
+          
+          if (tips.length > 0) {
+            // Tilføj til eksisterende tips eller opret nye
+            if (contractAvailableTips.has(item.category_id)) {
+              contractAvailableTips.get(item.category_id).push(...tips);
+            } else {
+              contractAvailableTips.set(item.category_id, tips);
+            }
+          }
 
-      const { data: dbTips, error: dbErr } = await supabase
-        .from('v_coaching_tip_enriched')
-        .select('*')
-        .eq('category_id', cid)
-        .order('sort_order', { ascending: true });
-
-      if (dbErr) console.warn('v_coaching_tip_enriched fejl:', dbErr);
-
-      const mapped = (dbTips || []).map(t => {
-        const m = t.method === 'peer' ? 'colleague'
-                : t.method === 'leader' ? 'leader_employee'
-                : t.method;
-        return { ...t, method: m };
-      });
-
-      contractAvailableTips.set(cid, mapped);
+        }
+      }
+      
+      // Fallback for kompetencer uden coaching data
+      const missingCompetencies = competencyIds.filter(id => !contractAvailableTips.has(id));
+      if (missingCompetencies.length > 0) {
+        console.log('Fallback til database for kompetencer uden coaching data:', missingCompetencies);
+        await loadFallbackTips(missingCompetencies, dismissedIds);
+      }
+      
+    } else {
+      // Komplet fallback hvis coaching data ikke er tilgængelig
+      console.log('Coaching data ikke tilgængelig - bruger database fallback for alle kompetencer');
+      await loadFallbackTips(competencyIds, dismissedIds);
     }
 
-    // Render (viser “Ingen forslag fundet” hvis tomt pr. kategori)
+    console.log('Tips loaded for categories:', Array.from(contractAvailableTips.keys()).length);
     contractRenderTips();
-
+    
   } catch (e) {
     console.error('Fejl ved indlæsning af tips:', e);
     container.innerHTML = '<div style="color:var(--error)">Fejl ved indlæsning af tips: ' + (e.message || e) + '</div>';
@@ -5197,11 +5242,13 @@ async function loadFallbackTips(competencyIds, dismissedIds) {
   (tips || [])
     .filter(t => !dismissedIds.has(t.id))
     .forEach(tip => {
-      const enhancedTip = {
+  const enhancedTip = {
         ...tip,
         priority: 'database_fallback',
         coaching_context: 'Database fallback - generelt udviklingsforslag'
       };
+
+
 
       if (!contractAvailableTips.has(tip.category_id)) {
         contractAvailableTips.set(tip.category_id, []);
@@ -5213,21 +5260,33 @@ async function loadFallbackTips(competencyIds, dismissedIds) {
 function contractRenderTips() {
   const container = $('contractTipsContainer');
   container.innerHTML = '';
+  
+  let totalTipsCount = 0;
 
   contractState.selectedCompetencies.forEach(competencyId => {
     const comp = contractAvailableCompetencies.find(c => c.category_id === competencyId);
     const tips = contractAvailableTips.get(competencyId) || [];
+    
+    if (tips.length === 0) {
+      console.warn(`Ingen tips fundet for kompetence: ${comp?.category_name || competencyId}`);
+    }
+    
+    totalTipsCount += tips.length;
 
     const section = document.createElement('div');
+    section.style.marginBottom = '24px';
     section.innerHTML = `
-      <h4 style="color:var(--brand);margin-bottom:12px">${comp?.category_name || 'Ukendt kompetence'}</h4>
+      <h4 style="color:var(--brand);margin-bottom:12px;font-size:1.1rem">
+        ${comp?.category_name || 'Ukendt kompetence'}
+        <span style="font-size:0.9rem;color:var(--muted);font-weight:normal">(${tips.length} tips)</span>
+      </h4>
       <div id="tips-${competencyId}"></div>
     `;
 
     const wrap = section.querySelector(`#tips-${competencyId}`);
-
+    
     if (tips.length === 0) {
-      wrap.innerHTML = '<p style="color:var(--muted);font-style:italic">Ingen forslag fundet</p>';
+      wrap.innerHTML = '<div style="color:var(--muted);font-style:italic;padding:12px;background:var(--surface);border-radius:6px">Ingen tips fundet for denne kompetence</div>';
     } else {
       tips.forEach(tip => {
         const card = document.createElement('div');
@@ -5237,12 +5296,15 @@ function contractRenderTips() {
         if (contractState.selectedTips.get(competencyId)?.has(tip.id)) {
           card.classList.add('selected');
         }
+        
+        // Vis metode-badge, titel OG fuld beskrivelse
         card.innerHTML = `
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
             <span class="contract-tip-method">${contractMethodLabel(tip.method)}</span>
-            <strong>${tip.title}</strong>
+            <strong style="flex:1">${tip.title}</strong>
           </div>
-          <p style="margin:0;font-size:0.9rem;color:var(--muted)">${tip.description}</p>
+          <p style="margin:0;font-size:0.95rem;line-height:1.5;color:var(--ink)">${tip.description || 'Ingen beskrivelse tilgængelig'}</p>
+          ${tip.coaching_context ? `<div style="margin-top:8px;font-size:0.85rem;color:var(--muted);font-style:italic">ℹ️ ${tip.coaching_context}</div>` : ''}
         `;
         card.addEventListener('click', () => contractToggleTip(competencyId, tip.id, card));
         wrap.appendChild(card);
@@ -5251,20 +5313,12 @@ function contractRenderTips() {
 
     container.appendChild(section);
   });
-}
-
-function contractMethodLabel(method){
-  const m = {
-    self: 'Selv',
-    colleague: 'Kollega',
-    peer: 'Kollega',
-    leader_employee: 'Leder',
-    leader: 'Leder',
-    group: 'Gruppe',
-    external: 'Ekstern',
-    course: 'Kursus'
-  };
-  return m[method] || method;
+  
+  console.log(`Tips loaded for categories: ${contractAvailableTips.size}, total tips: ${totalTipsCount}`);
+  
+  if (totalTipsCount === 0 && contractState.selectedCompetencies.size > 0) {
+    container.innerHTML = '<div style="color:var(--error);padding:20px;text-align:center;background:var(--surface);border-radius:8px">⚠️ Ingen tips fundet for de valgte kompetencer. Prøv at vælge andre kompetencer eller kontakt support.</div>';
+  }
 }
 
 function contractToggleTip(competencyId, tipId, card){
@@ -5667,41 +5721,6 @@ function contractUpdateSectionStatusLight(){
   contractUpdateProgress();
 }
 
-function contractUpdateProgress(){
-  let done = 0;
-  
-  // 1. Kompetencer
-  if (contractState.selectedCompetencies.size > 0) done++;
-  
-  // 2. Aktiviteter
-  let totalTips = 0;
-  for (const s of contractState.selectedTips.values()) totalTips += s.size;
-  if (totalTips > 0 && contractState.selectedCompetencies.size > 0) done++;
-  
-  // 3. Roller - check tekstfelterne i stedet for roles Map
-  const hasEmployeeActions = contractState.employee_actions?.trim();
-  const hasEmployeeWishes = contractState.employee_wishes?.trim();
-  const hasLeaderActions = contractState.leader_actions?.trim();
-  const rolesCompleted = hasEmployeeActions && hasEmployeeWishes && hasLeaderActions;
-  if (rolesCompleted) done++;
-  
-  // 4. Opfølgningsdato
-  if (contractState.followup_date) done++;
-
-  const pct = Math.round((done/4)*100);
-  $('contractProgressText').textContent = `${done}/4 sektioner færdige`;
-  $('contractProgressFill').style.width = `${pct}%`;
-
-  const allComplete = done >= 3; // min. kompetencer + aktiviteter + roller
-  $('contractSaveFinalBtn').disabled = !allComplete;
-  $('contractExportPdfBtn').disabled = !allComplete;
-}
-
-function contractUpdateGoalsAndRoles(){
-  contractUpdate306090Goals();
-  contractUpdateTeamRoles();
-}
-
 function contractUpdate306090Goals(){
   const container = $('contractGoalsContainer');
   if (!container) return;
@@ -5822,19 +5841,28 @@ async function contractGetSelectedTeamRoles(){
       });
     }
 
-    // 2) Fallback: brug beregnet top-4 for målpersonen (undgår 400-fejl fra ugyldigt select)
-    const pid = contractState.project_id;
-    const tid = contractState.target_id;
-    const { data: top4, error } = await supabase.rpc('teamrole_top4', { pid, tid });
+    // 2) Fallback: relevante roller ud fra de valgte kompetencer i kontrakten
+    const { data: teamRoles, error } = await supabase
+      .from('team_roles')
+      .select('name, short_code, description, competencies:team_role_competencies(competency_name)')
+      .order('name');
     if (error) throw error;
 
-    return (top4 || []).map(r => ({
-      rank: r.rank,
-      name: r.role_name,
-      pct: r.score_pct,
-      description: r.description || '',
-      competencies: [r.comp1, r.comp2, r.comp3].filter(Boolean)
+    const selectedCompetencyNames = Array.from(contractState.selectedCompetencies)
+      .map(cid => contractAvailableCompetencies.find(c => c.category_id === cid)?.category_name)
+      .filter(Boolean);
+
+    const relevantRoles = (teamRoles || []).filter(role => {
+      const roleCompetencies = (role.competencies || []).map(c => c.competency_name);
+      return roleCompetencies.some(comp => selectedCompetencyNames.includes(comp));
+    });
+
+    return relevantRoles.map(role => ({
+      name: role.name,
+      description: role.description || '',
+      competencies: (role.competencies || []).map(c => c.competency_name)
     }));
+
   } catch (error) {
     console.error('Fejl ved hentning af team roller:', error);
     return [];
@@ -5894,16 +5922,42 @@ function contractSetupEventListeners(){
     contractUpdateSectionStatus();
   });
 
-  // Målperson valg — ingen auto-forvalg
+  // Målperson valg
   $('contractTargetSelect').addEventListener('change', async (e)=>{
     contractState.target_id = e.target.value || null;
-
-    // Nulstil altid valg når målperson skiftes (ingen auto-forvalg)
+    
+    // ALTID nulstil state ved personvalg
     contractState.selectedCompetencies.clear();
     contractState.selectedTips.clear();
     contractState.roles.clear();
-    contractState.ai_prefill_applied = false; // ⚡ er ikke brugt for ny målperson
+    
+    // Fjern alle selected markeringer på UI
+    document.querySelectorAll('.contract-competency-card').forEach(card => {
+      card.classList.remove('selected');
+    });
+    
+    // Luk sektion 2 og 3
+    const section2 = document.getElementById('contractActivitiesSection');
+    const section3 = document.getElementById('contractRolesSection');
+    if (section2) {
+      section2.classList.remove('active');
+      section2.style.opacity = '0.6';
+    }
+    if (section3) {
+      section3.classList.remove('active');
+      section3.style.opacity = '0.6';
+    }
+    
+    // Tøm tips container
+    const tipsContainer = document.getElementById('contractTipsContainer');
+    if (tipsContainer) {
+      tipsContainer.innerHTML = '<div style="color:var(--muted);padding:20px">Vælg kompetencer først</div>';
+    }
+    
     contractUpdateSectionStatus();
+    contractSetupOverview?.();
+    
+    console.log('Målperson valgt - state nulstillet. Brug ⚡ Generér forslag for at forfylde.');
   });
 
   // Opfølgningsdato
@@ -5922,19 +5976,81 @@ function contractSetupEventListeners(){
   $('contractStartOverBtn').addEventListener('click', contractStartOver);
 }
 
-// Funktion til at genindlæse tips når fanen åbnes
-async function contractReloadTipsIfNeeded() {
-  // Genindlæs kun hvis både projekt, målperson og kompetencer er valgt
-  if (contractState.project_id && 
-      contractState.target_id && 
-      contractState.selectedCompetencies.size > 0) {
-    console.log('Genindlæser tips for at sikre dismissed tips er filtreret...');
-    await contractLoadTipsForSelected();
+// FJERNET: contractAutoLoadFromCoaching
+// Denne funktion er slettet fordi auto-forvalg kun må ske via ⚡ Generér forslag knappen
+// Al personvalg skal nu nulstille state uden at forfylde data
+// Se generateAISuggestion() for den eneste tilladte auto-forvalg kilde
+
+// Synk projekt/målperson fra "Resultater" → "Udviklingskontrakt"
+async function syncResultsSelectionToContract() {
+  try {
+    const pid = $('selProject2')?.value || null;
+    const tid = $('selTarget')?.value || null;
+    if (!pid || !tid) return;
+
+    const projSel = $('contractProjectSelect');
+    const targSel = $('contractTargetSelect');
+
+    // Sørg for at projektet findes i kontrakt-dropdown – ellers (re)load
+    if (projSel && projSel.value !== pid) {
+      if (![...projSel.options].some(o => o.value === pid)) {
+        await contractLoadProjects();
+      }
+      projSel.value = pid;
+      await contractLoadTargets(pid);
+    }
+
+    // Sæt målperson
+    if (targSel && targSel.value !== tid) {
+      targSel.value = tid;
+    }
+
+    // Opdater state
+    contractState.project_id = pid;
+    contractState.target_id = tid;
+
+    // Indlæs ALLE kompetencer fra valgt template (ingen filtrering)
+    const templateId = projSel?.selectedOptions[0]?.dataset.templateId || null;
+    if (templateId) await contractLoadCompetencies(templateId);
+
+    // INGEN auto-forvalg - nulstil alt
+    contractState.selectedCompetencies.clear();
+    contractState.selectedTips.clear();
+    contractState.roles.clear();
+
+    // Fjern selected markeringer
+    requestAnimationFrame(() => {
+      document.querySelectorAll('.contract-competency-card').forEach(card => {
+        card.classList.remove('selected');
+      });
+    });
+
+    contractUpdateSectionStatus?.();
+    contractSetupOverview?.();
+    
+    console.log('Projekt og person synkroniseret. Brug ⚡ Generér forslag for at forfylde data.');
+  } catch (e) {
+    console.error('Sync-fejl:', e);
   }
 }
 
-// Ny funktion til at indlæse fra JSON fil
-async function contractLoadFromFile() {
+// Funktion til at genindlæse tips når fanen åbnes
+async function contractReloadTipsIfNeeded() {
+  if (!contractState.project_id || !contractState.target_id) return;
+  if (contractState.selectedCompetencies.size === 0) return;
+
+  try {
+    await contractLoadTipsForSelected();
+    contractUpdateSectionStatus?.();
+    contractSetupOverview?.();
+    contractUpdateProgress?.();
+  } catch (e) {
+    console.warn('contractReloadTipsIfNeeded fejlede:', e);
+  }
+}
+
+  // Ny funktion til at indlæse fra JSON fil
+  async function contractLoadFromFile() {
   const input = document.createElement('input');
   input.type = 'file';
   input.accept = '.udv,.json';
@@ -6169,145 +6285,117 @@ async function contractExportPdf(){
 }
 
 async function contractGeneratePdfHtml(project, person) {
-  const projTxt = project.title || 'Projekt';
-  const persTxt = person.full_name || 'Person';
-  
-  // Hent kompetencer med beskrivelser
+  // 1) Hent skabelonen (ligger ved siden af admin.html)
+  const tpl = await fetch('./contract_template.html').then(r => r.text());
+
+  // 2) Hent kategorier + serier til udviklingshjulet
+  const { data: cats } = await supabase
+    .from('v_category_path')
+    .select('*')
+    .eq('template_id', project.template_id)
+    .order('category_sort');
+
+  const { data: seriesRows } = await supabase
+    .from('v_kompas_series')
+    .select('*')
+    .eq('project_id', contractState.project_id)
+    .eq('target_id', contractState.target_id);
+
+  // Saml serier i den rækkefølge v_category_path returnerer
+  const series = { self: [], peer: [], leader: [] };
+  cats.forEach(cat => {
+    const recSelf   = seriesRows.find(r => r.category_id === cat.category_id && r.respondent_type === 'self');
+    const recPeer   = seriesRows.find(r => r.category_id === cat.category_id && r.respondent_type === 'peer');
+    const recLeader = seriesRows.find(r => r.category_id === cat.category_id && r.respondent_type === 'leader');
+    series.self.push(recSelf?.safe_avg ?? null);
+    series.peer.push(recPeer?.safe_avg ?? null);
+    series.leader.push(recLeader?.safe_avg ?? null);
+  });
+
+  // 3) Generér SVG-hjulet via eksisterende helper
+  const chartData = {
+    categories: cats.map((c, i) => ({
+      name: c.category_name,
+      self: series.self[i],
+      peer: series.peer[i],
+      leader: series.leader[i]
+    }))
+  };
+  const kompasSVG = generateKOMPASSVG(chartData, 360, 360); // findes allerede i admin.html :contentReference[oaicite:1]{index=1}
+
+  // 4) Byg HTML-bidder, som du allerede gør i din Oversigt/PDF-HTML (genbrug den kode)
+  //    – Valgte kompetencer m. fuld beskrivelse:
   const competenciesHtml = [];
   for (const cid of contractState.selectedCompetencies) {
     const comp = contractAvailableCompetencies.find(x => x.category_id === cid);
-    if (comp) {
-      let compHtml = `<div style="padding:12px;background:#f8fafc;border-left:3px solid #667eea;margin-bottom:12px;border-radius:4px">`;
-      compHtml += `<strong style="color:#667eea;font-size:16px">${comp.category_name}</strong><br>`;
-      if (comp.synopsis) compHtml += `<div style="margin-top:6px;font-size:13px;font-style:italic">${comp.synopsis}</div>`;
-      if (comp.importance) compHtml += `<div style="margin-top:6px;font-size:12px"><strong>Vigtighed:</strong> ${comp.importance}</div>`;
-      if (comp.why_matters) compHtml += `<div style="margin-top:6px;font-size:12px"><strong>Hvorfor det betyder noget:</strong> ${comp.why_matters}</div>`;
-      compHtml += `</div>`;
-      competenciesHtml.push(compHtml);
-    }
-  }
-  
-  // Hent alle aktiviteter med fuld beskrivelse
-  const activitiesHtml = [];
-  let totalActivities = 0;
-  for (const [categoryId, tipIds] of contractState.selectedTips.entries()) {
-    const category = contractAvailableCompetencies.find(c => c.category_id === categoryId);
-    const tips = contractAvailableTips.get(categoryId) || [];
-    
-    if (tipIds.size > 0) {
-      activitiesHtml.push(`<div style="margin-bottom:16px"><strong style="color:#667eea;font-size:14px">${category?.category_name || 'Kompetence'}:</strong></div>`);
-      
-      tipIds.forEach(tipId => {
-        const tip = tips.find(t => t.id === tipId);
-        if (tip) {
-          totalActivities++;
-          let tipHtml = `<div style="padding:10px;background:white;border:1px solid #e2e8f0;border-left:3px solid #667eea;margin-bottom:8px;border-radius:4px">`;
-          tipHtml += `<div style="margin-bottom:6px">`;
-          tipHtml += `<span style="background:#667eea;color:white;padding:2px 8px;border-radius:3px;font-size:10px;margin-right:8px">${contractMethodLabel(tip.method)}</span>`;
-          tipHtml += `<strong style="font-size:13px">${tip.title}</strong>`;
-          tipHtml += `</div>`;
-          tipHtml += `<div style="font-size:12px;color:#475569">${tip.description}</div>`;
-          tipHtml += `</div>`;
-          activitiesHtml.push(tipHtml);
-        }
-      });
-    }
+    if (!comp) continue;
+    competenciesHtml.push(
+      `<div class="chip"><div class="label">${comp.category_name}</div>` +
+      `${comp.synopsis ? `<div class="desc"><em>${comp.synopsis}</em></div>` : ''}` +
+      `${comp.importance ? `<div class="desc"><strong>Vigtighed:</strong> ${comp.importance}</div>` : ''}` +
+      `${comp.why_matters ? `<div class="desc"><strong>Hvorfor:</strong> ${comp.why_matters}</div>` : ''}` +
+      `</div>`
+    );
   }
 
-  return `
-    <div style="font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:20px;background:#fff">
-      <!-- Header -->
-      <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;padding:20px;border-radius:8px;margin-bottom:20px;text-align:center">
-        <h1 style="margin:0 0 8px 0;font-size:24px">📋 Udviklingskontrakt</h1>
-        <p style="margin:0;font-size:14px;opacity:0.9">${projTxt}</p>
-      </div>
-      
-      <!-- Basis info -->
-      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:20px">
-        <h3 style="margin:0 0 12px 0;color:#1e293b">Kontrakt Information</h3>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <div><strong>Målperson:</strong> ${persTxt}</div>
-          <div><strong>Opfølgningsdato:</strong> ${contractState.followup_date || 'Ikke sat'}</div>
-        </div>
-      </div>
-      
-      <!-- Kompetencer MED FULDE BESKRIVELSER -->
-      <div style="margin-bottom:20px">
-        <h3 style="color:#1e293b;margin:0 0 12px 0">🎯 Valgte Kompetencer (${competenciesHtml.length})</h3>
-        ${competenciesHtml.join('')}
-      </div>
-      
-      <!-- Aktiviteter MED FULDE BESKRIVELSER -->
-      <div style="margin-bottom:20px">
-        <h3 style="color:#1e293b;margin:0 0 12px 0">💡 Aktiviteter (${totalActivities} valgt)</h3>
-        ${activitiesHtml.length > 0 ? activitiesHtml.join('') : '<p style="color:#94a3b8;font-style:italic">Ingen aktiviteter valgt</p>'}
-      </div>
-      
-      <!-- Roller og Aftaler -->
-      <div style="margin-bottom:20px">
-        <h3 style="color:#1e293b;margin:0 0 12px 0">🤝 Roller og Aftaler</h3>
-        
-        ${contractState.employee_actions ? `
-        <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:12px;margin-bottom:12px">
-          <h4 style="margin:0 0 8px 0;color:#0369a1">👤 Medarbejder gør:</h4>
-          <p style="margin:0;white-space:pre-wrap">${contractState.employee_actions}</p>
-        </div>
-        ` : ''}
-        
-        ${contractState.employee_wishes ? `
-        <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;padding:12px;margin-bottom:12px">
-          <h4 style="margin:0 0 8px 0;color:#92400e">💭 Medarbejder ønsker:</h4>
-          <p style="margin:0;white-space:pre-wrap">${contractState.employee_wishes}</p>
-        </div>
-        ` : ''}
-        
-        ${contractState.leader_actions ? `
-        <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:12px">
-          <h4 style="margin:0 0 8px 0;color:#166534">👨‍💼 Leder støtter:</h4>
-          <p style="margin:0;white-space:pre-wrap">${contractState.leader_actions}</p>
-        </div>
-        ` : ''}
-      </div>
-      
-      <!-- 30/60/90 Mål (kun hvis medtaget) MED FULD TEKST -->
-      ${contractState.include_306090_goals ? await contractGenerate306090PdfSection() : ''}
-      
-      <!-- Team Roller (kun hvis medtaget) MED FULD BESKRIVELSE -->
-      ${contractState.include_team_roles ? `
-      <div style="margin-bottom:20px">
-        <h3 style="color:#1e293b;margin:0 0 12px 0">🧩 Team Roller</h3>
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px">
-          ${Array.from(document.querySelectorAll('#contractRolesContainer > div')).map(card => {
-            const name = card.querySelector('[style*="font-weight:600"]')?.textContent || 'Rolle';
-            const description = card.querySelector('[style*="text-secondary"]')?.textContent || '';
-            const competencies = card.querySelector('[style*="muted"]')?.textContent || '';
-            
-            return `<div style="padding:12px;background:white;border:1px solid #e2e8f0;margin-bottom:8px;border-radius:4px;border-left:3px solid #667eea">
-              <strong style="color:#667eea;font-size:14px">${name}</strong><br>
-              ${description ? `<div style="margin-top:6px;font-size:12px;color:#475569">${description}</div>` : ''}
-              ${competencies ? `<div style="margin-top:6px;font-size:11px;color:#94a3b8">${competencies}</div>` : ''}
-            </div>`;
-          }).join('') || '<p style="color:#94a3b8;font-style:italic;font-size:12px">Ingen roller valgt</p>'}
-        </div>
-      </div>
-      ` : ''}
-      
-      <!-- Kollega støtte (kun hvis medtaget) -->
-      ${contractState.include_colleague_support ? await contractGenerateColleagueSupportPdfSection() : ''}
-      
-      <!-- 30/60/90 Mål (kun hvis medtaget) -->
-      ${contractState.include_306090_goals ? await contractGenerate306090PdfSection() : ''}
-      
-      <!-- Team Roller (kun hvis medtaget) -->
-      ${contractState.include_team_roles ? await contractGenerateTeamRolesPdfSection() : ''}
-      
-      <!-- Footer -->
-      <div style="margin-top:30px;padding-top:16px;border-top:1px solid #e2e8f0;text-align:center;color:#64748b;font-size:12px">
-        <p style="margin:0"><strong>Genereret af KOMPAS Udviklingskontrakt System</strong></p>
-        <p style="margin:4px 0 0 0">Oprettet: ${new Date().toLocaleDateString('da-DK')}</p>
-      </div>
-    </div>
-  `;
+  //    – Aktiviteter (tips) inkl. metodebadge/titel/tekst (samme struktur som i Oversigt):
+  const activitiesHtml = [];
+  for (const [categoryId, tipIds] of contractState.selectedTips.entries()) {
+    const tips = (contractAvailableTips.get(categoryId) || []);
+    tipIds.forEach(tid => {
+      const tip = tips.find(t => t.id === tid);
+      if (!tip) return;
+      activitiesHtml.push(
+        `<div class="chip"><span class="pill">${contractMethodLabel(tip.method)}</span> ` +
+        `<span class="label" style="margin-left:6px">${tip.title}</span>` +
+        `<div class="desc">${tip.description}</div></div>`
+      );
+    });
+  }
+
+  //    – Roller/ansvar (tre tekstfelter)
+  const employeeBlock = contractState.employee_actions?.trim()
+    ? `<div><strong>👤 Medarbejder gør:</strong><p>${contractState.employee_actions.replace(/\n/g,'<br>')}</p></div>` : '';
+  const wishesBlock = contractState.employee_wishes?.trim()
+    ? `<div style="margin-top:8px"><strong>💭 Medarbejder ønsker:</strong><p>${contractState.employee_wishes.replace(/\n/g,'<br>')}</p></div>` : '';
+  const leaderBlock = contractState.leader_actions?.trim()
+    ? `<div style="margin-top:8px"><strong>👨‍💼 Leder støtter:</strong><p>${contractState.leader_actions.replace(/\n/g,'<br>')}</p></div>` : '';
+
+  //    – Kollega støtte / 30-60-90 / Teamroller (du har allerede HTML i DOM, genbrug den som i din nuværende PDF-generator)
+  const colleagueSupport = (document.getElementById('contractColleagueSupport')?.innerHTML || '').trim();
+  const goals306090      = (document.getElementById('contractGoalsContainer')?.innerHTML || '').trim();
+  const teamRolesHtml    = (document.getElementById('contractRolesContainer')?.innerHTML || '').trim();
+
+  // 5) Placeholder-erstatninger
+  const now = new Date().toLocaleDateString('da-DK');
+  const employeeNo = person.employee_no ? ` • #${person.employee_no}` : '';
+  const filled = tpl
+    .replaceAll('{{PROJECT_TITLE}}', project.title || 'Projekt')
+    .replaceAll('{{PERSON_NAME}}', person.full_name || 'Person')
+    .replaceAll('{{EMPLOYEE_NO}}', employeeNo)
+    .replaceAll('{{GENERATED_AT}}', now)
+    .replaceAll('{{FOLLOWUP_DATE}}', contractState.followup_date || '—')
+    .replaceAll('{{TEMPLATE_NAME}}', project.template_id || '')
+    .replaceAll('{{SUMMARY_TEXT}}', '') // valgfri kort opsummering
+    .replaceAll('{{WHEEL_SVG}}', kompasSVG || '')
+    .replaceAll('{{EMPLOYEE_ACTIONS_BLOCK}}', employeeBlock)
+    .replaceAll('{{EMPLOYEE_WISHES_BLOCK}}', wishesBlock)
+    .replaceAll('{{LEADER_ACTIONS_BLOCK}}',  leaderBlock)
+    .replaceAll('{{COMPETENCIES_HTML}}', competenciesHtml.join(''))
+    .replaceAll('{{ACTIVITIES_HTML}}', activitiesHtml.join(''))
+    .replaceAll('{{COLLEAGUE_SUPPORT_HTML}}', contractState.include_colleague_support && colleagueSupport && !colleagueSupport.includes('Ingen egnede kollegaer') ? colleagueSupport : '<span class="muted">Ingen kollega forslag</span>')
+    .replaceAll('{{GOALS_306090_HTML}}', contractState.include_306090_goals && goals306090 && !goals306090.includes('Ingen 30/60/90 mål') ? goals306090 : '<span class="muted">Ingen 30/60/90 mål</span>')
+    .replaceAll('{{TEAM_ROLES_HTML}}', contractState.include_team_roles && teamRolesHtml && !teamRolesHtml.includes('Ingen roller valgt') ? teamRolesHtml : '<span class="muted">Ingen teamroller valgt</span>');
+
+  return filled;
+}
+
+function contractMethodLabel(method){
+  const m = {
+    self: 'Selv', colleague: 'Kollega', leader_employee: 'Leder',
+    group: 'Gruppe', external: 'Ekstern', course: 'Kursus'
+  };
+  return m[method] || method;
 }
 
 async function contractGenerateColleagueSupportPdfSection() {
@@ -6494,11 +6582,11 @@ function ensureContractUiExtras() {
   if (!document.getElementById('loadingOverlay')) {
     const ovl = document.createElement('div');
     ovl.id = 'loadingOverlay';
-    ovl.style = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000';
+    ovl.style = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000';
     ovl.innerHTML = `
-      <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;padding:30px;border-radius:12px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.2)">
+      <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;padding:30px;border-radius:12px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,0.2)">
         <div class="spinner" style="width:28px;height:28px;border:3px solid #eee;border-top-color:var(--brand);border-radius:50%;margin:0 auto;animation:spin 1s linear infinite"></div>
-        <p style="margin:16px 0 0 0">Genererer AI-forslag...</p>
+        <p style="margin:16px 0 0 0">Genererer AI-forslag.</p>
       </div>`;
     document.body.appendChild(ovl);
     const style = document.createElement('style');
@@ -6514,11 +6602,14 @@ async function generateAISuggestion() {
       return;
     }
     
+    console.log('=== ⚡ GENERÉR FORSLAG AKTIVERET ===');
+    console.log('Henter data fra Resultater for:', { project: contractState.project_id, target: contractState.target_id });
+    
     const ovl = document.getElementById('loadingOverlay');
     if (ovl) ovl.style.display = 'block';
-
-    // Markér at ⚡-prefill er aktivt for denne målperson
-    contractState.ai_prefill_applied = true;
+    
+    // Marker at AI-forslag er brugt (til brug i contractLoadTipsForSelected)
+    contractState.aiSuggestionsUsed = true;
 
     // Hent anbefalinger fra Coaching fra Resultater fanen
     const { data: rec, error } = await supabase.rpc('get_coaching_recommendations', {
@@ -6594,8 +6685,31 @@ async function generateAISuggestion() {
       });
     }, 100);
 
-    // Hent tips for de valgte coaching kategorier og auto-vælg tips
+    // Hent tips for de valgte coaching kategorier
     await contractLoadTipsForSelected();
+    
+    // Fjern kategorier fra selectedCompetencies hvor ALLE tips er dismissed
+    const categoriesWithoutTips = Array.from(contractState.selectedCompetencies)
+      .filter(cid => !contractAvailableTips.has(cid) || contractAvailableTips.get(cid).length === 0);
+    
+    categoriesWithoutTips.forEach(cid => {
+      contractState.selectedCompetencies.delete(cid);
+      console.log('Fjernede kategori uden tilgængelige tips:', cid);
+    });
+    
+    // Opdater UI efter filtrering af kategorier uden tips
+    setTimeout(() => {
+      document.querySelectorAll('.contract-competency-card').forEach(card => {
+        const cid = card.dataset.competencyId;
+        if (contractState.selectedCompetencies.has(cid)) {
+          card.classList.add('selected');
+        } else {
+          card.classList.remove('selected');
+        }
+      });
+    }, 100);
+    
+    // Auto-vælg tips for de tilbageværende kategorier
     autoSelectTipsForDevelop(validUdvikleArr);
     contractUpdateSectionStatus();
   } catch (err) {
