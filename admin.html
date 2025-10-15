@@ -5207,11 +5207,13 @@ async function contractLoadTipsForSelected() {
           if (tips.length > 0) {
             // Tilføj til eksisterende tips eller opret nye
             if (contractAvailableTips.has(item.category_id)) {
-              contractAvailableTips.get(item.category_id).push(...tips);
+              const arr = contractAvailableTips.get(item.category_id);
+              arr.push(...tips);
             } else {
               contractAvailableTips.set(item.category_id, tips);
             }
           }
+
         }
       }
       
