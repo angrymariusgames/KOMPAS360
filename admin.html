@@ -1135,12 +1135,7 @@ window.addEventListener('load', function() {
   // Tab-navigation
   document.querySelectorAll('.tabbtn').forEach(btn => {
     btn.onclick = async () => {
-      // REDIRECT TIL CONTRACT.HTML NÅR UDVIKLINGSKONTRAKT-FANEN KLIKKES
-      if (btn.dataset.tab === 'contract') {
-        window.location.href = 'contract.html';
-        return;
-      }
-      
+            
       // fjern active fra alle
       document.querySelectorAll('.tabbtn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
