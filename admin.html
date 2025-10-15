@@ -1122,11 +1122,9 @@ window.addEventListener('load', function() {
   let radar = null;
   let user = null;
   let currentEditProject = null; // Track which project is being edited
-  let contractTipsReloadTimeout = null; // debounce for tip-load
 
   // State management for temporary people (before project is saved)
   let temporaryPeople = [];
-
 
   const SUPABASE_URL = "https://wsrstyrsuwhcmmlmnbrz.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzcnN0eXJzdXdoY21tbG1uYnJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MTU0NTIsImV4cCI6MjA3MTE5MTQ1Mn0.Rf3Z3bQGjV5CKXKZr6IMOjzPdbhVJCh3SwuvlkpxUD0";
@@ -1137,6 +1135,12 @@ window.addEventListener('load', function() {
   // Tab-navigation
   document.querySelectorAll('.tabbtn').forEach(btn => {
     btn.onclick = async () => {
+      // REDIRECT TIL CONTRACTS.HTML NÅR UDVIKLINGSKONTRAKT-FANEN KLIKKES
+      if (btn.dataset.tab === 'contract') {
+        window.location.href = 'contracts.html';
+        return;
+      }
+      
       // fjern active fra alle
       document.querySelectorAll('.tabbtn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
@@ -1149,7 +1153,7 @@ window.addEventListener('load', function() {
       // vis valgt sektion
       const target = $('tab-' + btn.dataset.tab);
       if(target) target.style.display = 'block'; 
-      // Vis/skjul "Opret nyt projekt" knappen afhængig af fane
+      // Vis/skjul "Opret nyt projekt" knappen afhÃ¦ngig af fane
       const createBtn = $('createNewProjectBtn');
       if(btn.dataset.tab === 'projects') {
         createBtn.style.display = 'inline-block';
@@ -1157,11 +1161,10 @@ window.addEventListener('load', function() {
         createBtn.style.display = 'none';
       }
       
-      // Automatisk data loading når specifikke faner åbnes
+      // Automatisk data loading nÃ¥r specifikke faner Ã¥bnes
       await handleTabDataLoading(btn.dataset.tab);
     };
   });
-
   
     // Funktion til at håndtere automatisk data loading ved tab skift
     async function handleTabDataLoading(tabName) {
@@ -1191,12 +1194,12 @@ window.addEventListener('load', function() {
                       
                       // Vent lidt mere så contractAutoLoadFromCoaching() når at køre
                       await new Promise(resolve => setTimeout(resolve, 200));
-
-                      // Ingen genindlæsning her – tips hentes allerede af auto/AI-flow. Kun re-render.
+                      
+                      // Genindlæs tips for at sikre dismissed tips fra Resultat-fanen er filtreret
                       if (contractState.selectedCompetencies.size > 0) {
-                        contractRenderTips();
+                        console.log('Genindlæser tips efter fane-skift for at filtrere dismissed tips...');
+                        await contractLoadTipsForSelected();
                       }
-
                     }
                   }, 100);
                 }
@@ -4948,9 +4951,6 @@ let contractState = {
 
 let contractAvailableCompetencies = []; // fra v_template_categories
 let contractAvailableTips = new Map();   // Map<category_id, Tip[]>
-// Sekvenslås til asynkron tip-load (for at undgå race conditions)
-let contractTipsLoadToken = 0;
-
 
 
 async function initContractTabOnce(){
@@ -5073,10 +5073,8 @@ function contractToggleCompetency(competencyId, card) {
     card.classList.add('selected');
   }
   
-  // Opdater forslag dynamisk når valgte kompetencer ændres (debounced)
-  clearTimeout(contractTipsReloadTimeout);
-  contractTipsReloadTimeout = setTimeout(() => { contractLoadTipsForSelected(); }, 150);
-
+  // Opdater forslag dynamisk når valgte kompetencer ændres
+  contractLoadTipsForSelected();
   
   // Genindlæs kollega support når kompetencer ændres
   const colleagueEl = $('contractColleagueSupport');
@@ -5103,13 +5101,8 @@ async function contractLoadTipsForSelected() {
     return;
   }
 
-  // Sekvenslås: markér dette kald som nyeste
-  const loadToken = ++contractTipsLoadToken;
-
   try {
-    console.log('Henter tips fra Coaching fra Resultater fanen.');
-
-
+    console.log('Henter tips fra Coaching fra Resultater fanen...');
     
     // Hent coaching anbefalinger for at identificere udviklings- og fastholdelseskategorier
     const { data: coachingData, error: coachingError } = await supabase.rpc('get_coaching_recommendations', {
@@ -5134,9 +5127,6 @@ async function contractLoadTipsForSelected() {
       .eq('dismissed', true);
     const dismissedIds = new Set((dismissed || []).map(x => x.tip_id));
     
-    // Track kategorier der fejler, så de kan få fallback
-    const failedCategories = new Set();
-    
     if (!coachingError && coachingData && (coachingData.udvikle || coachingData.fastholde)) {
       console.log('Bruger coaching anbefalinger fra Resultater fanen');
       
@@ -5148,18 +5138,12 @@ async function contractLoadTipsForSelected() {
           // Hent tips direkte fra coaching_tip tabellen baseret på lave typer
           const methods = (item.low_types || ['self', 'peer']).map(toMethod);
           
-          const { data: rawTips, error: tipsError } = await supabase
+          const { data: rawTips } = await supabase
             .from('coaching_tip')
             .select('id,title,description,method,sort_order,impact,effort,time_horizon,plan_30,plan_60,plan_90')
             .eq('category_id', item.category_id)
             .in('method', methods)
             .order('sort_order', { ascending: true });
-
-          if (tipsError) {
-            console.error('Fejl ved hentning af tips:', tipsError);
-            failedCategories.add(item.category_id); // Track fejlede kategorier
-            continue; // Skip denne kategori og fortsæt med næste
-          }
           
           const tips = (rawTips || [])
             .filter(r => !dismissedIds.has(r.id))
@@ -5174,10 +5158,7 @@ async function contractLoadTipsForSelected() {
               coaching_context: `Fra Coaching: Udvikling anbefalet (score: ${item.score})`,
               impact: r.impact,
               effort: r.effort,
-              time_horizon: r.time_horizon,
-              plan_30: r.plan_30,
-              plan_60: r.plan_60,
-              plan_90: r.plan_90
+              time_horizon: r.time_horizon
             }));
           
           if (tips.length > 0) {
@@ -5191,19 +5172,13 @@ async function contractLoadTipsForSelected() {
         if (competencyIds.includes(item.category_id)) {
           console.log(`Henter fasthold-tips for ${item.category_name} (score: ${item.score})`);
           
-          const { data: rawTips, error: tipsError } = await supabase
+          const { data: rawTips } = await supabase
             .from('coaching_tip')
             .select('id,title,description,method,sort_order,impact,effort,time_horizon')
             .eq('category_id', item.category_id)
             .in('method', ['self', 'colleague'])
             .order('impact', { ascending: false })
             .limit(2);
-          
-          if (tipsError) {
-            console.error('Fejl ved hentning af fasthold-tips:', tipsError);
-            failedCategories.add(item.category_id); // Track fejlede kategorier
-            continue;
-          }
           
           const tips = (rawTips || [])
             .filter(r => !dismissedIds.has(r.id))
@@ -5222,12 +5197,9 @@ async function contractLoadTipsForSelected() {
             }));
           
           if (tips.length > 0) {
-            // Tilføj til eksisterende tips eller opret nye (uden at duplikere)
+            // Tilføj til eksisterende tips eller opret nye
             if (contractAvailableTips.has(item.category_id)) {
-              contractAvailableTips.set(
-                item.category_id,
-                contractAvailableTips.get(item.category_id).concat(tips)
-              );
+              contractAvailableTips.get(item.category_id).push(...tips);
             } else {
               contractAvailableTips.set(item.category_id, tips);
             }
@@ -5235,12 +5207,10 @@ async function contractLoadTipsForSelected() {
         }
       }
       
-      // Fallback for kompetencer uden coaching data ELLER fejlede kategorier
-      const missingCompetencies = competencyIds.filter(id => 
-        !contractAvailableTips.has(id) || failedCategories.has(id)
-      );
+      // Fallback for kompetencer uden coaching data
+      const missingCompetencies = competencyIds.filter(id => !contractAvailableTips.has(id));
       if (missingCompetencies.length > 0) {
-        console.log('Fallback til database for kompetencer uden coaching data eller med fejl:', missingCompetencies);
+        console.log('Fallback til database for kompetencer uden coaching data:', missingCompetencies);
         await loadFallbackTips(missingCompetencies, dismissedIds);
       }
       
@@ -5251,47 +5221,24 @@ async function contractLoadTipsForSelected() {
     }
 
     console.log('Tips loaded for categories:', Array.from(contractAvailableTips.keys()).length);
-
-    // Drop forældede loads: kun seneste må rende UI
-    if (loadToken !== contractTipsLoadToken) {
-      console.log('Droppes: forældet tips-load – nyere kald har overtaget.');
-      return;
-    }
-
     contractRenderTips();
     
   } catch (e) {
-
     console.error('Fejl ved indlæsning af tips:', e);
     container.innerHTML = '<div style="color:var(--error)">Fejl ved indlæsning af tips: ' + (e.message || e) + '</div>';
   }
 }
 
-
 async function loadFallbackTips(competencyIds, dismissedIds) {
-  console.log('Bruger fallback - henter fra v_coaching_tip_enriched');
-  console.log('Dismissed tip IDs:', Array.from(dismissedIds));
-  
   const { data: tips, error } = await supabase
     .from('v_coaching_tip_enriched')
     .select('*')
     .in('category_id', competencyIds);
     
-  if (error) {
-    console.error('Fallback fejl:', error);
-    throw error;
-  }
-
-  console.log(`Hentet ${tips?.length || 0} tips før dismissed filter`);
+  if (error) throw error;
 
   (tips || [])
-    .filter(t => {
-      const isDismissed = dismissedIds.has(t.id);
-      if (isDismissed) {
-        console.log(`Filtrerer dismissed tip: ${t.title} (${t.id})`);
-      }
-      return !isDismissed;
-    })
+    .filter(t => !dismissedIds.has(t.id))
     .forEach(tip => {
       const enhancedTip = {
         ...tip,
@@ -5304,8 +5251,6 @@ async function loadFallbackTips(competencyIds, dismissedIds) {
       }
       contractAvailableTips.get(tip.category_id).push(enhancedTip);
     });
-    
-  console.log(`Efter dismissed filter: ${Array.from(contractAvailableTips.values()).flat().length} tips total`);
 }
 
 function contractRenderTips() {
@@ -5698,7 +5643,7 @@ function contractUpdateSectionStatus(){
     compSection.classList.add('active');
     // 2) Aktiviteter åbnes når der er kompetencer
     $('contractActivitiesSection').classList.add('active');
-    // ⚠️ INTET kald til contractLoadTipsForSelected() her.
+    contractLoadTipsForSelected();
   } else {
     compStatus.innerHTML = `<span class="status-text">0 valgt</span>`;
     compSection.classList.remove('active');
@@ -5727,7 +5672,6 @@ function contractUpdateSectionStatus(){
   // 3) Roller - opdateres via contractUpdateSectionStatusLight under tekstindtastning
   contractUpdateSectionStatusLight();
 }
-
 
 // Letvægts version der kun opdaterer roller og oversigt uden at genindlæse alt
 function contractUpdateSectionStatusLight(){
@@ -6089,15 +6033,14 @@ async function contractAutoLoadFromCoaching(){
 
 // Funktion til at genindlæse tips når fanen åbnes
 async function contractReloadTipsIfNeeded() {
-  // Undgå unødige genindlæsninger: brug eksisterende, allerede filtrerede data
+  // Genindlæs kun hvis både projekt, målperson og kompetencer er valgt
   if (contractState.project_id && 
       contractState.target_id && 
       contractState.selectedCompetencies.size > 0) {
-    console.log('Springer reload over – bruger allerede filtrerede contractAvailableTips.');
-    contractRenderTips();
+    console.log('Genindlæser tips for at sikre dismissed tips er filtreret...');
+    await contractLoadTipsForSelected();
   }
 }
-
 
 // Ny funktion til at indlæse fra JSON fil
 async function contractLoadFromFile() {
@@ -6704,65 +6647,74 @@ async function generateAISuggestion() {
     if (error) throw error;
     if (!rec) throw new Error('Ingen anbefalingsdata');
 
-    // Debug
+    // Debug output
     debugCoachingRecommendations(rec);
 
-    // Udviklingskategorier
+    // Saml kun udviklingskategori-ID'er (de lave scorer der skal forbedres)
     const developCategoryIds = new Set();
+    const validUdvikleArr = [];
+    
+    // Kun udviklingskategorier - ikke fastholdelses kategorier
     (rec.udvikle || []).forEach(item => {
-      if (item?.category_id) developCategoryIds.add(item.category_id);
+      if (item && item.category_id) {
+        developCategoryIds.add(item.category_id);
+        validUdvikleArr.push(item);
+      }
     });
+
     if (developCategoryIds.size === 0) {
       alert('Ingen udviklingskategorier fundet for personen.');
       return;
     }
 
-    // Sikr kompetencer er indlæst
+    console.log(`Fundet ${developCategoryIds.size} udviklingskategorier fra coaching:`, Array.from(developCategoryIds));
+
+    // Sikr at alle kompetencer er indlæst først
     const templateSelect = document.getElementById('contractProjectSelect');
-    const templateId = templateSelect?.selectedOptions[0]?.dataset.templateId;
+    const selectedOption = templateSelect?.selectedOptions[0];
+    const templateId = selectedOption?.dataset.templateId;
+
     if (templateId && contractAvailableCompetencies.length === 0) {
+      console.log('Indlæser alle kompetencer for template:', templateId);
       await contractLoadCompetencies(templateId);
     }
 
-    // Marker valgte kompetencer i state + UI
+    // IKKE filtrer contractAvailableCompetencies - behold alle 16 kompetencer
+    // så brugeren kan se og vælge fra alle kompetencer
+    console.log(`Viser alle ${contractAvailableCompetencies.length} kompetencer i listen`);
+
+    // Re-render kompetence grid med alle kompetencer
+    contractRenderCompetencies();
+
+    // Nulstil alle valg
     contractState.selectedCompetencies.clear();
-    developCategoryIds.forEach(id => contractState.selectedCompetencies.add(id));
-    document.querySelectorAll('.contract-competency-card').forEach(card => {
-      const cid = card.dataset.competencyId;
-      card.classList.toggle('selected', contractState.selectedCompetencies.has(cid));
+    contractState.selectedTips.clear();
+    contractState.roles.clear();
+
+    // Auto-select kun de 3 udviklingskategorier fra coaching
+    developCategoryIds.forEach(cid => {
+      contractState.selectedCompetencies.add(cid);
     });
 
-    // Hent tips ÉN gang (med dismissed-filter), og re-rendér kun fra contractAvailableTips
+    /// Opdater UI på kompetencekort (markér kun udviklingskategorierne som selected)
+    setTimeout(() => {
+      document.querySelectorAll('.contract-competency-card').forEach(card => {
+        const cid = card.dataset.competencyId;
+        if (contractState.selectedCompetencies.has(cid)) {
+          card.classList.add('selected');
+          console.log('Markerede udviklingskompetence som valgt:', cid);
+        } else {
+          card.classList.remove('selected');
+        }
+      });
+    }, 100);
+
+    // Hent tips for de valgte coaching kategorier og auto-vælg tips
     await contractLoadTipsForSelected();
-    contractRenderTips();
-    if (ovl) ovl.style.display = 'none';
-
-
-    // Render det vi allerede har hentet
-    contractRenderTips();
-
-    // ✅ Manuel UI-opdatering (ingen genindlæsning af tips herfra)
-    $('contractCompetenciesSection').classList.add('active');
-    $('contractCompetenciesStatus').innerHTML = `<span class="status-text complete">${contractState.selectedCompetencies.size} valgt</span>`;
-    $('contractActivitiesSection').classList.add('active');
-
-    let totalSelected = 0;
-    for (const s of contractState.selectedTips.values()) totalSelected += s.size;
-    const actStatus = $('contractActivitiesStatus');
-    if (actStatus) {
-      actStatus.innerHTML = totalSelected > 0 
-        ? `<span class="status-text complete">${totalSelected} aktiviteter valgt</span>`
-        : `<span class="status-text">Vælg aktiviteter</span>`;
-    }
-
-    $('contractRolesSection').classList.add('active');
-    contractSetupRolesStep();
-    contractUpdateGoalsAndRoles();    // 30/60/90 + teamroller
-    contractUpdateSectionStatusLight();
-    contractUpdateProgress();
-
+    autoSelectTipsForDevelop(validUdvikleArr);
+    contractUpdateSectionStatus();
   } catch (err) {
-    console.error('Fejl ved auto-load af coaching data:', err);
+    console.error('AI-forslag fejl:', err);
     alert('Kunne ikke generere AI-forslag: ' + (err.message || err));
   } finally {
     const ovl = document.getElementById('loadingOverlay');
