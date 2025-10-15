@@ -1181,23 +1181,16 @@ window.addEventListener('load', function() {
                 }
                 if (srcTarget) {
                   // vent et tick så targetlisten er fyldt
-                  setTimeout(async () => {
+                  setTimeout(() => {
                     const dstTarget = $('contractTargetSelect');
                     if (dstTarget) {
                       dstTarget.value = srcTarget;
+                      // Ingen auto-forvalg fra Resultater: change resetter blot state
                       dstTarget.dispatchEvent(new Event('change'));
-                      
-                      // Vent lidt mere så contractAutoLoadFromCoaching() når at køre
-                      await new Promise(resolve => setTimeout(resolve, 200));
-                      
-                      // Genindlæs tips for at sikre dismissed tips fra Resultat-fanen er filtreret
-                      if (contractState.selectedCompetencies.size > 0) {
-                        console.log('Genindlæser tips efter fane-skift for at filtrere dismissed tips...');
-                        await contractLoadTipsForSelected();
-                      }
                     }
                   }, 100);
                 }
+
               }
             } catch(e) {
               console.warn('Kontrakt sync fejlede:', e);
@@ -5956,21 +5949,17 @@ function contractSetupEventListeners(){
     contractUpdateSectionStatus();
   });
 
-  // Målperson valg
+  // Målperson valg — ingen auto-forvalg
   $('contractTargetSelect').addEventListener('change', async (e)=>{
     contractState.target_id = e.target.value || null;
-    
-    // Hvis både projekt og målperson er valgt, hent automatisk coaching data
-    if (contractState.project_id && contractState.target_id) {
-      await contractAutoLoadFromCoaching();
-    } else {
-      // Nulstil selections hvis ingen målperson valgt
-      contractState.selectedCompetencies.clear();
-      contractState.selectedTips.clear();
-      contractState.roles.clear();
-      contractUpdateSectionStatus();
-    }
+
+    // Nulstil altid valg når målperson skiftes (ingen auto-forvalg)
+    contractState.selectedCompetencies.clear();
+    contractState.selectedTips.clear();
+    contractState.roles.clear();
+    contractUpdateSectionStatus();
   });
+
 
   // Opfølgningsdato
   const followup = $('contractFollowupDate');
