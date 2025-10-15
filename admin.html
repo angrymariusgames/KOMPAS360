@@ -2341,7 +2341,7 @@ window.showLargeProjectQR = (url, title) => {
           tips = (raw || [])
             .filter(r => !dismissedIds.includes(r.id))
             .map(r => ({
-              tip_id: r.id,
+              id: r.id,
               title: r.title,
               description: r.description,
               method: r.method
@@ -6305,15 +6305,6 @@ async function contractGeneratePdfHtml(project, person) {
       </div>
     </div>
   `;
-}
-
-// Hjælpefunktion til at lave metode labels læsbare
-function contractMethodLabel(method){
-  const m = {
-    self: 'Selv', colleague: 'Kollega', leader_employee: 'Leder',
-    group: 'Gruppe', external: 'Ekstern', course: 'Kursus'
-  };
-  return m[method] || method;
 }
 
 async function contractGenerateColleagueSupportPdfSection() {
