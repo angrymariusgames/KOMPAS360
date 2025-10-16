@@ -929,12 +929,50 @@
       </div>
 
       <!-- Unified Contract Sections -->
-      <div id="contractUnifiedSections" style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto;gap:20px;margin-bottom:120px">
+      <div id="contractUnifiedSections" style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto auto auto;gap:20px;margin-bottom:120px">
         
-        <!-- Section 1: Kompetencer -->
-        <section class="contract-unified-section competencies-section active" id="contractCompetenciesSection" style="background:white;border:2px solid var(--brand);border-radius:12px;padding:20px;opacity:1;box-shadow:0 4px 12px rgba(245,87,108,0.1)">
+        <!-- Section 1: Fastholdelse – Kompetencer -->
+        <section class="contract-unified-section keep-competencies-section" id="contractKeepCompetenciesSection" style="background:white;border:2px solid var(--brand);border-radius:12px;padding:20px;opacity:1;box-shadow:0 4px 12px rgba(245,87,108,0.1)">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--line)">
             <div style="background:var(--brand);color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700">1</div>
+            <h3 style="margin:0;font-size:1.1rem;font-weight:700;flex:1">Fastholdelse: vælg stærke kompetencer</h3>
+            <div id="contractKeepCompetenciesStatus" style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-size:0.8rem;color:var(--muted)">
+              <span class="status-text">0 valgt</span>
+            </div>
+          </div>
+          <div>
+            <p style="color:var(--muted);margin-bottom:16px">
+              Vælg de kompetencer der skal fastholdes og forstærkes
+            </p>
+            <div id="contractKeepCompetencyGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:16px 0">
+              <!-- Fastholdelses-kompetencer indlæses dynamisk (samme liste som udvikling) -->
+            </div>
+          </div>
+        </section>
+
+        <!-- Section 2: Fastholdelse – Aktiviteter -->
+        <section class="contract-unified-section keep-activities-section" id="contractKeepActivitiesSection" style="background:white;border:2px solid var(--line);border-radius:12px;padding:20px;opacity:0.6">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--line)">
+            <div style="background:var(--brand);color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700">2</div>
+            <h3 style="margin:0;font-size:1.1rem;font-weight:700;flex:1">Fastholdelsesaktiviteter</h3>
+            <div id="contractKeepActivitiesStatus" style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-size:0.8rem;color:var(--muted)">
+              <span class="status-text">Vælg først kompetencer</span>
+            </div>
+          </div>
+          <div>
+            <p style="color:var(--muted);margin-bottom:16px">
+              Vælg konkrete mikrovaner/aktiviteter for at fastholde styrker (tips med kind='keep')
+            </p>
+            <div id="contractKeepTipsContainer">
+              <!-- Fastholdelses-tips indlæses dynamisk -->
+            </div>
+          </div>
+        </section>
+
+        <!-- Section 3: Udvikling – Kompetencer (tidl. 1) -->
+        <section class="contract-unified-section competencies-section active" id="contractCompetenciesSection" style="background:white;border:2px solid var(--brand);border-radius:12px;padding:20px;opacity:1;box-shadow:0 4px 12px rgba(245,87,108,0.1)">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--line)">
+            <div style="background:var(--brand);color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700">3</div>
             <h3 style="margin:0;font-size:1.1rem;font-weight:700;flex:1">Vælg kompetencer til udvikling</h3>
             <div id="contractCompetenciesStatus" style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-size:0.8rem;color:var(--muted)">
               <span class="status-text">0 valgt</span>
@@ -950,10 +988,10 @@
           </div>
         </section>
 
-        <!-- Section 2: Aktiviteter -->
+        <!-- Section 4: Udvikling – Aktiviteter (tidl. 2) -->
         <section class="contract-unified-section activities-section" id="contractActivitiesSection" style="background:white;border:2px solid var(--line);border-radius:12px;padding:20px;opacity:0.6">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--line)">
-            <div style="background:var(--brand);color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700">2</div>
+            <div style="background:var(--brand);color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700">4</div>
             <h3 style="margin:0;font-size:1.1rem;font-weight:700;flex:1">Vælg udviklingsaktiviteter</h3>
             <div id="contractActivitiesStatus" style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-size:0.8rem;color:var(--muted)">
               <span class="status-text">Vælg først kompetencer</span>
@@ -2342,7 +2380,7 @@ window.showLargeProjectQR = (url, title) => {
 
         return `
           <div style="margin:10px 0;padding:10px;background:white;border-radius:8px;border:1px solid #dcfce7">
-            <div style="font-size:0.95rem;color:#065f46;margin-bottom:6px">${titleFirst}</div>
+            <div style="font-weight:700;font-size:0.95rem;color:var(--ink);margin-bottom:6px">${titleFirst}</div>
             ${lines}
           </div>
         `;
@@ -2477,25 +2515,31 @@ window.showLargeProjectQR = (url, title) => {
 
 
             return `
-        <div style="border:1px solid #dbeafe;border-radius:8px;padding:12px;background:#f8fafc">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-            <strong style="color:var(--brand)">${item.category_name}</strong>
-            <span style="background:var(--error);color:white;padding:2px 8px;border-radius:12px;font-size:0.8rem">${item.score}</span>
-          </div>
-          <div style="margin-top:6px">
-            <strong style="font-size:0.85rem;color:var(--brand)">🚀 Udviklingstips:</strong>
-            ${groupHtml}
-          </div>
-        </div>
-      `;
+              <div style="border:1px solid #dbeafe;border-radius:8px;padding:12px;background:#f8fafc">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                  <strong style="color:var(--brand)">${item.category_name}</strong>
+                  <span style="background:var(--error);color:white;padding:2px 8px;border-radius:12px;font-size:0.8rem">${item.score}</span>
+                </div>
+                <div style="font-size:0.9rem;color:var(--muted);margin-bottom:6px">
+                  ${item.overview?.synopsis || 'Udviklingsområde'}
+                </div>
+                <div style="margin-top:6px">
+                  <strong style="font-size:0.85rem;color:var(--brand)">🚀 Udviklingstips:</strong>
+                  ${groupHtml}
+                </div>
+              </div>
+            `;
+
 
     }));
     developContainer.innerHTML = cards.join('');
 
-// Bind klik-håndtering til hele containeren (event delegation) én gang
+// Bind klik-håndtering (event delegation) én gang – gælder både Udvikle og Fastholde
 if (!window.__coachDismissBound) {
   window.__coachDismissBound = true;
-  developContainer.addEventListener('click', async (ev) => {
+
+  // Fælles handler så vi genbruger samme logik
+  const handleDismissClick = async (ev) => {
     const btn = ev.target.closest('.dismiss-tip');
     if (!btn) return;
 
@@ -2517,15 +2561,27 @@ if (!window.__coachDismissBound) {
         alert('Kunne ikke skjule råd: ' + error.message);
         return;
       }
-      // Fjern linjen i UI’et med det samme
-      const line = btn.closest('.tip-line');
+      // Fjern linjen i UI’et med det samme (understøt både udvikling og fastholdelse)
+      const line = btn.closest('.tip-line, .keep-tip-line');
       if (line) line.remove();
-      // (valgfrit) genindlæs hele anbefalingslisten for konsistens
+
+      // Genindlæs for konsistens
       await loadCoachingRecommendations();
     } catch (e) {
       alert('Teknisk fejl ved skjul: ' + (e?.message || e));
     }
-  });
+  };
+
+  // Bind på begge containere så kryds virker i begge kolonner
+  const keepContainerEl = document.getElementById('coaching-keep');
+  const developContainerEl = document.getElementById('coaching-develop');
+
+  if (developContainerEl) {
+    developContainerEl.addEventListener('click', handleDismissClick);
+  }
+  if (keepContainerEl) {
+    keepContainerEl.addEventListener('click', handleDismissClick);
+  }
 }
 
   } else {
@@ -5146,30 +5202,318 @@ async function contractLoadCompetencies(templateId) {
 }
 
 function contractRenderCompetencies() {
+  // === Udvikling (eksisterende grid) ===
   const grid = $('contractCompetencyGrid');
   grid.innerHTML = '';
-  
   console.log('Rendering kompetencer:', contractAvailableCompetencies.length);
-  
   if (contractAvailableCompetencies.length === 0) {
     grid.innerHTML = '<div style="color:var(--muted);padding:20px;text-align:center">Ingen kompetencer fundet for dette projekt</div>';
+  } else {
+    contractAvailableCompetencies.forEach(comp => {
+      const card = document.createElement('div');
+      card.className = 'contract-competency-card';
+      // KORREKT data-attribut og handler til UDVIKLING
+      card.dataset.competencyId = comp.category_id;
+      card.innerHTML = `
+        <div class="check-icon">✓</div>
+        <div style="font-weight:600;margin-bottom:4px">${comp.category_name}</div>
+        <div style="font-size:0.8rem;color:var(--muted)">${comp.domain_name}</div>
+      `;
+      // Bevar markering for udviklingsvalg
+      if (contractState.selectedCompetencies.has(comp.category_id)) {
+        card.classList.add('selected');
+      }
+      card.addEventListener('click', () => contractToggleCompetency(comp.category_id, card));
+      grid.appendChild(card);
+    });
+  }
+
+  // === Fastholdelse (nyt grid) — samme liste, separat state ===
+  const keepGrid = $('contractKeepCompetencyGrid');
+  if (keepGrid) {
+    keepGrid.innerHTML = '';
+    if (contractAvailableCompetencies.length === 0) {
+      keepGrid.innerHTML = '<div style="color:var(--muted);padding:20px;text-align:center">Ingen kompetencer fundet for dette projekt</div>';
+    } else {
+      contractAvailableCompetencies.forEach(comp => {
+        const card = document.createElement('div');
+        card.className = 'contract-competency-card';
+        // KORREKT data-attribut og handler til FASTHOLDELSE
+        card.dataset.keepCompetencyId = comp.category_id;
+        card.innerHTML = `
+          <div class="check-icon">✓</div>
+          <div style="font-weight:600;margin-bottom:4px">${comp.category_name}</div>
+          <div style="font-size:0.8rem;color:var(--muted)">${comp.domain_name}</div>
+        `;
+        if (contractKeepState.selectedCompetencies.has(comp.category_id)) {
+          card.classList.add('selected');
+        }
+        card.addEventListener('click', () => contractToggleKeepCompetency(comp.category_id, card));
+        keepGrid.appendChild(card);
+      });
+    }
+  }
+}
+
+// ==================== NY: Fastholdelse – state + logik (spejler udvikling) ====================
+const contractKeepState = {
+  selectedCompetencies: new Set(),
+  selectedTips: new Map()
+};
+// Gør state global så den ikke “forsvinder” ved rerender
+window.contractKeepState = contractKeepState;
+
+const contractKeepAvailableTips = new Map();
+
+function contractToggleKeepCompetency(competencyId, card) {
+  if (contractKeepState.selectedCompetencies.has(competencyId)) {
+    contractKeepState.selectedCompetencies.delete(competencyId);
+    card.classList.remove('selected');
+    contractKeepState.selectedTips.delete(competencyId);
+  } else {
+    contractKeepState.selectedCompetencies.add(competencyId);
+    card.classList.add('selected');
+  }
+  contractLoadKeepTipsForSelected();
+  contractUpdateKeepSectionStatus();
+}
+
+async function contractLoadKeepTipsForSelected() {
+  const container = $('contractKeepTipsContainer');
+  if (!container) return;
+
+  // 0) Vagttekster
+  if (contractKeepState.selectedCompetencies.size === 0) {
+    container.innerHTML = '<div style="color:var(--muted);padding:20px">Vælg kompetencer først</div>';
     return;
   }
-  
-  contractAvailableCompetencies.forEach(comp => {
-    const card = document.createElement('div');
-    card.className = 'contract-competency-card';
-    card.dataset.competencyId = comp.category_id;
-    card.innerHTML = `
-      <div class="check-icon">✓</div>
-      <div style="font-weight:600;margin-bottom:4px">${comp.category_name}</div>
-      <div style="font-size:0.8rem;color:var(--muted)">${comp.domain_name}</div>
+  if (!contractState.project_id || !contractState.target_id) {
+    container.innerHTML = '<div style="color:var(--muted)">Vælg både projekt og målperson for at se tips.</div>';
+    return;
+  }
+
+  try {
+    console.log('Henter FAStholdelses-tips for valgte kompetencer.');
+
+    // 1) Dismissed (samme som udvikling)
+    const { data: dismissed } = await supabase
+      .from('coaching_tip_state')
+      .select('tip_id')
+      .eq('project_id', contractState.project_id)
+      .eq('target_id', contractState.target_id)
+      .eq('dismissed', true);
+    const dismissedIds = new Set((dismissed || []).map(x => x.tip_id));
+
+    const competencyIds = Array.from(contractKeepState.selectedCompetencies);
+    contractKeepAvailableTips.clear();
+
+    // 2) Hent coaching anbefalinger hvis ⚡ er brugt – SAMME RPC som udvikling
+    let coachingData = null;
+    let coachingError = null;
+    if (contractState.aiSuggestionsUsed) {
+      const { data, error } = await supabase.rpc('get_coaching_recommendations', {
+        p_project_id: contractState.project_id,
+        p_target_id: contractState.target_id,
+        p_types: ['self', 'peer', 'leader'],
+        p_limit_keep: 5,
+        p_limit_develop: 3
+      });
+      coachingError = error;
+      if (!coachingError) {
+        coachingData = data;
+        console.log('Fastholdelse: bruger coaching anbefalinger fra Resultater');
+      }
+    }
+
+    // 3) Brug coachingData hvis der faktisk er fastholde – ellers fallback
+    if (!coachingError && coachingData && Array.isArray(coachingData.fastholde) && coachingData.fastholde.length > 0) {
+      for (const item of coachingData.fastholde) {
+        if (!competencyIds.includes(item.category_id)) continue;
+
+        console.log(`Fasthold: henter tips for ${item.category_name} (score: ${item.score})`);
+        const { data: rawTips } = await supabase
+          .from('coaching_tip')
+          .select('id,title,description,method,sort_order,impact,effort,time_horizon,steps,micro_habits')
+          .eq('category_id', item.category_id)
+          .in('method', ['self','colleague'])
+          .order('impact', { ascending: false });
+
+        const tips = (rawTips || [])
+          .filter(r => !dismissedIds.has(r.id))
+          .filter(r => Array.isArray(r.micro_habits) && r.micro_habits.length > 0)
+          .map(r => ({
+            id: r.id,
+            title: r.title,
+            description: r.micro_habits[0] || r.description,
+            method: r.method,
+            category_id: item.category_id,
+            category_name: item.category_name,
+            priority: 'coaching_keep',
+            coaching_context: `Fra Coaching: Fasthold stærk kompetence (score: ${item.score})`,
+            impact: r.impact,
+            effort: r.effort,
+            time_horizon: r.time_horizon
+          }));
+
+        if (tips.length > 0) {
+          if (contractKeepAvailableTips.has(item.category_id)) {
+            contractKeepAvailableTips.get(item.category_id).push(...tips);
+          } else {
+            contractKeepAvailableTips.set(item.category_id, tips);
+          }
+        }
+      }
+      // Fallback for kategorier uden coaching-data
+      const missing = competencyIds.filter(id => !contractKeepAvailableTips.has(id));
+      if (missing.length > 0) await loadFallbackTipsKeep(missing, dismissedIds);
+    } else {
+      // Ingen fastholde i coachingdata (som dine logs viser) ⇒ direkte DB-fallback
+      await loadFallbackTipsKeep(competencyIds, dismissedIds);
+    }
+
+    contractRenderKeepTips();
+    contractUpdateKeepSectionStatus();
+
+  } catch (e) {
+    console.error('Fejl ved indlæsning af fastholdelses-tips:', e);
+    container.innerHTML = '<div style="color:var(--error)">Fejl ved indlæsning af tips: ' + (e.message || e) + '</div>';
+  }
+}
+
+// DB-fallback til fastholdelse – brug mikrovaner + metode som signal (filtrér også på kind='keep')
+async function loadFallbackTipsKeep(competencyIds, dismissedIds) {
+  const { data: raw, error } = await supabase
+    .from('coaching_tip')
+    .select('id,title,description,method,impact,effort,time_horizon,sort_order,micro_habits,category_id,kind')
+    .in('category_id', competencyIds)
+    .eq('kind','keep')
+    .in('method', ['self','colleague'])                  // fastholdelse = egen/kollega praksis
+    .order('impact', { ascending: false });
+  if (error) throw error;
+
+  (raw || [])
+    .filter(r => !dismissedIds.has(r.id))
+    .filter(r => Array.isArray(r.micro_habits) && r.micro_habits.length > 0) // kræv mikrovaner
+    .forEach(r => {
+      const arr = contractKeepAvailableTips.get(r.category_id) || [];
+      arr.push({
+        id: r.id,
+        title: r.title,
+        description: r.micro_habits[0] || r.description, // vis mikrovanen først
+        method: r.method,
+        category_id: r.category_id,
+        priority: 'database_fallback_keep',
+        coaching_context: 'Database fallback – fastholdelse (mikrovaner)',
+        impact: r.impact,
+        effort: r.effort,
+        time_horizon: r.time_horizon,
+        sort_order: r.sort_order
+      });
+      contractKeepAvailableTips.set(r.category_id, arr);
+    });
+}
+
+function contractRenderKeepTips() {
+  const container = $('contractKeepTipsContainer');
+  if (!container) return;
+  container.innerHTML = '';
+
+  let totalTipsCount = 0;
+
+  contractKeepState.selectedCompetencies.forEach(competencyId => {
+    const comp = contractAvailableCompetencies.find(c => c.category_id === competencyId);
+    const tips = contractKeepAvailableTips.get(competencyId) || [];
+    totalTipsCount += tips.length;
+
+    const section = document.createElement('div');
+    section.style.marginBottom = '24px';
+    section.innerHTML = `
+      <h4 style="color:var(--brand);margin-bottom:12px;font-size:1.1rem">
+        ${comp?.category_name || 'Ukendt kompetence'}
+        <span style="font-size:0.9rem;color:var(--muted);font-weight:normal">(${tips.length} tips)</span>
+      </h4>
+      <div id="keep-tips-${competencyId}"></div>
     `;
-    card.addEventListener('click', () => contractToggleCompetency(comp.category_id, card));
-    grid.appendChild(card);
+
+    const wrap = section.querySelector(`#keep-tips-${competencyId}`);
+    if (tips.length === 0) {
+      wrap.innerHTML = '<div style="color:var(--muted);font-style:italic;padding:8px;border:1px dashed var(--line);border-radius:6px">Ingen tips fundet for denne kompetence</div>';
+    } else {
+      tips.forEach(tip => {
+        const card = document.createElement('div');
+        card.className = 'contract-tip-card';
+        card.dataset.tipId = tip.id;
+        card.dataset.competencyId = competencyId;
+
+        if (contractKeepState.selectedTips.get(String(competencyId))?.has(tip.id)) {
+          card.classList.add('selected');
+        }
+        card.addEventListener('click', () => {
+          if (!contractKeepState.selectedTips.has(String(competencyId))) {
+            contractKeepState.selectedTips.set(String(competencyId), new Set());
+          }
+          const set = contractKeepState.selectedTips.get(String(competencyId));
+          if (set.has(tip.id)) set.delete(tip.id); else set.add(tip.id);
+          card.classList.toggle('selected');
+          contractUpdateKeepSectionStatus();
+        });
+
+        card.innerHTML = `
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <span class="contract-tip-method">${
+              tip.method==='self'
+                ? 'SELV'
+                : (tip.method==='colleague'
+                    ? 'KOLLEGA'
+                    : (tip.method==='leader_employee'
+                        ? 'LEDER'
+                        : 'Fasthold'))
+            }</span>
+            <strong style="flex:1">${tip.title}</strong>
+          </div>
+          <p style="margin:0;font-size:0.95rem;line-height:1.5;color:var(--text)">${tip.description || 'Ingen beskrivelse tilgængelig'}</p>
+          ${tip.coaching_context ? `<div style="margin-top:8px;font-size:0.85rem;color:var(--muted);font-style:italic">ℹ️ ${tip.coaching_context}</div>` : ''}
+        `;
+        wrap.appendChild(card);
+      });
+    }
+
+    container.appendChild(section);
   });
-  
-  console.log('Rendered', contractAvailableCompetencies.length, 'kompetence kort');
+
+  // status badge
+  const actStatus = $('contractKeepActivitiesStatus');
+  if (actStatus) {
+    actStatus.innerHTML = totalTipsCount > 0
+      ? `<span class="status-text complete">${totalTipsCount} aktiviteter vist</span>`
+      : `<span class="status-text">Vælg først kompetencer</span>`;
+  }
+}
+
+function contractUpdateKeepSectionStatus() {
+  const compCount = contractKeepState.selectedCompetencies.size;
+  const compStatus = $('contractKeepCompetenciesStatus');
+  if (compStatus) compStatus.innerHTML = `<span class="status-text ${compCount>0?'complete':''}">${compCount} valgt</span>`;
+
+  let total = 0;
+  for (const s of contractKeepState.selectedTips.values()) total += s.size;
+
+  const actStatus = $('contractKeepActivitiesStatus');
+  if (actStatus) {
+    if (compCount === 0) {
+      actStatus.innerHTML = `<span class="status-text">Vælg først kompetencer</span>`;
+    } else if (total > 0) {
+      actStatus.innerHTML = `<span class="status-text complete">${total} aktiviteter valgt</span>`;
+    } else {
+      actStatus.innerHTML = `<span class="status-text">Vælg aktiviteter</span>`;
+    }
+  }
+
+  if (compCount > 0) {
+    $('contractKeepActivitiesSection')?.classList.add('active');
+  } else {
+    $('contractKeepActivitiesSection')?.classList.remove('active');
+  }
 }
 
 function contractToggleCompetency(competencyId, card) {
@@ -5416,10 +5760,18 @@ function contractRenderTips() {
         // Vis metode-badge, titel OG fuld beskrivelse
         card.innerHTML = `
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-            <span class="contract-tip-method">${contractMethodLabel(tip.method)}</span>
+            <span class="contract-tip-method">${
+              tip.method==='self'
+                ? 'SELV'
+                : (tip.method==='colleague'
+                    ? 'KOLLEGA'
+                    : (tip.method==='leader_employee'
+                        ? 'LEDER'
+                        : 'Fasthold'))
+            }</span>
             <strong style="flex:1">${tip.title}</strong>
           </div>
-          <p style="margin:0;font-size:0.95rem;line-height:1.5;color:var(--ink)">${tip.description || 'Ingen beskrivelse tilgængelig'}</p>
+          <p style="margin:0;font-size:0.95rem;line-height:1.5;color:var(--text)">${tip.description || 'Ingen beskrivelse tilgængelig'}</p>
           ${tip.coaching_context ? `<div style="margin-top:8px;font-size:0.85rem;color:var(--muted);font-style:italic">ℹ️ ${tip.coaching_context}</div>` : ''}
         `;
         card.addEventListener('click', () => contractToggleTip(competencyId, tip.id, card));
@@ -5788,7 +6140,7 @@ function contractUpdateProgress(){
 }
 
 function contractUpdateSectionStatus(){
-  // 1) Kompetencer
+  // === Udvikling (eksisterende) ===
   const compCount = contractState.selectedCompetencies.size;
   const compStatus = $('contractCompetenciesStatus');
   const compSection = $('contractCompetenciesSection');
@@ -5796,7 +6148,6 @@ function contractUpdateSectionStatus(){
   if (compCount > 0) {
     compStatus.innerHTML = `<span class="status-text complete">${compCount} valgt</span>`;
     compSection.classList.add('active');
-    // 2) Aktiviteter åbnes når der er kompetencer
     $('contractActivitiesSection').classList.add('active');
     contractLoadTipsForSelected();
   } else {
@@ -5807,76 +6158,23 @@ function contractUpdateSectionStatus(){
     $('contractOverviewSection').classList.remove('active');
   }
 
-  // 2) Aktiviteter
   let totalTips = 0;
   for (const s of contractState.selectedTips.values()) totalTips += s.size;
   const actStatus = $('contractActivitiesStatus');
-  if (totalTips > 0 && compCount > 0) {
-    actStatus.innerHTML = `<span class="status-text complete">${totalTips} aktiviteter valgt</span>`;
-    $('contractRolesSection').classList.add('active');
-    function contractUpdateGoalsAndRoles() {
-  // Opdater 30/60/90 mål
-  contractUpdate306090Goals();
-  
-  // Opdater team roller (hvis relevant)
-  contractUpdateTeamRoles();
-}
-
-async function contractUpdateTeamRoles() {
-  const container = $('contractRolesContainer');
-  if (!container) return;
-
-  try {
-    // Hent relevante teamroller baseret på valgte kompetencer
-    const selectedCompetencyNames = Array.from(contractState.selectedCompetencies)
-      .map(cid => contractAvailableCompetencies.find(c => c.category_id === cid)?.category_name)
-      .filter(Boolean);
-
-    if (selectedCompetencyNames.length === 0) {
-      container.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;margin:0">Ingen roller valgt</p>';
-      return;
+  if (actStatus) {
+    if (totalTips > 0 && compCount > 0) {
+      actStatus.innerHTML = `<span class="status-text complete">${totalTips} aktiviteter valgt</span>`;
+      $('contractRolesSection').classList.add('active');
+    } else if (compCount > 0) {
+      actStatus.innerHTML = `<span class="status-text">Vælg aktiviteter</span>`;
+      $('contractRolesSection').classList.remove('active');
+    } else {
+      actStatus.innerHTML = `<span class="status-text">Vælg først kompetencer</span>`;
     }
-
-    const { data: teamRoles } = await supabase
-      .from('team_roles')
-      .select('name, short_code, description, competencies:team_role_competencies(competency_name)')
-      .order('name');
-
-    const relevantRoles = (teamRoles || []).filter(role => {
-      const roleCompetencies = (role.competencies || []).map(c => c.competency_name);
-      return roleCompetencies.some(comp => selectedCompetencyNames.includes(comp));
-    });
-
-    if (relevantRoles.length === 0) {
-      container.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;margin:0">Ingen matchende roller fundet</p>';
-      return;
-    }
-
-    let html = '';
-    relevantRoles.forEach(role => {
-      const comps = (role.competencies || []).map(c => c.competency_name).join(', ');
-      html += `<div style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:10px;margin-bottom:8px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-          <strong style="color:var(--brand)">${role.name}</strong>
-          <span style="background:var(--brand);color:white;padding:2px 6px;border-radius:4px;font-size:0.7rem">${role.short_code || ''}</span>
-        </div>
-        <div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:4px">${role.description || ''}</div>
-        <div style="font-size:0.75rem;color:var(--muted)">Kompetencer: ${comps}</div>
-      </div>`;
-    });
-
-    container.innerHTML = html;
-  } catch (error) {
-    console.error('Fejl ved opdatering af team roller:', error);
-    container.innerHTML = '<p style="color:var(--error);font-size:0.85rem;margin:0">Fejl ved indlæsning af roller</p>';
   }
-}
-  } else if (compCount > 0) {
-    actStatus.innerHTML = `<span class="status-text">Vælg aktiviteter</span>`;
-    $('contractRolesSection').classList.remove('active');
-  } else {
-    actStatus.innerHTML = `<span class="status-text">Vælg først kompetencer</span>`;
-  }
+
+  // === Fastholdelse (ny) — status køres separat ===
+  contractUpdateKeepSectionStatus();
 
   // 3) Roller - opdateres via contractUpdateSectionStatusLight under tekstindtastning
   contractUpdateSectionStatusLight();
@@ -6814,21 +7112,23 @@ async function generateAISuggestion() {
       p_project_id: contractState.project_id,
       p_target_id: contractState.target_id,
       p_types: ['self', 'peer', 'leader'],
-      p_limit_keep: 5,
+      p_limit_keep: 3,
       p_limit_develop: 3
     });
-    
+
     if (error) throw error;
     if (!rec) throw new Error('Ingen anbefalingsdata');
 
     // Debug output
     debugCoachingRecommendations(rec);
 
-    // Saml kun udviklingskategori-ID'er (de lave scorer der skal forbedres)
+    // Saml udviklings- OG fastholdelseskategori-ID'er fra Resultater
     const developCategoryIds = new Set();
     const validUdvikleArr = [];
-    
-    // Kun udviklingskategorier - ikke fastholdelses kategorier
+    const keepCategoryIds = new Set();
+    const validKeepArr = [];
+
+    // Udvikling (lave scorer)
     (rec.udvikle || []).forEach(item => {
       if (item && item.category_id) {
         developCategoryIds.add(item.category_id);
@@ -6836,12 +7136,21 @@ async function generateAISuggestion() {
       }
     });
 
-    if (developCategoryIds.size === 0) {
-      alert('Ingen udviklingskategorier fundet for personen.');
+    // Fastholdelse (høje scorer)
+    (rec.fastholde || []).forEach(item => {
+      if (item && item.category_id) {
+        keepCategoryIds.add(item.category_id);
+        validKeepArr.push(item);
+      }
+    });
+
+    if (developCategoryIds.size === 0 && keepCategoryIds.size === 0) {
+      alert('Ingen udviklings- eller fastholdelseskategorier fundet for personen.');
       return;
     }
 
     console.log(`Fundet ${developCategoryIds.size} udviklingskategorier fra coaching:`, Array.from(developCategoryIds));
+    console.log(`Fundet ${keepCategoryIds.size} fastholdelseskategorier fra coaching:`, Array.from(keepCategoryIds));
 
     // Sikr at alle kompetencer er indlæst først
     const templateSelect = document.getElementById('contractProjectSelect');
@@ -6857,34 +7166,59 @@ async function generateAISuggestion() {
     // så brugeren kan se og vælge fra alle kompetencer
     console.log(`Viser alle ${contractAvailableCompetencies.length} kompetencer i listen`);
 
-    // Re-render kompetence grid med alle kompetencer
+    // Re-render begge grids (Udvikling + Fastholdelse) med alle kompetencer
     contractRenderCompetencies();
 
-    // Nulstil alle valg
+    // Nulstil valg (Udvikling)
     contractState.selectedCompetencies.clear();
     contractState.selectedTips.clear();
     contractState.roles.clear();
 
-    // Auto-select kun de 3 udviklingskategorier fra coaching
-    developCategoryIds.forEach(cid => {
+    // Nulstil valg (Fastholdelse)
+    if (window.contractKeepState) {
+      contractKeepState.selectedCompetencies.clear();
+      contractKeepState.selectedTips.clear();
+    }
+
+    // Auto-select udviklingskategorier — maks 3
+    const _developTop3 = Array.from(developCategoryIds).slice(0, 3);
+    _developTop3.forEach(cid => {
       contractState.selectedCompetencies.add(cid);
     });
 
-    /// Opdater UI på kompetencekort (markér kun udviklingskategorierne som selected)
+    // Auto-select fastholdelseskategorier — maks 3
+    const _keepTop3 = Array.from(keepCategoryIds).slice(0, 3);
+    _keepTop3.forEach(cid => {
+      contractKeepState?.selectedCompetencies.add(cid);
+    });
+
+    // Opdater UI på kompetencekort i begge grids
     setTimeout(() => {
-      document.querySelectorAll('.contract-competency-card').forEach(card => {
+      // Udvikling
+      document.querySelectorAll('.contract-competency-card[data-competency-id]').forEach(card => {
         const cid = card.dataset.competencyId;
-        if (contractState.selectedCompetencies.has(cid)) {
+        if (cid && contractState.selectedCompetencies.has(cid)) {
           card.classList.add('selected');
           console.log('Markerede udviklingskompetence som valgt:', cid);
         } else {
           card.classList.remove('selected');
         }
       });
+      // Fastholdelse
+      document.querySelectorAll('.contract-competency-card[data-keep-competency-id]').forEach(card => {
+      const cid = card.dataset.keepCompetencyId;
+      if (cid && contractKeepState.selectedCompetencies.has(cid)) {
+        card.classList.add('selected');
+      } else {
+        card.classList.remove('selected');
+      }
+    });
+
     }, 100);
 
-    // Hent tips for de valgte coaching kategorier
+    // Hent tips for de valgte coaching kategorier (Udvikling + Fastholdelse)
     await contractLoadTipsForSelected();
+    await contractLoadKeepTipsForSelected?.();
     
     // Fjern kategorier fra selectedCompetencies hvor ALLE tips er dismissed
     const categoriesWithoutTips = Array.from(contractState.selectedCompetencies)
@@ -6895,21 +7229,37 @@ async function generateAISuggestion() {
       console.log('Fjernede kategori uden tilgængelige tips:', cid);
     });
     
-    // Opdater UI efter filtrering af kategorier uden tips
+    // Opdater UI efter filtrering af kategorier uden tips (Udvikling + Fastholdelse)
     setTimeout(() => {
-      document.querySelectorAll('.contract-competency-card').forEach(card => {
+      // Udvikling (eksisterende kort)
+      document.querySelectorAll('.contract-competency-card[data-competency-id]').forEach(card => {
         const cid = card.dataset.competencyId;
-        if (contractState.selectedCompetencies.has(cid)) {
+        if (cid && contractState.selectedCompetencies.has(cid)) {
+          card.classList.add('selected');
+        } else {
+          card.classList.remove('selected');
+        }
+      });
+
+      // Fastholdelse (nye kort) – samme state-reference som i første blok
+      document.querySelectorAll('.contract-competency-card[data-keep-competency-id]').forEach(card => {
+        const cid = card.dataset.keepCompetencyId;
+        if (cid && contractKeepState.selectedCompetencies.has(cid)) {
           card.classList.add('selected');
         } else {
           card.classList.remove('selected');
         }
       });
     }, 100);
-    
-    // Auto-vælg tips for de tilbageværende kategorier
+
+    // Auto-vælg tips for de tilbageværende kategorier (udvikling + fastholdelse)
     autoSelectTipsForDevelop(validUdvikleArr);
+    autoSelectTipsForKeep(validKeepArr);
+
+    // Opdater status for begge spor
     contractUpdateSectionStatus();
+    window.contractUpdateKeepSectionStatus?.();
+
   } catch (err) {
     console.error('AI-forslag fejl:', err);
     alert('Kunne ikke generere AI-forslag: ' + (err.message || err));
@@ -6992,6 +7342,45 @@ function autoSelectTipsForDevelop(developCompetencies) {
     });
   } catch (err) {
     console.error('Fejl i autoSelectTipsForDevelop:', err);
+  }
+}
+
+// NY: auto-vælg tips for Fastholdelse – spejler udvikling, men bruger keep-state
+function autoSelectTipsForKeep(keepCompetencies) {
+  try {
+    (keepCompetencies || []).forEach(item => {
+      if (!item || typeof item !== 'object') {
+        console.warn('Invalid item in keepCompetencies:', item);
+        return;
+      }
+      const cid = item.category_id ?? item.id ?? item.category;
+      if (!cid) {
+        console.warn('Item mangler category_id (keep):', item);
+        return;
+      }
+
+      const tips = contractKeepAvailableTips.get(cid) || [];
+      if (!tips.length) {
+        console.log('Ingen FAS-tholdelses tips fundet for kategori:', cid, item.category_name || 'Ukendt');
+        return;
+      }
+
+      const key = String(cid);
+      if (!contractKeepState.selectedTips.has(key)) {
+        contractKeepState.selectedTips.set(key, new Set());
+      }
+
+      const set = contractKeepState.selectedTips.get(key);
+      tips.slice(0, 2).forEach(t => {
+        if (t && t.id) {
+          set.add(t.id);
+          const card = document.querySelector(`.contract-tip-card[data-tip-id="${t.id}"]`);
+          if (card) card.classList.add('selected');
+        }
+      });
+    });
+  } catch (err) {
+    console.error('Fejl i autoSelectTipsForKeep:', err);
   }
 }
 
