@@ -4,128 +4,118 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ project.title }} - {{ target.full_name }}</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
         @page {
             size: A4;
-            margin: 2cm;
-            @top-center {
-                content: "{{ project.title }}";
-                font-family: Arial, sans-serif;
-                font-size: 10pt;
-                color: #666;
-            }
-            @bottom-center {
-                content: "Side " counter(page) " af " counter(pages);
-                font-family: Arial, sans-serif;
-                font-size: 10pt;
-                color: #666;
-            }
+            margin: 1.5cm;
         }
         
         body {
             font-family: Arial, sans-serif;
-            line-height: 1.6;
+            line-height: 1.3;
             color: #333;
             margin: 0;
             padding: 0;
+            font-size: 11px;
         }
         
         .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 2rem;
-            margin: -2cm -2cm 2rem -2cm;
-            border-radius: 0 0 1rem 1rem;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            text-align: center;
         }
         
         .header h1 {
-            margin: 0 0 0.5rem 0;
-            font-size: 2.2rem;
+            margin: 0 0 4px 0;
+            font-size: 20px;
             font-weight: 300;
         }
         
         .header .subtitle {
-            font-size: 1.1rem;
+            font-size: 12px;
             opacity: 0.9;
             margin: 0;
         }
         
         .person-info {
             background: #f8fafc;
-            padding: 1.5rem;
-            border-radius: 0.5rem;
-            margin-bottom: 2rem;
-            border-left: 4px solid #667eea;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+            border-left: 3px solid #667eea;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            align-items: center;
         }
         
         .person-info h2 {
-            margin: 0 0 0.5rem 0;
+            margin: 0;
             color: #1e293b;
-            font-size: 1.5rem;
+            font-size: 16px;
         }
         
         .person-info .details {
             color: #64748b;
-            font-size: 0.95rem;
+            font-size: 10px;
         }
         
-        .chart-container {
-            background: white;
-            border: 1px solid #e2e8f0;
-            border-radius: 0.5rem;
-            padding: 2rem;
-            margin: 2rem 0;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        
-        .chart-title {
-            font-size: 1.3rem;
-            font-weight: 600;
-            color: #1e293b;
-            margin-bottom: 1.5rem;
+        .chart-placeholder {
+            background: #f8fafc;
+            border: 2px dashed #cbd5e1;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
             text-align: center;
         }
         
-        .chart-wrapper {
-            width: 500px;
-            height: 500px;
-            margin: 0 auto;
-            position: relative;
+        .chart-placeholder h3 {
+            margin: 0 0 8px 0;
+            font-size: 14px;
+            color: #64748b;
+        }
+        
+        .chart-placeholder p {
+            margin: 0;
+            font-size: 10px;
+            color: #94a3b8;
         }
         
         .categories-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 1rem;
-            margin-top: 2rem;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 6px;
+            margin: 15px 0;
         }
         
         .category-card {
             background: white;
             border: 1px solid #e2e8f0;
-            border-radius: 0.5rem;
-            padding: 1rem;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border-radius: 4px;
+            padding: 6px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
         }
         
         .category-name {
             font-weight: 600;
             color: #1e293b;
-            margin-bottom: 0.5rem;
-            font-size: 0.95rem;
+            margin-bottom: 4px;
+            font-size: 10px;
         }
         
         .category-scores {
             display: flex;
-            gap: 0.5rem;
+            gap: 2px;
             flex-wrap: wrap;
         }
         
         .score-badge {
-            padding: 0.25rem 0.5rem;
-            border-radius: 0.25rem;
-            font-size: 0.8rem;
+            padding: 2px 4px;
+            border-radius: 2px;
+            font-size: 9px;
             font-weight: 600;
             color: white;
         }
@@ -138,60 +128,50 @@
         .legend {
             display: flex;
             justify-content: center;
-            gap: 2rem;
-            margin: 1.5rem 0;
-            flex-wrap: wrap;
+            gap: 15px;
+            margin: 10px 0;
+            font-size: 10px;
         }
         
         .legend-item {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
-            font-size: 0.9rem;
+            gap: 4px;
         }
         
         .legend-color {
-            width: 1rem;
-            height: 1rem;
-            border-radius: 0.25rem;
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
         }
         
         .summary {
             background: #fefce8;
             border: 1px solid #fbbf24;
-            border-radius: 0.5rem;
-            padding: 1.5rem;
-            margin: 2rem 0;
+            border-radius: 6px;
+            padding: 12px;
+            margin: 15px 0;
         }
         
         .summary h3 {
             color: #92400e;
-            margin: 0 0 1rem 0;
-            font-size: 1.2rem;
+            margin: 0 0 6px 0;
+            font-size: 12px;
         }
         
         .summary-content {
             color: #78350f;
-            line-height: 1.6;
+            font-size: 10px;
+            line-height: 1.4;
         }
         
         .footer {
-            margin-top: 3rem;
-            padding-top: 2rem;
+            margin-top: 15px;
+            padding-top: 10px;
             border-top: 1px solid #e2e8f0;
             text-align: center;
             color: #64748b;
-            font-size: 0.9rem;
-        }
-        
-        .page-break {
-            page-break-before: always;
-        }
-        
-        @media print {
-            .header {
-                margin: -2cm -2cm 1rem -2cm;
-            }
+            font-size: 9px;
         }
     </style>
 </head>
@@ -202,257 +182,173 @@
     </div>
     
     <div class="person-info">
-        <h2>{{ target.full_name }}</h2>
-        <div class="details">
-            {% if target.employee_no %}
-            <p><strong>Medarbejdernummer:</strong> {{ target.employee_no }}</p>
-            {% endif %}
-            <p><strong>Rapport genereret:</strong> {{ moment().format('DD. MMMM YYYY [kl.] HH:mm') }}</p>
-        </div>
-    </div>
-    
-    <div class="chart-container">
-        <h3 class="chart-title">Kompetenceprofil</h3>
-        
-        <div class="legend">
-            <div class="legend-item">
-                <div class="legend-color score-self"></div>
-                <span>{{ labels_text.self or 'Selvvurdering' }}</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color score-peer"></div>
-                <span>{{ labels_text.peer or 'Kollegavurdering' }}</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color score-leader"></div>
-                <span>{{ labels_text.leader or 'Ledervurdering' }}</span>
+        <div>
+            <h2>{{ target.full_name }}</h2>
+            <div class="details">
+                {% if target.employee_no %}
+                Medarbejdernr: {{ target.employee_no }}<br>
+                {% endif %}
+                Genereret: {{ moment().format('DD. MMMM YYYY [kl.] HH:mm') }}
             </div>
         </div>
         
-        <div class="chart-wrapper">
-            <canvas id="radarChart"></canvas>
-        </div>
-    </div>
-    
-    <div class="categories-grid">
-        {% for cat in cats %}
-        <div class="category-card">
-            <div class="category-name">{{ cat.name }}</div>
-            <div class="category-scores">
-                {% set cat_index = loop.index0 %}
-                
-                {% if series.self[cat_index] is not none %}
-                <span class="score-badge score-self">
-                    Selv: {{ "%.1f"|format(series.self[cat_index]) }}
-                </span>
+        {% set total_scores = [] %}
+        {% for type_scores in [series.self, series.peer, series.leader] %}
+            {% for score in type_scores %}
+                {% if score is not none %}
+                    {% set _ = total_scores.append(score) %}
                 {% endif %}
-                
-                {% if series.peer[cat_index] is not none %}
-                <span class="score-badge score-peer">
-                    Kollega: {{ "%.1f"|format(series.peer[cat_index]) }}
-                </span>
-                {% endif %}
-                
-                {% if series.leader[cat_index] is not none %}
-                <span class="score-badge score-leader">
-                    Leder: {{ "%.1f"|format(series.leader[cat_index]) }}
-                </span>
-                {% endif %}
-                
-                {% if series.self[cat_index] is none and series.peer[cat_index] is none and series.leader[cat_index] is none %}
-                <span class="score-badge score-none">Ingen data</span>
-                {% endif %}
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-    
-    <div class="summary">
-        <h3>📋 Sammenfatning</h3>
-        <div class="summary-content">
-            <p>Denne rapport viser kompetenceprofilen for <strong>{{ target.full_name }}</strong> baseret på vurderinger i projektet "{{ project.title }}".</p>
-            
-            {% set total_scores = [] %}
-            {% for type_scores in [series.self, series.peer, series.leader] %}
-                {% for score in type_scores %}
-                    {% if score is not none %}
-                        {% set _ = total_scores.append(score) %}
-                    {% endif %}
-                {% endfor %}
             {% endfor %}
-            
-            {% if total_scores %}
-            <p>
-                <strong>Gennemsnitsscore:</strong> {{ "%.1f"|format(total_scores|sum / total_scores|length) }}<br>
-                <strong>Antal vurderinger:</strong> {{ total_scores|length }}<br>
-                <strong>Højeste score:</strong> {{ "%.1f"|format(total_scores|max) }}<br>
-                <strong>Laveste score:</strong> {{ "%.1f"|format(total_scores|min) }}
-            </p>
-            {% endif %}
+        {% endfor %}
+        
+        {% if total_scores %}
+        <div style="background: #fefce8; border: 1px solid #fbbf24; border-radius: 4px; padding: 8px;">
+            <div style="color: #92400e; font-weight: 600; font-size: 10px; margin-bottom: 4px;">📋 Sammenfatning</div>
+            <div style="color: #78350f; font-size: 9px;">
+                <strong>Gennemsnit:</strong> {{ "%.1f"|format(total_scores|sum / total_scores|length) }} | 
+                <strong>Højeste:</strong> {{ "%.1f"|format(total_scores|max) }}<br>
+                <strong>Laveste:</strong> {{ "%.1f"|format(total_scores|min) }} | 
+                <strong>Antal:</strong> {{ total_scores|length }}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="chart-placeholder">
+        <h3>🎯 KOMPAS Kompetencehjul</h3>
+        <p>Radar chart ville være synligt her i web-versionen<br>
+        Viser de 16 kompetencer fordelt på 4 domæner</p>
+    </div>
+    
+    <div class="legend">
+        <div class="legend-item">
+            <div class="legend-color score-self"></div>
+            <span>{{ labels_text.self or 'Selvvurdering' }}</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color score-peer"></div>
+            <span>{{ labels_text.peer or 'Kollegavurdering' }}</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color score-leader"></div>
+            <span>{{ labels_text.leader or 'Ledervurdering' }}</span>
         </div>
     </div>
+    
+    <!-- FLADT LAYOUT — VIS UNDER KOMPAS HJULET I STEDET FOR KATEGORI-KORT -->
+    <!-- Vises kun hvis de tilsvarende sektioner er foldet ud i UI'et (flags sættes af caller) -->
+
+    {% if show_coaching %}
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin:15px 0">
+        <h3 style="margin:0 0 8px 0;font-size:13px;display:flex;align-items:center;gap:8px">
+            <span>🎯</span> <span>Coaching – Fastholde & Udvikle</span>
+        </h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <!-- Fastholde -->
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px">
+                <div style="color:#16a34a;font-weight:700;margin-bottom:6px">✅ Fastholde (Top styrker)</div>
+                {% if coaching.keep and coaching.keep|length > 0 %}
+                    <ul style="margin:0;padding-left:18px">
+                        {% for item in coaching.keep %}
+                        <li style="margin:4px 0">{{ item }}</li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div style="color:#64748b;font-size:10px">Ingen fastholdelsespunkter valgt.</div>
+                {% endif %}
+            </div>
+            <!-- Udvikle -->
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px">
+                <div style="color:#667eea;font-weight:700;margin-bottom:6px">📈 Udvikle (resterende fokusområder)</div>
+                {% if coaching.develop and coaching.develop|length > 0 %}
+                    <ul style="margin:0;padding-left:18px">
+                        {% for item in coaching.develop %}
+                        <li style="margin:4px 0">{{ item }}</li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div style="color:#64748b;font-size:10px">Ingen udviklingspunkter tilbage efter selektion.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if show_plan %}
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin:15px 0">
+        <h3 style="margin:0 0 8px 0;font-size:13px;display:flex;align-items:center;gap:8px">
+            <span>📅</span> <span>30/60/90-dages plan</span>
+        </h3>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+            <!-- 30 -->
+            <div style="padding:10px;background:#f0fdf4;border:1px solid #dcfce7;border-radius:6px">
+                <div style="font-weight:700;margin-bottom:6px;text-align:center">30 dage</div>
+                {% if plan.days30 and plan.days30|length > 0 %}
+                    <ul style="margin:0;padding-left:14px;font-size:9px">
+                        {% for goal in plan.days30 %}
+                        <li style="margin:3px 0">{{ goal }}</li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div style="color:#64748b;font-size:9px;text-align:center">Ingen mål</div>
+                {% endif %}
+            </div>
+
+            <!-- 60 -->
+            <div style="padding:10px;background:#ecfeff;border:1px solid #bae6fd;border-radius:6px">
+                <div style="font-weight:700;margin-bottom:6px;text-align:center">60 dage</div>
+                {% if plan.days60 and plan.days60|length > 0 %}
+                    <ul style="margin:0;padding-left:14px;font-size:9px">
+                        {% for goal in plan.days60 %}
+                        <li style="margin:3px 0">{{ goal }}</li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div style="color:#64748b;font-size:9px;text-align:center">Ingen mål</div>
+                {% endif %}
+            </div>
+
+            <!-- 90 -->
+            <div style="padding:10px;background:#fefce8;border:1px solid #fde68a;border-radius:6px">
+                <div style="font-weight:700;margin-bottom:6px;text-align:center">90 dage</div>
+                {% if plan.days90 and plan.days90|length > 0 %}
+                    <ul style="margin:0;padding-left:14px;font-size:9px">
+                        {% for goal in plan.days90 %}
+                        <li style="margin:3px 0">{{ goal }}</li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div style="color:#64748b;font-size:9px;text-align:center">Ingen mål</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if show_teamroles %}
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin:15px 0">
+        <h3 style="margin:0 0 8px 0;font-size:13px;display:flex;align-items:center;gap:8px">
+            <span>🧩</span> <span>Team Roller (Top-4)</span>
+        </h3>
+        {% if team_roles and team_roles|length > 0 %}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            {% for role in team_roles[:4] %}
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px">
+                <div style="font-weight:700;margin-bottom:4px">{{ role.name }}</div>
+                {% if role.desc %}
+                <div style="font-size:10px;color:#64748b">{{ role.desc }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div style="color:#64748b;font-size:10px">Ingen teamroller valgt.</div>
+        {% endif %}
+    </div>
+    {% endif %}
     
     <div class="footer">
         <p>Genereret af KOMPAS PDF Service</p>
-        <p>For mere information, kontakt din systemadministrator.</p>
     </div>
-
-    <!-- Forbered data for JavaScript -->
-    <script type="application/json" id="chart-data">
-    {
-        "categories": [
-            {% for cat in cats %}
-            {
-                "name": "{{ cat.name }}",
-                "self": {% if series.self[loop.index0] is not none %}{{ series.self[loop.index0] }}{% else %}null{% endif %},
-                "peer": {% if series.peer[loop.index0] is not none %}{{ series.peer[loop.index0] }}{% else %}null{% endif %},
-                "leader": {% if series.leader[loop.index0] is not none %}{{ series.leader[loop.index0] }}{% else %}null{% endif %}
-            }{% if not loop.last %},{% endif %}
-            {% endfor %}
-        ],
-        "labels": {
-            "self": "{{ labels_text.self or 'Selvvurdering' }}",
-            "peer": "{{ labels_text.peer or 'Kollegavurdering' }}", 
-            "leader": "{{ labels_text.leader or 'Ledervurdering' }}"
-        }
-    }
-    </script>
-
-    <script>
-        window.addEventListener('load', function() {
-            const chartData = JSON.parse(document.getElementById('chart-data').textContent);
-            
-            const orderedCategories = [
-                '', 'Fleksibilitet', 'Nytænkning', 'Helhedsorientering', 'Fremtidsorientering',
-                '', 'Håndtering af pres', 'Beslutningstagning', 'Styring', 'Initiativ',
-                '', 'Analytisk tænkning', 'Faglighed', 'Planlægning', 'Ressourcebevidsthed',
-                '', 'Samarbejde', 'Udvikling af andre', 'Motivere andre', 'Kommunikation'
-            ];
-
-            function mapDataToChart(type) {
-                return orderedCategories.map(catName => {
-                    if (catName === '') return null;
-                    const cat = chartData.categories.find(c => c.name === catName);
-                    return cat ? cat[type] : null;
-                });
-            }
-
-            const datasets = [];
-            
-            const selfData = mapDataToChart('self');
-            const peerData = mapDataToChart('peer');
-            const leaderData = mapDataToChart('leader');
-            
-            if (selfData.some(v => v !== null)) {
-                datasets.push({
-                    label: chartData.labels.self,
-                    data: selfData,
-                    borderColor: 'rgba(34, 197, 94, 1)',
-                    backgroundColor: 'rgba(34, 197, 94, 0.12)',
-                    pointBackgroundColor: 'rgba(34, 197, 94, 1)',
-                    borderWidth: 2,
-                    spanGaps: true
-                });
-            }
-            
-            if (peerData.some(v => v !== null)) {
-                datasets.push({
-                    label: chartData.labels.peer,
-                    data: peerData,
-                    borderColor: 'rgba(59, 130, 246, 1)',
-                    backgroundColor: 'rgba(59, 130, 246, 0.12)',
-                    pointBackgroundColor: 'rgba(59, 130, 246, 1)',
-                    borderWidth: 2,
-                    spanGaps: true
-                });
-            }
-            
-            if (leaderData.some(v => v !== null)) {
-                datasets.push({
-                    label: chartData.labels.leader,
-                    data: leaderData,
-                    borderColor: 'rgba(249, 115, 22, 1)',
-                    backgroundColor: 'rgba(249, 115, 22, 0.12)',
-                    pointBackgroundColor: 'rgba(249, 115, 22, 1)',
-                    borderWidth: 2,
-                    spanGaps: true
-                });
-            }
-
-            const quadrantBackgroundPlugin = {
-                id: 'quadrantBackground',
-                beforeDatasetsDraw: (chart) => {
-                    const ctx = chart.ctx;
-                    const r = chart.scales.r;
-                    const centerX = r.xCenter;
-                    const centerY = r.yCenter;
-                    const radius = r.drawingArea;
-                    
-                    ctx.save();
-                    
-                    function drawSector(startAngle, endAngle, color) {
-                        ctx.beginPath();
-                        ctx.moveTo(centerX, centerY);
-                        ctx.arc(centerX, centerY, radius, startAngle, endAngle);
-                        ctx.closePath();
-                        ctx.fillStyle = color;
-                        ctx.fill();
-                    }
-                    
-                    function degToRad(deg) {
-                        return (deg - 90) * Math.PI / 180;
-                    }
-                    
-                    drawSector(degToRad(0), degToRad(90), 'rgba(34, 139, 34, 0.08)');
-                    drawSector(degToRad(90), degToRad(180), 'rgba(220, 20, 60, 0.08)');
-                    drawSector(degToRad(180), degToRad(270), 'rgba(128, 128, 128, 0.08)');
-                    drawSector(degToRad(270), degToRad(360), 'rgba(100, 149, 237, 0.08)');
-                    
-                    ctx.restore();
-                }
-            };
-
-            const ctx = document.getElementById('radarChart').getContext('2d');
-            
-            new Chart(ctx, {
-                type: 'radar',
-                data: {
-                    labels: orderedCategories,
-                    datasets: datasets
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    elements: {
-                        line: { tension: 0.2 },
-                        point: { radius: 0, hitRadius: 6 }
-                    },
-                    scales: {
-                        r: {
-                            beginAtZero: true,
-                            min: 0,
-                            max: 5,
-                            grid: { circular: true },
-                            ticks: { display: false },
-                            angleLines: { color: 'rgba(0,0,0,0.08)' },
-                            pointLabels: {
-                                display: function(context) {
-                                    return orderedCategories[context.index] !== '';
-                                },
-                                font: {
-                                    size: 11,
-                                    weight: 'bold'
-                                }
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: { position: 'bottom' }
-                    }
-                },
-                plugins: [quadrantBackgroundPlugin]
-            });
-        });
-    </script>
 </body>
 </html>
