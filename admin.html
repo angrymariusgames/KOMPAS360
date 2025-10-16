@@ -7,15 +7,12 @@
   <link rel="icon" href="data:," />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co wss://*.supabase.co">
 
-
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/nunjucks@3.2.4/browser/nunjucks.min.js"></script>
-
 
   <style>
     /* Theme */
@@ -625,7 +622,8 @@
             <!-- Udvikle -->
             <div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px">
               <h4 style="color:var(--brand);margin-bottom:12px;display:flex;align-items:center;gap:8px">
-                📈 Udvikle (Fokusområder)
+                <span>📈 Udvikle (Fokusområder)</span>
+                <button id="btnResetDevelop" class="btn small" title="Nulstil fravalg" style="margin-left:auto">↺ Nulstil</button>
               </h4>
               <div id="coaching-develop" style="display:flex;flex-direction:column;gap:12px">
                 <div style="text-align:center;color:var(--muted);padding:20px">
@@ -3244,56 +3242,96 @@ if (!window.__coachDismissBound) {
   return svg;
 }
 
-// Brug ekstern Nunjucks-skabelon (templates_report.html) og flyt al logik hertil
-async function generatePersonReportHTML(project, person, categories, series, labels) {
-  const cats = categories.map(c => ({ name: c.category_name, category_id: c.category_id }));
-  const target = { full_name: person.full_name, employee_no: person.employee_no };
-  const labels_text = {
-    self: labels?.self || 'Selvvurdering',
-    peer: labels?.peer || 'Kollegavurdering',
-    leader: labels?.leader || 'Ledervurdering'
-  };
-
-  // Forbered let konsumerbare felter til templaten (Nunjucks kan ikke append/format som Jinja)
-  const allScores = [];
-  ['self','peer','leader'].forEach(k => {
-    (series[k] || []).forEach(v => { if (v !== null && v !== undefined) allScores.push(+v); });
+function generatePersonReportHTML(project, person, categories, series, labels) {
+  const currentDate = new Date().toLocaleDateString('da-DK', { 
+    year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' 
   });
-  const stats = allScores.length
-    ? {
-        avg: (allScores.reduce((a,b)=>a+b,0)/allScores.length).toFixed(1),
-        max: Math.max(...allScores).toFixed(1),
-        min: Math.min(...allScores).toFixed(1),
-        count: allScores.length
-      }
-    : null;
-
-  // Preformatterede score-strenge (til at undgå |format i templaten)
-  const toStrArr = (arr) => (arr || []).map(v => (v === null || v === undefined) ? '' : (+v).toFixed(1));
-  const series_str = {
-    self: toStrArr(series.self),
-    peer: toStrArr(series.peer),
-    leader: toStrArr(series.leader)
+  
+  // Forbered data til KOMPAS hjul
+  const chartData = {
+    categories: categories.map((cat, index) => ({
+      name: cat.category_name,
+      self: series.self[index],
+      peer: series.peer[index],
+      leader: series.leader[index]
+    }))
   };
-
-  const generated_at = new Date().toLocaleString('da-DK', { dateStyle: 'long', timeStyle: 'short' });
-
-  const context = {
-    project,
-    target,
-    cats,
-    series,       // behold hvis skabelon ellers bruger rå data
-    series_str,   // brug disse til visning
-    labels_text,
-    stats,
-    generated_at
-  };
-
-  const res = await fetch('templates_report.html', { cache: 'no-cache' });
-  if (!res.ok) throw new Error('Kunne ikke hente templates_report.html');
-  const tpl = await res.text();
-
-  return nunjucks.renderString(tpl, context);
+  
+  // Generer SVG hjul
+  const kompasSVG = generateKOMPASSVG(chartData);
+  
+  const categoryCards = categories.map((cat, index) => {
+    const selfScore = series.self[index];
+    const peerScore = series.peer[index];
+    const leaderScore = series.leader[index];
+    
+    const badges = [];
+    if (selfScore !== null) badges.push(`<span style="background:#10b981;color:white;padding:2px 4px;border-radius:2px;font-size:9px;margin-right:2px">S:${selfScore.toFixed(1)}</span>`);
+    if (peerScore !== null) badges.push(`<span style="background:#3b82f6;color:white;padding:2px 4px;border-radius:2px;font-size:9px;margin-right:2px">K:${peerScore.toFixed(1)}</span>`);
+    if (leaderScore !== null) badges.push(`<span style="background:#8b5cf6;color:white;padding:2px 4px;border-radius:2px;font-size:9px">L:${leaderScore.toFixed(1)}</span>`);
+    if (badges.length === 0) badges.push(`<span style="background:#94a3b8;color:#475569;padding:2px 4px;border-radius:2px;font-size:9px">Ingen data</span>`);
+    
+    return `<div style="border:1px solid #e2e8f0;border-radius:4px;padding:6px;margin-bottom:4px;background:white">
+      <div style="font-weight:600;margin-bottom:3px;font-size:10px">${cat.category_name}</div>
+      <div>${badges.join('')}</div>
+    </div>`;
+  }).join('');
+  
+  const allScores = [];
+  [series.self, series.peer, series.leader].forEach(typeScores => {
+    typeScores.forEach(score => { if (score !== null) allScores.push(score); });
+  });
+  
+  const stats = allScores.length > 0 ? {
+    avg: (allScores.reduce((a,b) => a+b, 0) / allScores.length).toFixed(1),
+    max: Math.max(...allScores).toFixed(1),
+    min: Math.min(...allScores).toFixed(1),
+    count: allScores.length
+  } : null;
+  
+  return `<div style="font-family:Arial,sans-serif;line-height:1.2;color:#333;max-width:750px;font-size:11px">
+    <!-- Kompakt Header -->
+    <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;padding:15px;margin-bottom:12px;border-radius:6px;text-align:center">
+      <h1 style="margin:0 0 4px 0;font-size:18px;font-weight:300">${project.title}</h1>
+      <p style="margin:0;font-size:11px;opacity:0.9">Personlig Kompetencerapport</p>
+    </div>
+    
+    <!-- Person Info & Stats - Side ved side -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div style="background:#f8fafc;padding:12px;border-radius:6px;border-left:3px solid #667eea">
+        <h2 style="margin:0 0 4px 0;color:#1e293b;font-size:14px">${person.full_name}</h2>
+        <div style="color:#64748b;font-size:9px">
+          ${person.employee_no ? `Medarbejdernr: ${person.employee_no}<br>` : ''}
+          Genereret: ${currentDate}
+        </div>
+      </div>
+      
+      ${stats ? `<div style="background:#fefce8;border:1px solid #fbbf24;border-radius:6px;padding:12px">
+        <h3 style="color:#92400e;margin:0 0 6px 0;font-size:12px">📋 Sammenfatning</h3>
+        <div style="color:#78350f;font-size:9px">
+          <strong>Gennemsnit:</strong> ${stats.avg} | <strong>Højeste:</strong> ${stats.max}<br>
+          <strong>Laveste:</strong> ${stats.min} | <strong>Antal:</strong> ${stats.count}
+        </div>
+      </div>` : ''}
+    </div>
+    
+    <!-- KOMPAS Hjul - SVG CHART -->
+    <div style="text-align:center;background:white;border:1px solid #e2e8f0;border-radius:8px;padding:15px;margin-bottom:12px">
+      <div style="font-size:12px;color:#64748b;margin-bottom:10px;font-weight:600">🎯 KOMPAS Kompetencehjul</div>
+      ${kompasSVG}
+    </div>
+    
+    <!-- Kompetencer i 4 kolonner -->
+    <h3 style="color:#1e293b;margin-bottom:8px;font-size:12px">🏆 Kompetence Kategorier</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;margin-bottom:12px">
+      ${categoryCards}
+    </div>
+    
+    <!-- Kompakt Footer -->
+    <div style="margin-top:12px;padding-top:8px;border-top:1px solid #e2e8f0;text-align:center;color:#64748b;font-size:9px">
+      <p style="margin:0">Genereret af KOMPAS PDF Service</p>
+    </div>
+  </div>`;
 }
 
 // Multi-side PDF generator: renderer hver .page som egen side
@@ -3396,8 +3434,8 @@ $('btnPdf').onclick = async () => {
       });
     });
     
-    const htmlContent = await generatePersonReportHTML(project, person, cats, seriesData, labels);
-      const filename = `${project.title.replace(/ /g, '_')}-${person.full_name.replace(/ /g, '_')}.pdf`;
+    const htmlContent = generatePersonReportHTML(project, person, cats, seriesData, labels);
+    const filename = `${project.title.replace(/ /g, '_')}-${person.full_name.replace(/ /g, '_')}.pdf`;
     await generatePDFFromHTML(htmlContent, filename);
     
     $('btnPdf').textContent = originalText;
@@ -3415,25 +3453,50 @@ $('btnZip').onclick = () => {
 };
 
   // ----- Download UDV (hele undersøgelsen) -----
-  $('btnUdvSurvey').onclick = async () => {
-    const projectId = $('selProject3').value;
-    if (!projectId) { alert('Vælg et projekt først'); return; }
-    try {
-      const udv = await buildSurveyUDV(projectId);
-      const blob = new Blob([JSON.stringify(udv, null, 2)], { type: 'application/kompas-udv+json' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      const title = (await supabase.from('projects').select('title').eq('id', projectId).single()).data?.title || 'survey';
-      const d = new Date().toISOString().slice(0,10).replaceAll('-','');
-      const variant = udv.variant || (udv.project?.is_lite ? 'LITE' : 'FULD');
-      a.download = `${title}_${variant}_${d}_survey.udv`;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      URL.revokeObjectURL(a.href);
-    } catch (e) {
-      console.error(e);
-      alert('Kunne ikke generere UDV: ' + e.message);
-    }
-  };
+$('btnUdvSurvey').onclick = async () => {
+  const projectId = $('selProject2').value;
+  if (!projectId) { alert('Vælg et projekt først'); return; }
+  try {
+    const udv = await buildSurveyUDV(projectId);
+    const blob = new Blob([JSON.stringify(udv, null, 2)], { type: 'application/kompas-udv+json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    const title = (await supabase.from('projects').select('title').eq('id', projectId).single()).data?.title || 'survey';
+    const d = new Date().toISOString().slice(0,10).replaceAll('-','');
+    const variant = udv.variant || (udv.project?.is_lite ? 'LITE' : 'FULD');
+    a.download = `${title}_${variant}_${d}_survey.udv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  } catch (e) {
+    console.error(e);
+    alert('Kunne ikke generere UDV: ' + e.message);
+  }
+};
+
+// ↺ Nulstil fravalg i 📈 Udvikle (Fokusområder)
+$('btnResetDevelop').onclick = async () => {
+  const pid = $('selProject2').value;
+  const tid = $('selTarget').value;
+  if (!pid || !tid) {
+    alert('Vælg projekt og målperson først');
+    return;
+  }
+  if (!confirm('Nulstil alle fravalgte råd for denne målperson?')) return;
+
+  try {
+    await supabase
+      .from('coaching_tip_state')
+      .delete()
+      .eq('project_id', pid)
+      .eq('target_id', tid);
+
+    // Genindlæs anbefalinger → analyserer igen som første gang
+    await loadCoachingRecommendations();
+  } catch (e) {
+    console.error('Reset fejl:', e);
+    alert('Kunne ikke nulstille fravalg: ' + (e?.message || e));
+  }
+};
 
   // ======= UDV SURVEY EXPORT v2.0 (hele undersøgelsen) =======
   // Samler målpersoner, domæner/kategorier og sikre gennemsnit fra v_kompas_series.
