@@ -2278,16 +2278,19 @@ window.showLargeProjectQR = (url, title) => {
       try {
         const { data: raw } = await supabase
           .from('coaching_tip')
-          .select('id,title,description,method,sort_order')
+          .select('id,title,description,method,sort_order,micro_habits,kind')
           .eq('category_id', item.category_id)
           .in('method', ['self','colleague'])
           .order('sort_order', { ascending: true });
         tips = (raw || [])
           .filter(r => !dismissedIds.includes(r.id))
+          // kun fastholdelsesråd: kræv micro_habits (micro-vaner)
+          .filter(r => Array.isArray(r.micro_habits) && r.micro_habits.length > 0)
           .map(r => ({
             tip_id: r.id,
             title: r.title,
-            description: r.description,
+            // vis microvanen som råd-tekst
+            description: r.micro_habits[0] || r.description,
             method: r.method
           }));
       } catch(e) { /* ignore */ }
@@ -2335,6 +2338,7 @@ window.showLargeProjectQR = (url, title) => {
             </button>
           </div>
         `).join('');
+
 
         return `
           <div style="margin:10px 0;padding:10px;background:white;border-radius:8px;border:1px solid #dcfce7">
