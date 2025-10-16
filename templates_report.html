@@ -323,13 +323,15 @@
         </h3>
         {% if team_roles and team_roles|length > 0 %}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-            {% for role in team_roles[:4] %}
+            {% for role in team_roles %}
+            {% if loop.index0 < 4 %}
             <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px">
                 <div style="font-weight:700;margin-bottom:4px">{{ role.name }}</div>
                 {% if role.desc %}
                 <div style="font-size:10px;color:#64748b">{{ role.desc }}</div>
                 {% endif %}
             </div>
+            {% endif %}
             {% endfor %}
         </div>
         {% else %}
