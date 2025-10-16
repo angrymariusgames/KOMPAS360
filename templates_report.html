@@ -188,27 +188,18 @@
                 {% if target.employee_no %}
                 Medarbejdernr: {{ target.employee_no }}<br>
                 {% endif %}
-                Genereret: {{ moment().format('DD. MMMM YYYY [kl.] HH:mm') }}
+                Genereret: {{ generated_at }}
             </div>
         </div>
         
-        {% set total_scores = [] %}
-        {% for type_scores in [series.self, series.peer, series.leader] %}
-            {% for score in type_scores %}
-                {% if score is not none %}
-                    {% set _ = total_scores.append(score) %}
-                {% endif %}
-            {% endfor %}
-        {% endfor %}
-        
-        {% if total_scores %}
+        {% if stats %}
         <div style="background: #fefce8; border: 1px solid #fbbf24; border-radius: 4px; padding: 8px;">
             <div style="color: #92400e; font-weight: 600; font-size: 10px; margin-bottom: 4px;">📋 Sammenfatning</div>
             <div style="color: #78350f; font-size: 9px;">
-                <strong>Gennemsnit:</strong> {{ "%.1f"|format(total_scores|sum / total_scores|length) }} | 
-                <strong>Højeste:</strong> {{ "%.1f"|format(total_scores|max) }}<br>
-                <strong>Laveste:</strong> {{ "%.1f"|format(total_scores|min) }} | 
-                <strong>Antal:</strong> {{ total_scores|length }}
+                <strong>Gennemsnit:</strong> {{ stats.avg }} | 
+                <strong>Højeste:</strong> {{ stats.max }}<br>
+                <strong>Laveste:</strong> {{ stats.min }} | 
+                <strong>Antal:</strong> {{ stats.count }}
             </div>
         </div>
         {% endif %}
