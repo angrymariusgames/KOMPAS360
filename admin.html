@@ -2256,29 +2256,114 @@ window.showLargeProjectQR = (url, title) => {
   // ===== Fastholde =====
   const keepContainer = $('coaching-keep');
   if (data.fastholde && data.fastholde.length > 0) {
-    keepContainer.innerHTML = data.fastholde.map(item => `
-      <div style="border:1px solid #dcfce7;border-radius:8px;padding:12px;background:#f0fdf4">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <strong style="color:var(--success)">${item.category_name}</strong>
-          <span style="background:var(--success);color:white;padding:2px 8px;border-radius:12px;font-size:0.8rem">${item.score}</span>
+    const cards = await Promise.all((data.fastholde || []).map(async (item) => {
+      const pid = document.getElementById('selProject2')?.value;
+      const tid = document.getElementById('selTarget')?.value;
+
+      // find evt. dismissed tip_id'er
+      let dismissedIds = [];
+      try {
+        const { data: st } = await supabase
+          .from('coaching_tip_state')
+          .select('tip_id')
+          .eq('project_id', pid)
+          .eq('target_id', tid)
+          .eq('category_id', item.category_id)
+          .eq('dismissed', true);
+        dismissedIds = (st || []).map(r => r.tip_id);
+      } catch(e) { /* ignore */ }
+
+      // hent tips for fastholdelse (self + colleague) i samme format som Udvikle
+      let tips = [];
+      try {
+        const { data: raw } = await supabase
+          .from('coaching_tip')
+          .select('id,title,description,method,sort_order')
+          .eq('category_id', item.category_id)
+          .in('method', ['self','colleague'])
+          .order('sort_order', { ascending: true });
+        tips = (raw || [])
+          .filter(r => !dismissedIds.includes(r.id))
+          .map(r => ({
+            tip_id: r.id,
+            title: r.title,
+            description: r.description,
+            method: r.method
+          }));
+      } catch(e) { /* ignore */ }
+
+      // Gruppér som i Udvikle (titel → linjer pr. metode)
+      const groups = {};
+      for (const tip of tips) {
+        const key = tip.title || '(uden titel)';
+        (groups[key] ||= []).push(tip);
+      }
+      const order = { self: 1, colleague: 2, leader_employee: 3 };
+      const methodLabel = (m) => m==='self' ? 'SELV' : (m==='colleague' ? 'KOLLEGA' : 'FØRER');
+
+      const groupHtml = Object.entries(groups).map(([title, arr]) => {
+        arr.sort((a,b)=> (order[a.method]||9)-(order[b.method]||9));
+        const titleFirst = (title || '').split(/\r?\n/)[0].trim();
+
+        const lines = arr.map(tip => `
+          <div class="keep-tip-line"
+            data-tip-id="${tip.tip_id}"
+            data-category-id="${item.category_id}"
+            data-title="${(title || '').split(/\r?\n/)[0].trim()}"
+            style="display:flex;gap:8px;align-items:flex-start;margin:4px 0;position:relative">
+
+            <span style="
+              background:${tip.method==='self' ? '#10b981' : '#3b82f6'};
+              color:#fff;
+              font-weight:600;
+              padding:2px 8px;
+              border-radius:10px;
+              font-size:11px;
+              min-width:72px;
+              text-align:center">
+              ${methodLabel(tip.method)}
+            </span>
+            <div style="flex:1;font-size:0.9rem;line-height:1.35">${tip.description || ''}</div>
+
+            <button 
+              class="dismiss-tip"
+              data-category-id="${item.category_id}"
+              data-tip-id="${tip.tip_id}"
+              title="Markér som ikke relevant"
+              style="background:#dc3545;color:#fff;border:none;border-radius:6px;padding:0 8px;height:22px;line-height:20px;font-weight:700;cursor:pointer">
+              ✖
+            </button>
+          </div>
+        `).join('');
+
+        return `
+          <div style="margin:10px 0;padding:10px;background:white;border-radius:8px;border:1px solid #dcfce7">
+            <div style="font-size:0.95rem;color:#065f46;margin-bottom:6px">${titleFirst}</div>
+            ${lines}
+          </div>
+        `;
+      }).join('') || `<div style="color:var(--muted);font-size:0.9rem">Ingen specifikke tips fundet.</div>`;
+
+      return `
+        <div style="border:1px solid #dcfce7;border-radius:8px;padding:12px;background:#f0fdf4">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <strong style="color:var(--success)">${item.category_name}</strong>
+            <span style="background:var(--success);color:white;padding:2px 8px;border-radius:12px;font-size:0.8rem">${item.score}</span>
+          </div>
+          <div style="font-size:0.9rem;color:var(--muted);margin-bottom:6px">
+            ${item.overview?.synopsis || 'Stærk kompetence'}
+          </div>
+          <div style="margin-top:6px">
+            <strong style="font-size:0.85rem;color:var(--success)">✅ Fastholdelsesråd:</strong>
+            ${groupHtml}
+          </div>
         </div>
-        <div style="font-size:0.9rem;color:var(--muted);margin-bottom:8px">
-          ${item.overview?.synopsis || 'Stærk kompetence'}
-        </div>
-        <div style="margin-top:8px">
-          <strong style="font-size:0.85rem;color:var(--success)">💡 Fortsæt med:</strong>
-          ${(item.keep_doing || []).map(action => `
-            <div style="margin:4px 0;font-size:0.85rem;padding:4px 8px;background:rgba(34,197,94,0.1);border-radius:6px">
-              ${action.micro_habit || action.title}
-            </div>
-          `).join('')}
-        </div>
-      </div>
-    `).join('');
+      `;
+    }));
+    keepContainer.innerHTML = cards.join('');
   } else {
     keepContainer.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px">📊 Ingen tydelige styrker fundet (muligvis anonymitetsgrænse)</div>';
   }
-
   // Hjælpere
   const methodLabel = (m) => m === 'self' ? 'SELV' : (m === 'colleague' ? 'KOLLEGA' : (m === 'leader_employee' ? 'FØRER' : m));
   const typeChip = (t) => {
@@ -2451,7 +2536,7 @@ if (!window.__coachDismissBound) {
     if (!pool || !timeline) return;
 
     // 1) Saml alle aktive rÃ¥d fra Udvikle (en chip pr. tip_id)
-    const tipLines = Array.from(document.querySelectorAll('.tip-line[data-tip-id][data-title]'));
+    const tipLines = Array.from(document.querySelectorAll('#coaching-develop .tip-line[data-tip-id][data-title]'));
     const tips = tipLines.map(line => ({
       id: line.getAttribute('data-tip-id'),
       title: line.getAttribute('data-title') || 'RÃ¥d'
@@ -5233,7 +5318,6 @@ async function contractLoadTipsForSelected() {
               contractAvailableTips.set(item.category_id, tips);
             }
           }
-
         }
       }
       
