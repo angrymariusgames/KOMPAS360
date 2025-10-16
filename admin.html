@@ -13,6 +13,8 @@
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/nunjucks@3.2.4/browser/nunjucks.min.js"></script>
+
 
   <style>
     /* Theme */
@@ -3241,169 +3243,112 @@ if (!window.__coachDismissBound) {
   return svg;
 }
 
-function generatePersonReportHTML(project, person, categories, series, labels) {
-  const currentDate = new Date().toLocaleDateString('da-DK', { 
-    year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' 
-  });
-  
-  // Forbered data til KOMPAS hjul
-  const chartData = {
-    categories: categories.map((cat, index) => ({
-      name: cat.category_name,
-      self: series.self[index],
-      peer: series.peer[index],
-      leader: series.leader[index]
-    }))
+// Brug ekstern Nunjucks-skabelon (templates_report.html) i stedet for inline HTML
+async function generatePersonReportHTML(project, person, categories, series, labels) {
+  // Map data til skabelonens forventede felter
+  const cats = categories.map(c => ({ name: c.category_name, category_id: c.category_id }));
+  const target = { full_name: person.full_name, employee_no: person.employee_no };
+  const labels_text = {
+    self: labels?.self || 'Selvvurdering',
+    peer: labels?.peer || 'Kollegavurdering',
+    leader: labels?.leader || 'Ledervurdering'
   };
-  
-  // Generer SVG hjul
-  const kompasSVG = generateKOMPASSVG(chartData);
-  
-  const categoryCards = categories.map((cat, index) => {
-    const selfScore = series.self[index];
-    const peerScore = series.peer[index];
-    const leaderScore = series.leader[index];
-    
-    const badges = [];
-    if (selfScore !== null) badges.push(`<span style="background:#10b981;color:white;padding:2px 4px;border-radius:2px;font-size:9px;margin-right:2px">S:${selfScore.toFixed(1)}</span>`);
-    if (peerScore !== null) badges.push(`<span style="background:#3b82f6;color:white;padding:2px 4px;border-radius:2px;font-size:9px;margin-right:2px">K:${peerScore.toFixed(1)}</span>`);
-    if (leaderScore !== null) badges.push(`<span style="background:#8b5cf6;color:white;padding:2px 4px;border-radius:2px;font-size:9px">L:${leaderScore.toFixed(1)}</span>`);
-    if (badges.length === 0) badges.push(`<span style="background:#94a3b8;color:#475569;padding:2px 4px;border-radius:2px;font-size:9px">Ingen data</span>`);
-    
-    return `<div style="border:1px solid #e2e8f0;border-radius:4px;padding:6px;margin-bottom:4px;background:white">
-      <div style="font-weight:600;margin-bottom:3px;font-size:10px">${cat.category_name}</div>
-      <div>${badges.join('')}</div>
-    </div>`;
-  }).join('');
-  
-  const allScores = [];
-  [series.self, series.peer, series.leader].forEach(typeScores => {
-    typeScores.forEach(score => { if (score !== null) allScores.push(score); });
-  });
-  
-  const stats = allScores.length > 0 ? {
-    avg: (allScores.reduce((a,b) => a+b, 0) / allScores.length).toFixed(1),
-    max: Math.max(...allScores).toFixed(1),
-    min: Math.min(...allScores).toFixed(1),
-    count: allScores.length
-  } : null;
-  
-  return `<div style="font-family:Arial,sans-serif;line-height:1.2;color:#333;max-width:750px;font-size:11px">
-    <!-- Kompakt Header -->
-    <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;padding:15px;margin-bottom:12px;border-radius:6px;text-align:center">
-      <h1 style="margin:0 0 4px 0;font-size:18px;font-weight:300">${project.title}</h1>
-      <p style="margin:0;font-size:11px;opacity:0.9">Personlig Kompetencerapport</p>
-    </div>
-    
-    <!-- Person Info & Stats - Side ved side -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
-      <div style="background:#f8fafc;padding:12px;border-radius:6px;border-left:3px solid #667eea">
-        <h2 style="margin:0 0 4px 0;color:#1e293b;font-size:14px">${person.full_name}</h2>
-        <div style="color:#64748b;font-size:9px">
-          ${person.employee_no ? `Medarbejdernr: ${person.employee_no}<br>` : ''}
-          Genereret: ${currentDate}
-        </div>
-      </div>
-      
-      ${stats ? `<div style="background:#fefce8;border:1px solid #fbbf24;border-radius:6px;padding:12px">
-        <h3 style="color:#92400e;margin:0 0 6px 0;font-size:12px">📋 Sammenfatning</h3>
-        <div style="color:#78350f;font-size:9px">
-          <strong>Gennemsnit:</strong> ${stats.avg} | <strong>Højeste:</strong> ${stats.max}<br>
-          <strong>Laveste:</strong> ${stats.min} | <strong>Antal:</strong> ${stats.count}
-        </div>
-      </div>` : ''}
-    </div>
-    
-    <!-- KOMPAS Hjul - SVG CHART -->
-    <div style="text-align:center;background:white;border:1px solid #e2e8f0;border-radius:8px;padding:15px;margin-bottom:12px">
-      <div style="font-size:12px;color:#64748b;margin-bottom:10px;font-weight:600">🎯 KOMPAS Kompetencehjul</div>
-      ${kompasSVG}
-    </div>
-    
-    <!-- Kompetencer i 4 kolonner -->
-    <h3 style="color:#1e293b;margin-bottom:8px;font-size:12px">🏆 Kompetence Kategorier</h3>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;margin-bottom:12px">
-      ${categoryCards}
-    </div>
-    
-    <!-- Kompakt Footer -->
-    <div style="margin-top:12px;padding-top:8px;border-top:1px solid #e2e8f0;text-align:center;color:#64748b;font-size:9px">
-      <p style="margin:0">Genereret af KOMPAS PDF Service</p>
-    </div>
-  </div>`;
+
+  // Simpel "moment" shim så {{ moment().format(...) }} i skabelonen ikke fejler
+  const moment = () => ({ format: () => new Date().toLocaleString('da-DK', { dateStyle: 'long', timeStyle: 'short' }) });
+
+  // Kontekst til templates_report.html
+  const context = {
+    project,
+    target,
+    cats,
+    series,
+    labels_text,
+    moment
+  };
+
+  // Hent og render skabelonen
+  const res = await fetch('templates_report.html', { cache: 'no-cache' });
+  if (!res.ok) throw new Error('Kunne ikke hente templates_report.html');
+  const tpl = await res.text();
+
+  return nunjucks.renderString(tpl, context);
 }
 
-// Optimeret PDF generator funktion
+
+// Multi-side PDF generator: renderer hver .page som egen side
 async function generatePDFFromHTML(htmlContent, filename) {
-  // Opret temporary container
+  // Opret skjult container i A4-bredde
   const tempDiv = document.createElement('div');
   tempDiv.style.position = 'fixed';
   tempDiv.style.left = '-9999px';
-  tempDiv.style.width = '794px'; // A4 bredde ved 96 DPI
-  tempDiv.style.background = 'white';
+  tempDiv.style.top = '0';
+  tempDiv.style.width = '794px'; // A4 bredde ved ~96DPI
+  tempDiv.style.background = '#ffffff';
   tempDiv.innerHTML = htmlContent;
   document.body.appendChild(tempDiv);
 
-  try {
-    // Konverter HTML til canvas med optimerede indstillinger
-    const canvas = await html2canvas(tempDiv, {
-      scale: 2, // God kvalitet men ikke for høj
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: '#ffffff',
-      logging: false,
-      width: 794,
-      height: 1123, // A4 højde
-      windowWidth: 794,
-      windowHeight: 1123,
-      imageTimeout: 0, // Vigtig for SVG rendering
-      onclone: (clonedDoc) => {
-        // Sikr at SVG'er er synlige i klonen
-        const svgs = clonedDoc.querySelectorAll('svg');
-        svgs.forEach(svg => {
-          svg.setAttribute('width', svg.getBoundingClientRect().width);
-          svg.setAttribute('height', svg.getBoundingClientRect().height);
-        });
-      }
-    });
+  // Hjælp: sørg for at evt. SVG’er har width/height sat i klonen
+  const makeCanvas = async (el) => html2canvas(el, {
+    scale: 2,
+    useCORS: true,
+    allowTaint: true,
+    backgroundColor: '#ffffff',
+    logging: false,
+    imageTimeout: 0,
+    onclone: (clonedDoc) => {
+      const svgs = clonedDoc.querySelectorAll('svg');
+      svgs.forEach(svg => {
+        const r = svg.getBoundingClientRect();
+        svg.setAttribute('width', r.width);
+        svg.setAttribute('height', r.height);
+      });
+    }
+  });
 
-    // Opret PDF med optimerede indstillinger
+  try {
+    const pages = Array.from(tempDiv.querySelectorAll('.page'));
+    // Hvis skabelonen ikke bruger .page, fallback til hele tempDiv som én side
+    const targets = pages.length ? pages : [tempDiv];
+
+    // Opret PDF
     const pdf = new window.jspdf.jsPDF({
       orientation: 'portrait',
       unit: 'mm',
       format: 'a4',
-      compress: true // Vigtig for filstørrelse
+      compress: true
     });
 
-    // Beregn dimensioner for at passe på én side
-    const imgWidth = 210; // A4 bredde i mm
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    
-    // Hvis højden overstiger A4, skaler ned
-    const maxHeight = 297; // A4 højde i mm
-    let finalWidth = imgWidth;
-    let finalHeight = imgHeight;
-    
-    if (imgHeight > maxHeight) {
-      const scaleFactor = maxHeight / imgHeight;
-      finalWidth = imgWidth * scaleFactor;
-      finalHeight = maxHeight;
+    // Konstanter for A4
+    const A4_W = 210;   // mm
+    const A4_H = 297;   // mm
+
+    for (let i = 0; i < targets.length; i++) {
+      const canvas = await makeCanvas(targets[i]);
+
+      // Beregn billedstørrelse (fit til bredde, bevar ratio)
+      const imgWmm = A4_W;
+      const imgHmm = (canvas.height * imgWmm) / canvas.width;
+
+      let drawW = imgWmm;
+      let drawH = imgHmm;
+      if (drawH > A4_H) {
+        const s = A4_H / drawH;
+        drawW = imgWmm * s;
+        drawH = A4_H;
+      }
+
+      const x = (A4_W - drawW) / 2; // centrer vandret
+      const y = 5;                   // lille top-margin
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.85);
+
+      if (i > 0) pdf.addPage();
+      pdf.addImage(imgData, 'JPEG', x, y, drawW, drawH);
     }
 
-    // Tilføj billedet centreret på siden - juster mod højre
-    const xOffset = (210 - finalWidth) / 2 + 10; // +10 for at skubbe mod højre
-    const yOffset = 5; // Lidt margin fra toppen
-    
-    // Konverter canvas til JPEG for mindre filstørrelse
-    const imgData = canvas.toDataURL('image/jpeg', 0.8); // 0.8 kvalitet = god balance
-    
-    pdf.addImage(imgData, 'JPEG', xOffset, yOffset, finalWidth, finalHeight);
-    
-    // Download PDF
     pdf.save(filename);
-    
   } finally {
-    // Ryd op
     document.body.removeChild(tempDiv);
   }
 }
@@ -3431,8 +3376,8 @@ $('btnPdf').onclick = async () => {
       });
     });
     
-    const htmlContent = generatePersonReportHTML(project, person, cats, seriesData, labels);
-    const filename = `${project.title.replace(/ /g, '_')}-${person.full_name.replace(/ /g, '_')}.pdf`;
+    const htmlContent = await generatePersonReportHTML(project, person, cats, seriesData, labels);
+      const filename = `${project.title.replace(/ /g, '_')}-${person.full_name.replace(/ /g, '_')}.pdf`;
     await generatePDFFromHTML(htmlContent, filename);
     
     $('btnPdf').textContent = originalText;
@@ -5335,6 +5280,8 @@ function contractToggleTip(competencyId, tipId, card){
     card.classList.add('selected');
   }
   contractUpdateSectionStatus();
+  contractUpdate306090Goals(); // Opdater 30/60/90 mål når tips ændres
+  contractSaveSessionState(); // Gem ændringer
 }
 
 function contractSetupRolesStep(){
@@ -5548,8 +5495,6 @@ function contractSetupOverview(){
     html += '<p style="color:var(--muted)">Ingen aktiviteter valgt endnu</p>';
   }
 
-  // Roller og aftaler - vis tekstfelt indhold
-  html += '<h5>Roller og aftaler:</h5>';
   const hasEmployeeActions = contractState.employee_actions?.trim();
   const hasEmployeeWishes = contractState.employee_wishes?.trim();
   const hasLeaderActions = contractState.leader_actions?.trim();
@@ -5638,18 +5583,35 @@ function contractSetupOverview(){
 
 function contractUpdateProgress(){
   let done = 0;
-  if (contractState.selectedCompetencies.size > 0) done++;
+
+  // 1) Kompetencer valgt
+  const hasCompetencies = contractState.selectedCompetencies.size > 0;
+  if (hasCompetencies) done++;
+
+  // 2) Aktiviteter valgt (mindst 1 tip på tværs af valgte kompetencer)
   let totalTips = 0;
   for (const s of contractState.selectedTips.values()) totalTips += s.size;
-  if (totalTips > 0 && contractState.selectedCompetencies.size > 0) done++;
-  if (contractState.roles.size > 0) done++;
-  if (contractState.roles.size > 0 && contractState.followup_date) done++;
+  const hasActivities = totalTips > 0 && hasCompetencies;
+  if (hasActivities) done++;
 
+  // 3) Roller & ansvar: alle tre tekstfelter skal være udfyldt
+  const hasEmployeeActions = !!contractState.employee_actions?.trim();
+  const hasEmployeeWishes  = !!contractState.employee_wishes?.trim();
+  const hasLeaderActions   = !!contractState.leader_actions?.trim();
+  const rolesCompleted     = hasEmployeeActions && hasEmployeeWishes && hasLeaderActions;
+  if (rolesCompleted) done++;
+
+  // 4) Dato for næste samtale (opfølgningsdato)
+  const hasFollowup = !!contractState.followup_date;
+  if (hasFollowup) done++;
+
+  // Vis fremdrift
   const pct = Math.round((done/4)*100);
   $('contractProgressText').textContent = `${done}/4 sektioner færdige`;
   $('contractProgressFill').style.width = `${pct}%`;
 
-  const allComplete = done >= 3; // min. kompetencer + aktiviteter + roller
+  // Knapper aktiveres kun når alle 4/4 er fuldført
+  const allComplete = done === 4;
   $('contractSaveFinalBtn').disabled = !allComplete;
   $('contractExportPdfBtn').disabled = !allComplete;
 }
@@ -5681,9 +5643,63 @@ function contractUpdateSectionStatus(){
   if (totalTips > 0 && compCount > 0) {
     actStatus.innerHTML = `<span class="status-text complete">${totalTips} aktiviteter valgt</span>`;
     $('contractRolesSection').classList.add('active');
-    contractSetupRolesStep();
-    // Opdater 30/60/90 mål og team roller når aktiviteter er valgt
-    contractUpdateGoalsAndRoles();
+    function contractUpdateGoalsAndRoles() {
+  // Opdater 30/60/90 mål
+  contractUpdate306090Goals();
+  
+  // Opdater team roller (hvis relevant)
+  contractUpdateTeamRoles();
+}
+
+async function contractUpdateTeamRoles() {
+  const container = $('contractRolesContainer');
+  if (!container) return;
+
+  try {
+    // Hent relevante teamroller baseret på valgte kompetencer
+    const selectedCompetencyNames = Array.from(contractState.selectedCompetencies)
+      .map(cid => contractAvailableCompetencies.find(c => c.category_id === cid)?.category_name)
+      .filter(Boolean);
+
+    if (selectedCompetencyNames.length === 0) {
+      container.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;margin:0">Ingen roller valgt</p>';
+      return;
+    }
+
+    const { data: teamRoles } = await supabase
+      .from('team_roles')
+      .select('name, short_code, description, competencies:team_role_competencies(competency_name)')
+      .order('name');
+
+    const relevantRoles = (teamRoles || []).filter(role => {
+      const roleCompetencies = (role.competencies || []).map(c => c.competency_name);
+      return roleCompetencies.some(comp => selectedCompetencyNames.includes(comp));
+    });
+
+    if (relevantRoles.length === 0) {
+      container.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;margin:0">Ingen matchende roller fundet</p>';
+      return;
+    }
+
+    let html = '';
+    relevantRoles.forEach(role => {
+      const comps = (role.competencies || []).map(c => c.competency_name).join(', ');
+      html += `<div style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:10px;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <strong style="color:var(--brand)">${role.name}</strong>
+          <span style="background:var(--brand);color:white;padding:2px 6px;border-radius:4px;font-size:0.7rem">${role.short_code || ''}</span>
+        </div>
+        <div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:4px">${role.description || ''}</div>
+        <div style="font-size:0.75rem;color:var(--muted)">Kompetencer: ${comps}</div>
+      </div>`;
+    });
+
+    container.innerHTML = html;
+  } catch (error) {
+    console.error('Fejl ved opdatering af team roller:', error);
+    container.innerHTML = '<p style="color:var(--error);font-size:0.85rem;margin:0">Fejl ved indlæsning af roller</p>';
+  }
+}
   } else if (compCount > 0) {
     actStatus.innerHTML = `<span class="status-text">Vælg aktiviteter</span>`;
     $('contractRolesSection').classList.remove('active');
@@ -6323,23 +6339,36 @@ async function contractGeneratePdfHtml(project, person) {
   };
   const kompasSVG = generateKOMPASSVG(chartData, 360, 360); // findes allerede i admin.html :contentReference[oaicite:1]{index=1}
 
-  // 4) Byg HTML-bidder, som du allerede gør i din Oversigt/PDF-HTML (genbrug den kode)
-  //    – Valgte kompetencer m. fuld beskrivelse:
-  const competenciesHtml = [];
+// 4) Byg HTML-bidder opdelt i fastholdelse og udvikling
+  //    — Valgte kompetencer opdelt efter om de har aktiviteter:
+  const retentionHtml = [];
+  const developmentHtml = [];
+  const activitiesHtml = [];
+  
   for (const cid of contractState.selectedCompetencies) {
     const comp = contractAvailableCompetencies.find(x => x.category_id === cid);
     if (!comp) continue;
-    competenciesHtml.push(
+    
+    // Tjek om der er aktiviteter/tips til denne kategori
+    const tipIds = contractState.selectedTips.get(cid);
+    const hasActivities = tipIds && tipIds.size > 0;
+    
+    const compHtml = 
       `<div class="chip"><div class="label">${comp.category_name}</div>` +
       `${comp.synopsis ? `<div class="desc"><em>${comp.synopsis}</em></div>` : ''}` +
       `${comp.importance ? `<div class="desc"><strong>Vigtighed:</strong> ${comp.importance}</div>` : ''}` +
       `${comp.why_matters ? `<div class="desc"><strong>Hvorfor:</strong> ${comp.why_matters}</div>` : ''}` +
-      `</div>`
-    );
+      `</div>`;
+    
+    // Opdel i fastholdelse vs udvikling baseret på om der er aktiviteter
+    if (hasActivities) {
+      developmentHtml.push(compHtml);
+    } else {
+      retentionHtml.push(compHtml);
+    }
   }
-
-  //    – Aktiviteter (tips) inkl. metodebadge/titel/tekst (samme struktur som i Oversigt):
-  const activitiesHtml = [];
+  
+  //    — Aktiviteter (tips) inkl. metodebadge/titel/tekst (kun til udviklingskompetencer):
   for (const [categoryId, tipIds] of contractState.selectedTips.entries()) {
     const tips = (contractAvailableTips.get(categoryId) || []);
     tipIds.forEach(tid => {
@@ -6353,14 +6382,13 @@ async function contractGeneratePdfHtml(project, person) {
     });
   }
 
-  //    – Roller/ansvar (tre tekstfelter)
-  const employeeBlock = contractState.employee_actions?.trim()
-    ? `<div><strong>👤 Medarbejder gør:</strong><p>${contractState.employee_actions.replace(/\n/g,'<br>')}</p></div>` : '';
-  const wishesBlock = contractState.employee_wishes?.trim()
-    ? `<div style="margin-top:8px"><strong>💭 Medarbejder ønsker:</strong><p>${contractState.employee_wishes.replace(/\n/g,'<br>')}</p></div>` : '';
-  const leaderBlock = contractState.leader_actions?.trim()
-    ? `<div style="margin-top:8px"><strong>👨‍💼 Leder støtter:</strong><p>${contractState.leader_actions.replace(/\n/g,'<br>')}</p></div>` : '';
-
+  // — Roller/ansvar (tre tekstfelter) - kun vis hvis der er REELT indhold (ikke NIL)
+  const employeeBlock = (contractState.employee_actions && contractState.employee_actions.trim() && contractState.employee_actions !== 'NIL')
+    ? contractState.employee_actions.replace(/\n/g,'<br>') : '';
+  const wishesBlock = (contractState.employee_wishes && contractState.employee_wishes.trim() && contractState.employee_wishes !== 'NIL')
+    ? contractState.employee_wishes.replace(/\n/g,'<br>') : '';
+  const leaderBlock = (contractState.leader_actions && contractState.leader_actions.trim() && contractState.leader_actions !== 'NIL')
+    ? contractState.leader_actions.replace(/\n/g,'<br>') : '';
   //    – Kollega støtte / 30-60-90 / Teamroller (du har allerede HTML i DOM, genbrug den som i din nuværende PDF-generator)
   const colleagueSupport = (document.getElementById('contractColleagueSupport')?.innerHTML || '').trim();
   const goals306090      = (document.getElementById('contractGoalsContainer')?.innerHTML || '').trim();
@@ -6375,14 +6403,13 @@ async function contractGeneratePdfHtml(project, person) {
     .replaceAll('{{EMPLOYEE_NO}}', employeeNo)
     .replaceAll('{{GENERATED_AT}}', now)
     .replaceAll('{{FOLLOWUP_DATE}}', contractState.followup_date || '—')
-    .replaceAll('{{TEMPLATE_NAME}}', project.template_id || '')
-    .replaceAll('{{SUMMARY_TEXT}}', '') // valgfri kort opsummering
     .replaceAll('{{WHEEL_SVG}}', kompasSVG || '')
-    .replaceAll('{{EMPLOYEE_ACTIONS_BLOCK}}', employeeBlock)
-    .replaceAll('{{EMPLOYEE_WISHES_BLOCK}}', wishesBlock)
-    .replaceAll('{{LEADER_ACTIONS_BLOCK}}',  leaderBlock)
-    .replaceAll('{{COMPETENCIES_HTML}}', competenciesHtml.join(''))
-    .replaceAll('{{ACTIVITIES_HTML}}', activitiesHtml.join(''))
+    .replaceAll('{{EMPLOYEE_ACTIONS_BLOCK}}', employeeBlock ? `<div class="role-block"><h4>👤 Medarbejder gør</h4><p>${employeeBlock}</p></div>` : '')
+    .replaceAll('{{EMPLOYEE_WISHES_BLOCK}}', wishesBlock ? `<div class="role-block"><h4>💭 Medarbejder ønsker</h4><p>${wishesBlock}</p></div>` : '')
+    .replaceAll('{{LEADER_ACTIONS_BLOCK}}',  leaderBlock ? `<div class="role-block"><h4>👨‍💼 Leder støtter</h4><p>${leaderBlock}</p></div>` : '')
+    .replaceAll('{{RETENTION_COMPETENCIES_HTML}}', retentionHtml.length > 0 ? retentionHtml.join('') : '<span class="muted">Ingen fastholdelseskompetencer valgt</span>')
+    .replaceAll('{{DEVELOPMENT_COMPETENCIES_HTML}}', developmentHtml.length > 0 ? developmentHtml.join('') : '<span class="muted">Ingen udviklingspunkter valgt</span>')
+    .replaceAll('{{ACTIVITIES_HTML}}', activitiesHtml.length > 0 ? activitiesHtml.join('') : '<span class="muted">Ingen aktiviteter planlagt</span>')
     .replaceAll('{{COLLEAGUE_SUPPORT_HTML}}', contractState.include_colleague_support && colleagueSupport && !colleagueSupport.includes('Ingen egnede kollegaer') ? colleagueSupport : '<span class="muted">Ingen kollega forslag</span>')
     .replaceAll('{{GOALS_306090_HTML}}', contractState.include_306090_goals && goals306090 && !goals306090.includes('Ingen 30/60/90 mål') ? goals306090 : '<span class="muted">Ingen 30/60/90 mål</span>')
     .replaceAll('{{TEAM_ROLES_HTML}}', contractState.include_team_roles && teamRolesHtml && !teamRolesHtml.includes('Ingen roller valgt') ? teamRolesHtml : '<span class="muted">Ingen teamroller valgt</span>');
