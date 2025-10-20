@@ -41,7 +41,7 @@
       margin:0 auto;
       background:#fff;
       border-radius:20px;
-      box-shadow:0 20px 40px rgba(0,0,0,.15);
+      box-shadow:0 20px 40px rgba(0,0,0,0.15);
       overflow:hidden;
     }
 
@@ -661,32 +661,9 @@
                 </div>
               </div>
             </div>
-            
-            <!-- 30/60/90 Plan -->
-            <div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px">
-              <h4 style="color:var(--success);margin-bottom:12px">📅 30/60/90-dages plan</h4>
-              <!-- Dragbar “råd-pulje” bygget ud fra 📈 Udvikle (kun overskrift/1. linje) -->
-              <div id="plan-pool" style="border:1px dashed var(--line);border-radius:10px;padding:10px;margin-bottom:12px;min-height:56px;display:flex;gap:8px;flex-wrap:wrap">
-                <div style="color:var(--muted);font-size:.9rem">🔁 Træk råd herfra ned i 30 / 60 / 90</div>
-              </div>
-
-              <!-- Drop-zoner -->
-              <div id="coaching-timeline" style="display:grid;grid-template-columns:1fr;gap:12px">
-                <div id="plan-30" data-bin="30" style="padding:12px;background:rgba(34,197,94,0.08);border:1px solid var(--line);border-radius:10px;min-height:64px">
-                  <div style="font-weight:700;margin-bottom:8px">De første 30 dage – læring og relationer</div>
-                  <div class="plan-bin" style="display:flex;gap:8px;flex-wrap:wrap;min-height:34px"></div>
-                </div>
-                <div id="plan-60" data-bin="60" style="padding:12px;background:rgba(34,197,94,0.08);border:1px solid var(--line);border-radius:10px;min-height:64px">
-                  <div style="font-weight:700;margin-bottom:8px">Dag 31–60 – praksis og feedback</div>
-                  <div class="plan-bin" style="display:flex;gap:8px;flex-wrap:wrap;min-height:34px"></div>
-                </div>
-                <div id="plan-90" data-bin="90" style="padding:12px;background:rgba(34,197,94,0.08);border:1px solid var(--line);border-radius:10px;min-height:64px">
-                  <div style="font-weight:700;margin-bottom:8px">Dag 61–90 – konsolidering og næste mål</div>
-                  <div class="plan-bin" style="display:flex;gap:8px;flex-wrap:wrap;min-height:34px"></div>
-                </div>
-              </div>
-
-            </div>
+           
+            <!-- 30/60/90 Plan (FJERNET HER – flyttet til sektion “3 · 30/60/90-dages plan” i kontrakten) -->
+            <div></div>
           </div>
 
           </div>
@@ -1008,110 +985,120 @@
         </section>
 
         <!-- Section 3: Roller & aftaler -->
-        <section class="contract-unified-section roles-section" id="contractRolesSection" style="background:white;border:2px solid var(--line);border-radius:12px;padding:20px;opacity:0.6">
+        <section class="contract-unified-section roles-section" id="contractRolesSection" style="background:white;border:2px solid var(--line);border-radius:12px;padding:20px;opacity:1;box-shadow:0 4px 12px rgba(245,87,108,0.1)">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--line)">
-            <div style="background:var(--brand);color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700">3</div>
-            <h3 style="margin:0;font-size:1.1rem;font-weight:700;flex:1">Aftaler om roller og ansvar</h3>
-            <div id="contractRolesStatus" style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-size:0.8rem;color:var(--muted)">
-              <span class="status-text">Vælg først aktiviteter</span>
-            </div>
+            <div style="background:var(--brand);color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700">5</div>
+            <h3 style="margin:0;font-size:1.1rem;font-weight:700;flex:1">📅 30/60/90-dages plan</h3>
+            <label style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-size:0.9rem;color:var(--muted);display:flex;align-items:center;gap:6px">
+              <input type="checkbox" id="include306090Goals" checked style="cursor:pointer">
+              <span>Medtag</span>
+            </label>
           </div>
-          <div>
-            <p style="color:var(--muted);margin-bottom:16px">
-              Definer hvem gør hvad og sæt opfølgning
-            </p>
+          <p style="color:var(--muted);margin-bottom:16px">
+            Definer hvem gør hvad og sæt opfølgning
+          </p>
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
-              <div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:16px">
-                <h4 style="margin:0 0 16px 0;text-align:center;color:var(--brand)">👤 Medarbejder gør</h4>
-                <textarea id="contractEmployeeActions" class="input" style="width:100%;min-height:120px;resize:vertical" placeholder="Skriv hvad medarbejderen skal gøre..."></textarea>
-              </div>
-              <div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:16px">
-                <h4 style="margin:0 0 16px 0;text-align:center;color:var(--brand)">💭 Medarbejder ønsker</h4>
-                <textarea id="contractEmployeeWishes" class="input" style="width:100%;min-height:120px;resize:vertical" placeholder="Skriv hvad medarbejderen ønsker at opnå..."></textarea>
-              </div>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
-              <div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:16px">
-                <h4 style="margin:0 0 16px 0;text-align:center;color:var(--brand)">👨‍💼 Leder støtter</h4>
-                <textarea id="contractLeaderActions" class="input" style="width:100%;min-height:120px;resize:vertical" placeholder="Skriv hvordan lederen støtter..."></textarea>
-              </div>
-              <div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:16px;position:relative">
-                <h4 style="margin:0 0 16px 0;text-align:center;color:var(--brand)">🤝 Kollega støtte</h4>
-                <label style="position:absolute;top:12px;right:12px;display:flex;align-items:center;gap:4px;cursor:pointer;font-size:0.8rem;color:var(--muted)">
-                  <input type="checkbox" id="includeColleagueSupport" checked style="cursor:pointer">
-                  <span>Medtag</span>
-                </label>
-                <div id="contractColleagueSupport">
-                  <!-- Kollega støtte indlæses automatisk -->
-                </div>
-              </div>
-            </div>
-            
-            <!-- Valgte 30/60/90 Mål og Team Roller -->
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
-              <!-- Valgte 30/60/90 Mål -->
-              <div style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;position:relative">
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-                  <div style="background:var(--success);color:white;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700">📅</div>
-                  <h4 style="margin:0;font-size:0.95rem;font-weight:600">Valgte 30/60/90 Mål</h4>
-                  <label style="position:absolute;top:12px;right:12px;display:flex;align-items:center;gap:4px;cursor:pointer;font-size:0.8rem;color:var(--muted)">
-                    <input type="checkbox" id="include306090Goals" checked style="cursor:pointer">
-                    <span>Medtag</span>
-                  </label>
-                </div>
-                <div id="contractGoalsContainer" style="max-height:200px;overflow-y:auto">
-                  <p style="color:var(--muted);font-size:0.85rem;margin:0">Vælg først kompetencer og aktiviteter</p>
-                </div>
-              </div>
+          <div id="plan-pool" style="border:1px dashed var(--line);border-radius:10px;padding:10px;margin-bottom:12px;min-height:56px;display:flex;gap:8px;flex-wrap:wrap">
+            <div style="color:var(--muted);font-size:.9rem">🔁 Træk råd herfra ned i 30 / 60 / 90</div>
+          </div>
 
-              <!-- Valgte Team Roller -->
-              <div style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;position:relative">
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-                  <div style="background:var(--info);color:white;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700">🧩</div>
-                  <h4 style="margin:0;font-size:0.95rem;font-weight:600">Valgte Team Roller</h4>
-                  <label style="position:absolute;top:12px;right:12px;display:flex;align-items:center;gap:4px;cursor:pointer;font-size:0.8rem;color:var(--muted)">
-                    <input type="checkbox" id="includeTeamRoles" checked style="cursor:pointer">
-                    <span>Medtag</span>
-                  </label>
-                </div>
-                <div id="contractRolesContainer" style="max-height:200px;overflow-y:auto">
-                  <p style="color:var(--muted);font-size:0.85rem;margin:0">Ingen roller valgt</p>
-                </div>
-              </div>
+          <div id="coaching-timeline" style="display:grid;grid-template-columns:1fr;gap:12px">
+            <div id="plan-30" data-bin="30" style="padding:12px;background:rgba(34,197,94,0.08);border:1px solid var(--line);border-radius:10px;min-height:64px">
+              <div style="font-weight:700;margin-bottom:8px">De første 30 dage – læring og relationer</div>
+              <div class="plan-bin" style="display:flex;gap:8px;flex-wrap:wrap;min-height:34px"></div>
             </div>
-            
-            <!-- Opfølgningsdato -->
-            <div style="margin-bottom:20px">
-              <label>Opfølgningsdato</label>
-              <input type="date" id="contractFollowupDate" class="input" style="width:100%">
+            <div id="plan-60" data-bin="60" style="padding:12px;background:rgba(34,197,94,0.08);border:1px solid var(--line);border-radius:10px;min-height:64px">
+              <div style="font-weight:700;margin-bottom:8px">Dag 31–60 – praksis og feedback</div>
+              <div class="plan-bin" style="display:flex;gap:8px;flex-wrap:wrap;min-height:34px"></div>
+            </div>
+            <div id="plan-90" data-bin="90" style="padding:12px;background:rgba(34,197,94,0.08);border:1px solid var(--line);border-radius:10px;min-height:64px">
+              <div style="font-weight:700;margin-bottom:8px">Dag 61–90 – konsolidering og næste mål</div>
+              <div class="plan-bin" style="display:flex;gap:8px;flex-wrap:wrap;min-height:34px"></div>
             </div>
           </div>
         </section>
 
-        <!-- Section 4: Oversigt -->
-        <section class="contract-unified-section overview-section" id="contractOverviewSection" style="background:white;border:2px solid var(--line);border-radius:12px;padding:20px;opacity:0.6">
-          <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--line)">
-            <div style="background:var(--brand);color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700">4</div>
-            <h3 style="margin:0;font-size:1.1rem;font-weight:700;flex:1">Kontraktoversigt og eksport</h3>
-            <div id="contractOverviewStatus" style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-size:0.8rem;color:var(--muted)">
-              <span class="status-text">Live preview</span>
-            </div>
-          </div>
-          <div>
-            <div id="contractOverviewContent" style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px;min-height:200px">
-              <!-- Kontraktoversigt opdateres live -->
-            </div>
+        <!-- Rubrik 5 — 📅 30/60/90-dages plan (FJERNET – dublet). Indholdet findes nu i venstre sektion “3 · 30/60/90-dages plan”. -->
+        <div style="display:none"></div>
 
-            <!-- Version info -->
-            <div style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px;margin-top:16px;font-size:0.9rem;color:var(--muted)">
-              <strong>Version:</strong> 1.0<br>
-              <strong>Sidst opdateret:</strong> <span id="contractLastUpdated">-</span><br>
-              <strong>Oprettet af:</strong> <span id="contractCreatedBy">-</span>
+        <!-- Section 6: 🤝 Kollega støtte -->
+        <section class="contract-unified-section colleague-support-section" id="contractColleagueSupportSection" style="background:white;border:2px solid var(--line);border-radius:12px;padding:20px;opacity:1">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--line)">
+            <div style="background:var(--brand);color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700">6</div>
+            <h3 style="margin:0;font-size:1.1rem;font-weight:700;flex:1">🤝 Kollega støtte</h3>
+            <label style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-size:0.8rem;color:var(--muted);display:flex;align-items:center;gap:6px">
+              <input type="checkbox" id="includeColleagueSupport" checked style="cursor:pointer">
+              <span>Medtag</span>
+            </label>
+          </div>
+          <div id="contractColleagueSupport"><!-- Kollega støtte indlæses automatisk --></div>
+        </section>
+
+
+        <!-- Section 7: 🧩 Team Roller (Top-4) -->
+        <section class="contract-unified-section teamroles-section" id="contractTeamRolesSection" style="background:white;border:2px solid var(--line);border-radius:12px;padding:20px;opacity:1">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--line)">
+            <div style="background:var(--brand);color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700">7</div>
+            <h3 style="margin:0;font-size:1.1rem;font-weight:700;flex:1">🧩 Team Roller (Top-4)</h3>
+            <label style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-size:0.8rem;color:var(--muted);display:flex;align-items:center;gap:6px">
+              <input type="checkbox" id="includeTeamRoles" checked style="cursor:pointer">
+              <span>Medtag</span>
+            </label>
+          </div>
+          <div id="teamrole-content" style="margin-top:0">
+            <div id="teamrole-section" style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px">
+              <h4 style="color:var(--brand);margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+                <span>🧩</span>
+                <span>Personlige teamroller</span>
+                <small style="color: var(--muted); font-weight: normal; margin-left: auto;">(Top-4 matches)</small>
+              </h4>
+              <div id="teamRoleLoadingState" style="display:none;text-align:center;padding:20px;color:var(--muted)">
+                <div class="spinner" style="margin:0 auto 8px auto"></div>
+                <div>Analyserer kompetencer.</div>
+              </div>
+              <div id="teamRoleContent">
+                <div style="background:#f8f9fa;border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin-bottom:16px">
+                  <div style="font-weight:600;color:#2d3748;margin-bottom:8px">🎯 Dine top-4 teamroller</div>
+                  <div style="font-size:0.9em;color:#718096">Baseret på din kompetenceprofil. Toggle de roller på som passer til personen.</div>
+                </div>
+                <div id="teamRoleCards" style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><!-- Roller indsættes her dynamisk --></div>
+              </div>
             </div>
           </div>
         </section>
-      </div>
+
+
+        <!-- Section 8: 👤 Medarbejder gør -->
+        <section class="contract-unified-section employee-actions-section" id="contractEmployeeActionsSection" style="background:white;border:2px solid var(--line);border-radius:12px;padding:20px;opacity:1">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--line)">
+            <div style="background:var(--brand);color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700">8</div>
+            <h3 style="margin:0;font-size:1.1rem;font-weight:700;flex:1">👤 Medarbejder gør</h3>
+          </div>
+          <textarea id="contractEmployeeActions" class="input" rows="6" placeholder="Skriv hvad medarbejderen skal gøre..." style="width:100%"></textarea>
+        </section>
+
+        <!-- Section 9: 💭 Medarbejder ønsker -->
+        <section class="contract-unified-section employee-wishes-section" id="contractEmployeeWishesSection" style="background:white;border:2px solid var(--line);border-radius:12px;padding:20px;opacity:1">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--line)">
+            <div style="background:var(--brand);color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700">9</div>
+            <h3 style="margin:0;font-size:1.1rem;font-weight:700;flex:1">💭 Medarbejder ønsker</h3>
+          </div>
+          <textarea id="contractEmployeeWishes" class="input" rows="6" placeholder="Skriv hvad medarbejderen ønsker at opnå..." style="width:100%"></textarea>
+        </section>
+
+        <!-- Section 10: 👨‍💼 Leder støtter -->
+        <section class="contract-unified-section leader-support-section" id="contractLeaderSupportSection" style="background:white;border:2px solid var(--line);border-radius:12px;padding:20px;opacity:1;margin-bottom:20px">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--line)">
+            <div style="background:var(--brand);color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700">10</div>
+            <h3 style="margin:0;font-size:1.1rem;font-weight:700;flex:1">👨‍💼 Leder støtter</h3>
+          </div>
+          <textarea id="contractLeaderActions" class="input" rows="6" placeholder="Skriv hvordan lederen støtter." style="width:100%"></textarea>
+          <div style="margin-top:12px">
+            <label>Opfølgningsdato</label>
+            <input type="date" id="contractFollowupDate" class="input" style="width:100%">
+          </div>
+        </section>
+
 
       <!-- Sticky Action Bar -->
       <div id="contractStickyActions" style="position:fixed;bottom:0;left:0;right:0;background:white;border-top:2px solid var(--line);padding:16px 20px;z-index:100;box-shadow:0 -4px 12px rgba(0,0,0,0.1)">
@@ -1233,6 +1220,7 @@ async function handleTabDataLoading(tabName) {
         }
         // Sikr at tips er genindlæst hvis der er valgt kompetencer
         await contractReloadTipsIfNeeded?.();
+        contractInit306090PlanUI?.();
         // Opdater mål/roller/overblik + progress
         contractUpdateGoalsAndRoles?.();
         contractSetupOverview?.();
@@ -5086,29 +5074,6 @@ async function initContractTabOnce(){
   ensureContractUiExtras?.();
   
   // Tilføj Indlæs knap
-  if (typeof contractSetupLoadButton !== 'function') {
-    function contractSetupLoadButton() {
-      // Placer knap i sticky action-bar (fallback: første kontrakt-sektion)
-      const actions = document
-        .getElementById('contractStickyActions')
-        ?.querySelector('div > div:last-child');
-      const fallbackContainer = document.querySelector('#tab-contract .section');
-      const host = actions || fallbackContainer;
-      if (!host) return;
-
-      // Undgå dubletter
-      if (document.getElementById('contractLoadBtn')) return;
-
-      const btn = document.createElement('button');
-      btn.id = 'contractLoadBtn';
-      btn.className = 'btn small';
-      btn.textContent = '📂 Indlæs kontrakt (UDV/JSON)';
-      btn.style.marginRight = '4px';
-      btn.addEventListener('click', contractLoadFromFile);
-      // Vis foran de øvrige handlingsknapper
-      host.prepend(btn);
-    }
-  }
   contractSetupLoadButton();
 
   // Fyld projekter + bind events
@@ -5163,10 +5128,26 @@ async function contractLoadProjects() {
 
 async function contractLoadTargets(projectId) {
   try {
+    // Robust validering – ingen NaN/ugyldige requests
+    const raw = (projectId ?? '').toString().trim();
+    if (raw === '') {
+      const selEmpty = $('contractTargetSelect');
+      if (selEmpty) selEmpty.innerHTML = '<option value="">— Vælg målperson —</option>';
+      console.warn('contractLoadTargets: tomt projectId – afbryder uden request');
+      return;
+    }
+    const pid = Number(raw);
+    if (!Number.isFinite(pid) || pid <= 0) {
+      const selEmpty = $('contractTargetSelect');
+      if (selEmpty) selEmpty.innerHTML = '<option value="">— Vælg målperson —</option>';
+      console.warn('contractLoadTargets: ugyldigt projectId (' + raw + ') – afbryder uden request');
+      return;
+    }
+
     const { data: people, error } = await supabase
       .from('project_people')
       .select('id, full_name')
-      .eq('project_id', projectId)
+      .eq('project_id', pid)
       .order('full_name', { ascending: true });
     if (error) throw error;
 
@@ -5174,10 +5155,15 @@ async function contractLoadTargets(projectId) {
     sel.innerHTML = '<option value="">— Vælg målperson —</option>';
     (people || []).forEach(p => {
       const opt = document.createElement('option');
-      opt.value = p.id;
+      opt.value = String(p.id);        // altid string i DOM
       opt.textContent = p.full_name;
       sel.appendChild(opt);
     });
+
+    // Hvis der allerede er valgt en målperson i state, så bevar visningen
+    if (contractState && contractState.target_id != null) {
+      sel.value = String(contractState.target_id);
+    }
   } catch (e) {
     console.error('Fejl ved indlæsning af målpersoner:', e);
   }
@@ -5939,8 +5925,6 @@ async function contractLoadColleagueSupport() {
   }
 }
 
-
-
 document.addEventListener('click', (e) => {
   if (e.target.classList.contains('contract-status-btn')) {
     const tipId = parseInt(e.target.dataset.tipId);
@@ -5956,152 +5940,8 @@ document.addEventListener('click', (e) => {
 });
 
 function contractSetupOverview(){
-  const el = $('contractOverviewContent');
-  if (!el) return;
-  
-  const projSel = $('contractProjectSelect');
-  const targSel = $('contractTargetSelect');
-  const projTxt = projSel?.options[projSel.selectedIndex]?.text || 'Ikke valgt';
-  const targTxt = targSel?.options[targSel.selectedIndex]?.text || 'Ikke valgt';
-
-
-  let html = `<h4>📋 Udviklingskontrakt – Oversigt</h4>
-  <div style="margin:16px 0">
-    <strong>Projekt:</strong> ${projTxt}<br>
-    <strong>Målperson:</strong> ${targTxt}<br>
-    <strong>Opfølgningsdato:</strong> ${contractState.followup_date || 'Ikke sat'}
-  </div>`;
-
-  // Kompetencer - VIS FULDE BESKRIVELSER
-  if (contractState.selectedCompetencies.size > 0) {
-    html += '<h5>Valgte kompetencer:</h5>';
-    contractState.selectedCompetencies.forEach(cid=>{
-      const c = contractAvailableCompetencies.find(x=>x.category_id===cid);
-      if (c) {
-        html += `<div style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px;margin-bottom:8px">`;
-        html += `<strong style="color:var(--brand)">${c.category_name}</strong><br>`;
-        if (c.synopsis) html += `<div style="margin-top:4px;font-size:0.9rem"><em>${c.synopsis}</em></div>`;
-        if (c.importance) html += `<div style="margin-top:4px;font-size:0.9rem">Vigtighed: ${c.importance}</div>`;
-        if (c.why_matters) html += `<div style="margin-top:4px;font-size:0.9rem">Hvorfor det betyder noget: ${c.why_matters}</div>`;
-        html += `</div>`;
-      }
-    });
-  } else {
-    html += '<p style="color:var(--muted)">Ingen kompetencer valgt endnu</p>';
-  }
-
-  // Aktiviteter - VIS ALLE VALGTE AKTIVITETER FULDT UD
-  let totalActivities = 0;
-  for (const tips of contractState.selectedTips.values()) totalActivities += tips.size;
-  if (totalActivities > 0) {
-    html += `<h5>Aktiviteter (${totalActivities} valgt):</h5>`;
-    for (const [categoryId, tipIds] of contractState.selectedTips.entries()) {
-      const category = contractAvailableCompetencies.find(c => c.category_id === categoryId);
-      const tips = contractAvailableTips.get(categoryId) || [];
-      
-      html += `<div style="margin-bottom:16px"><strong style="color:var(--brand)">${category?.category_name || 'Kompetence'}:</strong></div>`;
-      
-      tipIds.forEach(tipId => {
-        const tip = tips.find(t => t.id === tipId);
-        if (tip) {
-          html += `<div style="background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--brand);border-radius:6px;padding:12px;margin-bottom:8px">`;
-          html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">`;
-          html += `<span style="background:var(--brand);color:white;padding:2px 8px;border-radius:4px;font-size:0.75rem">${contractMethodLabel(tip.method)}</span>`;
-          html += `<strong>${tip.title}</strong>`;
-          html += `</div>`;
-          html += `<div style="font-size:0.9rem;color:var(--text)">${tip.description}</div>`;
-          html += `</div>`;
-        }
-      });
-    }
-  } else {
-    html += '<p style="color:var(--muted)">Ingen aktiviteter valgt endnu</p>';
-  }
-
-  const hasEmployeeActions = contractState.employee_actions?.trim();
-  const hasEmployeeWishes = contractState.employee_wishes?.trim();
-  const hasLeaderActions = contractState.leader_actions?.trim();
-  
-  if (hasEmployeeActions || hasEmployeeWishes || hasLeaderActions) {
-    html += '<div style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px;margin-top:8px">';
-    
-    if (hasEmployeeActions) {
-      html += `<div style="margin-bottom:12px">
-        <strong style="color:var(--brand)">👤 Medarbejder gør:</strong>
-        <p style="margin:4px 0 0 0;color:var(--text)">${contractState.employee_actions.replace(/\n/g, '<br>')}</p>
-      </div>`;
-    }
-    
-    if (hasEmployeeWishes) {
-      html += `<div style="margin-bottom:12px">
-        <strong style="color:var(--brand)">💭 Medarbejder ønsker:</strong>
-        <p style="margin:4px 0 0 0;color:var(--text)">${contractState.employee_wishes.replace(/\n/g, '<br>')}</p>
-      </div>`;
-    }
-    
-    if (hasLeaderActions) {
-      html += `<div>
-        <strong style="color:var(--brand)">👨‍💼 Leder støtter:</strong>
-        <p style="margin:4px 0 0 0;color:var(--text)">${contractState.leader_actions.replace(/\n/g, '<br>')}</p>
-      </div>`;
-    }
-    
-    html += '</div>';
-  } else {
-    html += '<p style="color:var(--muted)">Ingen roller defineret endnu</p>';
-  }
-
-  // Kollega støtte (kun hvis medtaget)
-  if (contractState.include_colleague_support) {
-    html += '<h5>🤝 Kollega støtte:</h5>';
-    const colleagueEl = $('contractColleagueSupport');
-    if (colleagueEl && colleagueEl.innerHTML.trim() && !colleagueEl.innerHTML.includes('Ingen egnede kollegaer')) {
-      html += `<div style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px;margin-top:8px">${colleagueEl.innerHTML}</div>`;
-    } else {
-      html += '<p style="color:var(--muted)">Ingen kollega forslag</p>';
-    }
-  }
-
-  // 📅 30/60/90 Mål (kun hvis medtaget) - VIS FULDT UD
-  if (contractState.include_306090_goals) {
-    html += '<h5>📅 30/60/90 Mål:</h5>';
-    const goalsEl = $('contractGoalsContainer');
-    if (goalsEl && goalsEl.innerHTML.trim() && !goalsEl.innerHTML.includes('Ingen 30/60/90 mål')) {
-      // Kopier den faktiske HTML fra contractGoalsContainer direkte
-      html += `<div style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px;margin-top:8px">`;
-      html += goalsEl.innerHTML;
-      html += `</div>`;
-    } else {
-      html += '<p style="color:var(--muted)">Ingen 30/60/90 mål valgt</p>';
-    }
-  }
-
-  // Team Roller (kun hvis medtaget) - VIS FULDT UD
-  if (contractState.include_team_roles) {
-    html += '<h5>🧩 Team Roller:</h5>';
-    const rolesEl = $('contractRolesContainer');
-    if (rolesEl && rolesEl.innerHTML.trim() && !rolesEl.innerHTML.includes('Ingen roller valgt')) {
-      // Vis alle roller med fuld beskrivelse og kompetencer
-      html += `<div style="background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px;margin-top:8px">`;
-      const roleCards = Array.from(document.querySelectorAll('#contractRolesContainer > div'));
-      roleCards.forEach(card => {
-        const name = card.querySelector('[style*="font-weight:600"]')?.textContent || 'Rolle';
-        const description = card.querySelector('[style*="text-secondary"]')?.textContent || '';
-        const competencies = card.querySelector('[style*="muted"]')?.textContent || '';
-        
-        html += `<div style="margin-bottom:12px;padding:8px;background:white;border:1px solid var(--line);border-radius:4px">`;
-        html += `<strong style="color:var(--brand)">${name}</strong><br>`;
-        if (description) html += `<div style="margin-top:4px;font-size:0.9rem">${description}</div>`;
-        if (competencies) html += `<div style="margin-top:4px;font-size:0.85rem;color:var(--muted)">${competencies}</div>`;
-        html += `</div>`;
-      });
-      html += `</div>`;
-    } else {
-      html += '<p style="color:var(--muted)">Ingen team roller valgt</p>';
-    }
-  }
-
-  el.innerHTML = html;
+  // Fjernet: ingen oversigt længere
+  return;
 }
 
 function contractUpdateProgress(){
@@ -6155,8 +5995,8 @@ function contractUpdateSectionStatus(){
     compSection.classList.remove('active');
     $('contractActivitiesSection').classList.remove('active');
     $('contractRolesSection').classList.remove('active');
-    $('contractOverviewSection').classList.remove('active');
   }
+
 
   let totalTips = 0;
   for (const s of contractState.selectedTips.values()) totalTips += s.size;
@@ -6183,27 +6023,32 @@ function contractUpdateSectionStatus(){
 // Letvægts version der kun opdaterer roller og oversigt uden at genindlæse alt
 function contractUpdateSectionStatusLight(){
   const rolesStatus = $('contractRolesStatus');
+  const overviewSection = $('contractOverviewSection');
+
   const hasEmployeeActions = contractState.employee_actions?.trim();
-  const hasEmployeeWishes = contractState.employee_wishes?.trim();
-  const hasLeaderActions = contractState.leader_actions?.trim();
+  const hasEmployeeWishes  = contractState.employee_wishes?.trim();
+  const hasLeaderActions   = contractState.leader_actions?.trim();
   const rolesCompleted = hasEmployeeActions && hasEmployeeWishes && hasLeaderActions;
 
-  if (rolesCompleted) {
-    rolesStatus.innerHTML = `<span class="status-text complete">Roller defineret</span>`;
-    $('contractOverviewSection').classList.add('active');
-  } else {
-    rolesStatus.innerHTML = `<span class="status-text">Udfyld tekstfelterne</span>`;
-    // Aktiver oversigten alligevel hvis der er noget indhold at vise
-    if (hasEmployeeActions || hasEmployeeWishes || hasLeaderActions) {
-      $('contractOverviewSection').classList.add('active');
+  // Sæt status-tekst kun hvis feltet findes i DOM
+  if (rolesStatus) {
+    rolesStatus.innerHTML = rolesCompleted
+      ? `<span class="status-text complete">Roller defineret</span>`
+      : `<span class="status-text">Udfyld tekstfelterne</span>`;
+  }
+
+  // Toggle oversigtssektion kun hvis den findes i DOM
+  if (overviewSection) {
+    if (rolesCompleted || hasEmployeeActions || hasEmployeeWishes || hasLeaderActions) {
+      overviewSection.classList.add('active');
     } else {
-      $('contractOverviewSection').classList.remove('active');
+      overviewSection.classList.remove('active');
     }
   }
 
-  // Opdater oversigten hver gang (ikke kun når alt er komplet)
-  contractSetupOverview();
-  contractUpdateProgress();
+  // Disse er safe-calls (optional chaining i kaldende kode)
+  contractSetupOverview?.();
+  contractUpdateProgress?.();
 }
 
 function contractUpdate306090Goals(){
@@ -6272,6 +6117,47 @@ function contractUpdate306090Goals(){
   });
 
   container.innerHTML = html;
+}
+
+// Ny: initialiser 30/60/90-UI i kontraktfanen med samme logik som Resultater
+function contractInit306090PlanUI(){
+  try {
+    const pool = document.getElementById('plan-pool');
+    const bin30 = document.querySelector('#plan-30 .plan-bin');
+    const bin60 = document.querySelector('#plan-60 .plan-bin');
+    const bin90 = document.querySelector('#plan-90 .plan-bin');
+    if (!pool || !bin30 || !bin60 || !bin90) return;
+
+    // 1) udfyld pool med chips baseret på valgte tips i kontrakt
+    pool.innerHTML = '';
+    const tips = Array.from(contractState.selectedTips.values()).flatMap(set => Array.from(set));
+    tips.forEach(tipId => {
+      // find titel fra contractAvailableTips så chippen får læsbart navn
+      let title = String(tipId);
+      outer: for (const [catId, arr] of contractAvailableTips.entries()) {
+        const t = (arr || []).find(x => x.id === tipId);
+        if (t) { title = t.title || title; break outer; }
+      }
+      pool.appendChild(createPlanChip(tipId, title));
+    });
+
+    // 2) init droppable zoner (samme logik som på Resultater)
+    if (typeof makeDroppable === 'function') {
+      makeDroppable(pool);
+      [bin30, bin60, bin90].forEach(box => makeDroppable(box));
+    }
+
+    // 3) gendan evt. tidligere fordeling
+    restore306090PlanState();
+
+    // 4) bind lyttere til bins for at gemme state når der ændres
+    [bin30, bin60, bin90].forEach(bin => {
+      bin.addEventListener('drop', save306090PlanState);
+      bin.addEventListener('dragend', save306090PlanState);
+    });
+  } catch(e){
+    console.error('contractInit306090PlanUI error', e);
+  }
 }
 
 function contractUpdateTeamRoles(){
@@ -6357,114 +6243,150 @@ async function contractGetSelectedTeamRoles(){
 
 function contractSetupEventListeners(){
   // Checkbox event listeners for medtag/skjul funktioner
-  const include306090 = $('include306090Goals');
-  const includeTeamRoles = $('includeTeamRoles');
-  const includeColleague = $('includeColleagueSupport');
-  
+  const include306090   = $('include306090Goals');
+  const includeTeamRoles= $('includeTeamRoles');
+  const includeColleague= $('includeColleagueSupport');
+
   if (include306090) {
     include306090.addEventListener('change', (e) => {
-      contractState.include_306090_goals = e.target.checked;
-      contractSetupOverview();
+      contractState.include_306090_goals = !!e.target.checked;
+      contractSetupOverview?.();
+      contractUpdateSectionStatus?.();
     });
   }
-  
+
   if (includeTeamRoles) {
     includeTeamRoles.addEventListener('change', (e) => {
-      contractState.include_team_roles = e.target.checked;
-      contractSetupOverview();
+      contractState.include_team_roles = !!e.target.checked;
+      contractSetupOverview?.();
+      contractUpdateSectionStatus?.();
     });
   }
-  
+
   if (includeColleague) {
     includeColleague.addEventListener('change', (e) => {
-      contractState.include_colleague_support = e.target.checked;
-      contractSetupOverview();
+      contractState.include_colleague_support = !!e.target.checked;
+      contractSetupOverview?.();
+      contractUpdateSectionStatus?.();
     });
   }
-  
+
   // Projekt valg
-  $('contractProjectSelect').addEventListener('change', async (e)=>{
-    const projectId = e.target.value || null;
-    const templateId = e.target.selectedOptions[0]?.dataset.templateId || null;
+  const projectSel = $('contractProjectSelect');
+  if (projectSel) {
+    projectSel.addEventListener('change', async (e)=>{
+      const projectId  = e.target.value || null;
+      const templateId = e.target.selectedOptions?.[0]?.dataset?.templateId
+                      ?? e.target.selectedOptions?.[0]?.dataset?.template_id
+                      ?? null;
 
-    // nulstil state
-    contractState.project_id = projectId;
-    contractState.target_id = null;
-    contractState.selectedCompetencies.clear();
-    contractState.selectedTips.clear();
-    contractState.roles.clear();
-    $('contractTargetSelect').innerHTML = '<option value="">Vælg målperson.</option>';
-    $('contractCompetencyGrid').innerHTML = '';
-    $('contractTipsContainer').innerHTML = '';
-    $('contractEmployeeActions').innerHTML = '';
-    $('contractLeaderActions').innerHTML = '';
-    $('contractOverviewContent').innerHTML = '';
+      // nulstil state
+      contractState.project_id = projectId;
+      contractState.target_id  = null;
 
-    if (projectId) {
-      await contractLoadTargets(projectId);
-      if (templateId) await contractLoadCompetencies(templateId);
-    }
-    contractUpdateSectionStatus();
-  });
+      if (contractState.selectedCompetencies?.clear) contractState.selectedCompetencies.clear();
+      else contractState.selectedCompetencies = new Set();
+
+      if (contractState.selectedTips?.clear) contractState.selectedTips.clear();
+      else contractState.selectedTips = new Map();
+
+      if (contractState.roles?.clear) contractState.roles.clear();
+      else contractState.roles = new Map();
+
+      const targetSel = $('contractTargetSelect');
+      if (targetSel) targetSel.innerHTML = '<option value="">Vælg målperson.</option>';
+
+      const compGrid = $('contractCompetencyGrid');
+      if (compGrid) compGrid.innerHTML = '';
+
+      const tipsContainer = $('contractTipsContainer');
+      if (tipsContainer) tipsContainer.innerHTML = '';
+
+      const empActions = $('contractEmployeeActions'); // <textarea>
+      if (empActions) empActions.value = '';
+
+      const leaderActions = $('contractLeaderActions'); // <textarea>
+      if (leaderActions) leaderActions.value = '';
+
+      const overviewContent = $('contractOverviewContent');
+      if (overviewContent) overviewContent.innerHTML = '';
+
+      // indlæs targets og kompetencer
+      try {
+        if (projectId) {
+          await contractLoadTargets(Number(projectId));
+          if (templateId) await contractLoadCompetencies(templateId);
+        }
+      } catch (err) {
+        console.error('Fejl ved indlæsning efter projektvalg:', err);
+      }
+
+      contractUpdateSectionStatus?.();
+      contractSetupOverview?.();
+    });
+  }
 
   // Målperson valg
-  $('contractTargetSelect').addEventListener('change', async (e)=>{
-    contractState.target_id = e.target.value || null;
-    
-    // ALTID nulstil state ved personvalg
-    contractState.selectedCompetencies.clear();
-    contractState.selectedTips.clear();
-    contractState.roles.clear();
-    
-    // Fjern alle selected markeringer på UI
-    document.querySelectorAll('.contract-competency-card').forEach(card => {
-      card.classList.remove('selected');
+  const targetSel = $('contractTargetSelect');
+  if (targetSel) {
+    targetSel.addEventListener('change', async (e)=>{
+      contractState.target_id = e.target.value || null;
+
+      // ALTID nulstil state ved personvalg
+      if (contractState.selectedCompetencies?.clear) contractState.selectedCompetencies.clear();
+      else contractState.selectedCompetencies = new Set();
+
+      if (contractState.selectedTips?.clear) contractState.selectedTips.clear();
+      else contractState.selectedTips = new Map();
+
+      if (contractState.roles?.clear) contractState.roles.clear();
+      else contractState.roles = new Map();
+
+      // Fjern alle selected markeringer på UI
+      document.querySelectorAll('.contract-competency-card').forEach(card => {
+        card.classList.remove('selected');
+      });
+
+      // Luk sektion 2 og 3
+      const section2 = document.getElementById('contractActivitiesSection');
+      const section3 = document.getElementById('contractRolesSection');
+      if (section2) { section2.classList.remove('active'); section2.style.opacity = '0.6'; }
+      if (section3) { section3.classList.remove('active'); section3.style.opacity = '0.6'; }
+
+      // Tøm tips container
+      const tipsContainer = document.getElementById('contractTipsContainer');
+      if (tipsContainer) {
+        tipsContainer.innerHTML = '<div style="color:var(--muted);padding:20px">Vælg kompetencer først</div>';
+      }
+
+      contractUpdateSectionStatus?.();
+      contractSetupOverview?.();
+
+      console.log('Målperson valgt - state nulstillet. Brug ⚡ Generér forslag for at forfylde.');
     });
-    
-    // Luk sektion 2 og 3
-    const section2 = document.getElementById('contractActivitiesSection');
-    const section3 = document.getElementById('contractRolesSection');
-    if (section2) {
-      section2.classList.remove('active');
-      section2.style.opacity = '0.6';
-    }
-    if (section3) {
-      section3.classList.remove('active');
-      section3.style.opacity = '0.6';
-    }
-    
-    // Tøm tips container
-    const tipsContainer = document.getElementById('contractTipsContainer');
-    if (tipsContainer) {
-      tipsContainer.innerHTML = '<div style="color:var(--muted);padding:20px">Vælg kompetencer først</div>';
-    }
-    
-    contractUpdateSectionStatus();
-    contractSetupOverview?.();
-    
-    console.log('Målperson valgt - state nulstillet. Brug ⚡ Generér forslag for at forfylde.');
-  });
+  }
 
   // Opfølgningsdato
   const followup = $('contractFollowupDate');
   if (followup) {
     followup.addEventListener('change', (e)=>{
       contractState.followup_date = e.target.value || null;
-      contractUpdateSectionStatus();
+      contractUpdateSectionStatus?.();
+      contractSetupOverview?.();
     });
   }
 
   // Knapper
-  $('contractSaveDraftBtn').addEventListener('click', ()=> contractSave(true));
-  $('contractSaveFinalBtn').addEventListener('click', ()=> contractSave(false));
-  $('contractExportPdfBtn').addEventListener('click', contractExportPdf);
-  $('contractStartOverBtn').addEventListener('click', contractStartOver);
-}
+  const saveDraftBtn  = $('contractSaveDraftBtn');
+  const saveFinalBtn  = $('contractSaveFinalBtn');
+  const exportPdfBtn  = $('contractExportPdfBtn');
+  const startOverBtn  = $('contractStartOverBtn');
 
-// FJERNET: contractAutoLoadFromCoaching
-// Denne funktion er slettet fordi auto-forvalg kun må ske via ⚡ Generér forslag knappen
-// Al personvalg skal nu nulstille state uden at forfylde data
-// Se generateAISuggestion() for den eneste tilladte auto-forvalg kilde
+  if (saveDraftBtn) saveDraftBtn.addEventListener('click', ()=> contractSave(true));
+  if (saveFinalBtn) saveFinalBtn.addEventListener('click', ()=> contractSave(false));
+  if (exportPdfBtn) exportPdfBtn.addEventListener('click', contractExportPdf);
+  if (startOverBtn) startOverBtn.addEventListener('click', contractStartOver);
+}
 
 // Synk projekt/målperson fra "Resultater" → "Udviklingskontrakt"
 async function syncResultsSelectionToContract() {
@@ -6477,12 +6399,16 @@ async function syncResultsSelectionToContract() {
     const targSel = $('contractTargetSelect');
 
     // Sørg for at projektet findes i kontrakt-dropdown – ellers (re)load
-    if (projSel && projSel.value !== pid) {
-      if (![...projSel.options].some(o => o.value === pid)) {
+    if (projSel) {
+      const pidStr = String(pid);
+      if (![...projSel.options].some(o => o.value === pidStr)) {
         await contractLoadProjects();
       }
-      projSel.value = pid;
-      await contractLoadTargets(pid);
+      projSel.value = pidStr;
+      // Opdater global state, og KUN kald targets med et valid tal
+      const pidNum = Number(pidStr);
+      contractState.project_id = Number.isFinite(pidNum) ? pidNum : null;
+      await contractLoadTargets(contractState.project_id);
     }
 
     // Sæt målperson
@@ -7053,12 +6979,11 @@ function contractSetupLoadButton() {
 }
 
 function contractUpdateGoalsAndRoles(){
+  // sørger for at kontraktens 30/60/90-UI er initialiseret og i sync
+  contractInit306090PlanUI();
   contractUpdate306090Goals();
   contractUpdateTeamRoles();
 }
-
-
-
 
 // Hjælpefunktion: indsæt AI-knap + loading overlay én gang
 function ensureContractUiExtras() {
