@@ -595,7 +595,7 @@
       </div>
 
       <div class="section" style="background:#fff">
-        <canvas id="radar" height="360"></canvas>
+        <canvas id="radar" height="480"></canvas>
       </div>
       <div id="resultNote" class="muted" style="margin-top:6px"></div>
 
@@ -2370,7 +2370,10 @@ window.showLargeProjectQR = (url, title) => {
           <div class="keep-tip-line"
             data-tip-id="${tip.tip_id}"
             data-category-id="${item.category_id}"
+            data-category-name="${(item.category_name || 'Ukendt').replace(/"/g,'&quot;')}"
+            data-synopsis="${(item.overview?.synopsis || '').replace(/"/g,'&quot;')}"
             data-title="${(title || '').split(/\r?\n/)[0].trim()}"
+            data-desc="${(tip.description || '').replace(/"/g,'&quot;')}"
             style="display:flex;gap:8px;align-items:flex-start;margin:4px 0;position:relative">
 
             <span style="
@@ -2501,6 +2504,7 @@ window.showLargeProjectQR = (url, title) => {
             data-category-id="${item.category_id}"
             data-title="${(title || '').split(/\r?\n/)[0].trim()}"
             data-category-name="${(item.category_name || 'Ukendt').replace(/"/g,'&quot;')}"
+            data-synopsis="${(item.overview?.synopsis || '').replace(/"/g,'&quot;')}"
             data-desc="${(tip.description || '').replace(/"/g,'&quot;')}"
             style="display:flex;gap:8px;align-items:flex-start;margin:4px 0;position:relative">
 
@@ -2853,26 +2857,28 @@ function makeDroppable(targetEl) {
           }
         ]
       }, 
-      options:{ 
-        scales:{ 
+      options:{
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: { padding: { top: 20, right: 80, bottom: 30, left: 80 } },
+        scales:{
           r:{
             beginAtZero:true,
             min:0,
             max:5,
-            ticks:{stepSize:1},
-            pointLabels: {
-              display: function(context) {
-                return orderedCategories[context.index] !== '';
-              },
-              font: {
-                size: 13,
-                weight: 'bold'
-              }
+            grid: { circular: true },
+            angleLines: { color: 'rgba(0,0,0,0.08)' },
+            ticks:{ stepSize:1, display:false },
+            pointLabels:{
+              display: function(context){ return orderedCategories[context.index] !== ''; },
+              callback: function(value){ if(!value) return ''; return value.length > 16 ? value.split(' ') : value; },
+              padding: 8,
+              font:{ size: 12, weight: 'bold' }
             }
           }
-        }, 
+        },
         plugins:{
-          legend:{position:'bottom'}
+          legend:{ position:'bottom', align:'center' }
         }
       },
       plugins: [quadrantBackgroundPlugin]
@@ -3412,9 +3418,14 @@ function makeDroppable(targetEl) {
 
   // Funktion til at generere SVG KOMPAS hjul
   function generateKOMPASSVG(data, width = 500, height = 500) {
-    const centerX = width / 2;
-    const centerY = height / 2;
-    const radius = Math.min(width, height) / 2 - 90;  // Større radius for større hjul, men stadig plads til labels
+    const padX = 60, padY = 0;  // TOP-PADDING: reduceret til 0 for at rykke hjulet op
+    const centerX = padX + (width / 2);
+    const centerY = padY + (height / 2);
+    const radius  = Math.min(width, height) / 2 - 90;
+    // LEGEND-AFSTANDE: justeret for optimal placering
+    const LEGEND_GAP = 37;      // afstand mellem hjul og legend (øget lidt for at undgå overlap)
+    const LEGEND_ITEM_W = 80;   // bredde pr. legend-item
+    const LEGEND_SHIFT_X = 20;  // vandret forskydning af legend
   
   // KOMPAS kategorier med tomme strenge ved akserne - matcher HTML radar chart
   const categories = [
@@ -3507,7 +3518,11 @@ function makeDroppable(targetEl) {
     };
   });
   
-  let svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">`;
+  // Beregn optimal viewBox for at minimere whitespace over hjulet
+  const viewBoxY = Math.max(0, centerY - radius - 40); // Start viewBox 40px over hjulet
+  const viewBoxHeight = (radius * 2) + 100 + LEGEND_GAP + 30; // Hjul + labels + legend
+  
+  let svg = `<svg width="${width + padX*2}" height="${viewBoxHeight}" viewBox="0 ${viewBoxY} ${width + padX*2} ${viewBoxHeight}" xmlns="http://www.w3.org/2000/svg">`;
   
   // Baggrund cirkler (grid)
   for (let i = 1; i <= 5; i++) {
@@ -3598,15 +3613,20 @@ function makeDroppable(targetEl) {
             font-family="Arial" font-size="9" font-weight="bold" fill="#333">${text}</text>`;
   });
   
-  // Legend hvis flere datasæt
+  // Legend tæt under hjulet
   if (!isTeamData && datasets.length > 1) {
-    let legendY = height - 20;  // Mere plads nederst
+    const itemW   = LEGEND_ITEM_W;
+    const totalW  = itemW * datasets.length;
+    const startX  = centerX - (totalW / 2) + LEGEND_SHIFT_X;
+    const legendY = centerY + radius + LEGEND_GAP;
+
     datasets.forEach((dataset, idx) => {
-      const legendX = 10 + idx * 80;
+      const legendX = startX + idx * itemW;
       svg += `<rect x="${legendX}" y="${legendY - 8}" width="12" height="12" fill="${dataset.color}"/>`;
       svg += `<text x="${legendX + 16}" y="${legendY}" font-family="Arial" font-size="10" fill="#333">${dataset.label}</text>`;
     });
   }
+
   
   svg += '</svg>';
   return svg;
@@ -3686,8 +3706,8 @@ function generatePersonReportHTML(project, person, categories, series, labels) {
     </div>
     
     <!-- KOMPAS Hjul - SVG CHART -->
-    <div style="text-align:center;background:white;border:1px solid #e2e8f0;border-radius:8px;padding:15px;margin-bottom:12px">
-      <div style="font-size:12px;color:#64748b;margin-bottom:10px;font-weight:600">🎯 KOMPAS Kompetencehjul</div>
+    <div style="text-align:center;background:white;border:1px solid #e2e8f0;border-radius:8px;padding:5px 15px 15px 15px;margin-bottom:12px">
+      <div style="font-size:12px;color:#64748b;margin-bottom:0;font-weight:600">🎯 KOMPAS Kompetencehjul</div>
       ${kompasSVG}
     </div>
     
@@ -3781,33 +3801,413 @@ async function generatePDFFromHTML(htmlContent, filename) {
   }
 }
 
+
+// Bygger Resultater-PDF iht. krav
+async function buildResultsPdfHtml(project, person, categories, series){
+  // Helper: header/footer
+  const headerHtml = (title, personStr) => `
+    <div style="width:100%;box-sizing:border-box;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;border-bottom:1px solid #e5e7eb;padding-bottom:4px">
+      <div style="font-weight:700;font-size:14px">${title}</div>
+      <div style="font-size:12px;color:#64748b">${personStr}</div>
+    </div>`;
+  const footerHtml = (page, total) => `
+    <div style="margin-top:12px;padding-top:8px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;color:#64748b;font-size:10px">
+      <span>${new Date().toLocaleDateString('da-DK')}</span>
+      <span>Side ${page} af ${total}</span>
+    </div>`;
+
+  // Wrapper (A4, ens 10mm margin ≈ 38px @ ~96dpi)
+  const wrapPage = (inner, pageNo, total) => `
+    <div class="page" style="width:794px; box-sizing:border-box; padding:26px 38px 34px 38px; margin:0 auto">
+      <div style="width:100%">${inner}</div>
+      ${footerHtml(pageNo,total)}
+    </div>`;
+
+  // Første side: header + KOMPAS-hjulet
+  const chartData = {
+    categories: categories.map((c, i) => ({
+      name: c.category_name,
+      self:   series.self[i],
+      peer:   series.peer[i],
+      leader: series.leader[i]
+    }))
+  };
+  const kompasSVG = generateKOMPASSVG(chartData, 500, 500);
+  const personStr = `${project.title || ''} • #${person.employee_no || '—'} • ${person.full_name || ''}`;
+  const firstPageContent = `
+    ${headerHtml('KOMPAS • Personlig Kompetencerapport', personStr)}
+    <div style="margin-top:-6px">
+      <div style="text-align:center;background:white;border:1px solid #e2e8f0;border-radius:8px;padding:5px 15px 15px 15px;margin-bottom:12px">
+        <div style="font-size:12px;color:#64748b;margin-bottom:0;font-weight:600">🎯 KOMPAS Kompetencehjul</div>
+        ${kompasSVG}
+      </div>
+    </div>`;
+
+  const pages = [firstPageContent];
+
+  // ===== NY SIDE 2: FAST "RESUMÉ"-SIDE (alt på én A4) =====
+  // Helper til at klone og skære UI-støj væk
+  const cleanClone = (el) => {
+    if (!el) return '';
+    const clone = el.cloneNode(true);
+    clone.querySelectorAll('button, input, select, label, .btn, [role="button"]').forEach(n => n.remove());
+    return clone.innerHTML;
+  };
+
+  // --- Fastholde/Udvikle (venstre/højre kolonne) ---
+  const keepEl    = document.getElementById('coaching-keep');
+  const developEl = document.getElementById('coaching-develop');
+  const keepHtml  = cleanClone(keepEl);
+  const devHtml   = cleanClone(developEl);
+
+  const keepBlock = `<section style="width:100%;box-sizing:border-box;border:1px solid #e2e8f0;border-radius:8px;padding:10px">
+    <div style="font-weight:700;margin-bottom:6px">🎯 Fastholde</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        ${
+          (() => {
+            const tmp = document.createElement('div');
+            tmp.innerHTML = keepHtml;
+
+            // Saml alle linjer og byg kompakt struktur: kategori → {navn,synopsis,tips{titel:tekst}}
+            const lines = Array.from(tmp.querySelectorAll('.keep-tip-line'));
+            const byCat = new Map();
+
+            lines.forEach(line => {
+              const cid  = line.getAttribute('data-category-id') || '—';
+              const card = line.closest('div[style*="border"]');
+
+              // Navn/synopsis fra data-attributter; fald tilbage til kortet ved mangel
+              let name     = (line.getAttribute('data-category-name') || '').trim();
+              let synopsis = (line.getAttribute('data-synopsis') || '').trim();
+
+              if (!name) {
+                name =
+                  card?.querySelector('strong[style*="color"], div[style*="font-weight:600"]')?.textContent?.trim() ||
+                  'Kompetence';
+              }
+              if (!synopsis) {
+                synopsis =
+                  card?.querySelector('div[style*="font-size:0.9"], div[style*="font-size:.9"]')?.textContent?.trim() ||
+                  '';
+              }
+
+              if (!byCat.has(cid)) byCat.set(cid, { name, synopsis, tips: {} });
+
+              const title = (line.getAttribute('data-title') || 'Råd').trim();
+              const text  = (line.getAttribute('data-desc') || line.querySelector('div[style*="flex:1"]')?.textContent || '').trim();
+              // Gem første meningsfulde tekst pr. råd (slår SELV/KOLLEGA sammen)
+              if (!byCat.get(cid).tips[title] && text) byCat.get(cid).tips[title] = text;
+            });
+
+            if (byCat.size === 0) {
+              return `<div style="font-style:italic;color:#94a3b8">Ingen fastholdelsesråd</div>`;
+            }
+
+            // Render op til 5 kompetencer
+            return Array.from(byCat.values()).slice(0,5).map(cat => {
+              const tipsHtml = Object.entries(cat.tips).map(([t, d]) => `
+                <li style="margin:6px 0">
+                  <div style="font-weight:600">${t}</div>
+                  ${d ? `<div style="font-style:italic;color:#475569">${d}</div>` : ''}
+                </li>
+              `).join('') || `<li style="color:#64748b">Ingen råd fundet</li>`;
+
+              return `
+                <div style="border:1px solid #e2e8f0;border-radius:6px;padding:10px;background:#fff">
+                  <div style="font-weight:700">${cat.name}</div>
+                  ${cat.synopsis ? `<div style="font-size:.9rem;color:#64748b">${cat.synopsis}</div>` : ''}
+                  <ul style="margin:8px 0 0 16px;padding:0;list-style:disc">${tipsHtml}</ul>
+                </div>
+              `;
+            }).join('');
+          })()
+        }
+      </div>
+    </section>`;
+
+  const developBlock = `<section style="width:100%;box-sizing:border-box;border:1px solid #e2e8f0;border-radius:8px;padding:10px">
+    <div style="font-weight:700;margin-bottom:6px">📈 Udvikle</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        ${
+          (() => {
+            const tmp = document.createElement('div');
+            tmp.innerHTML = devHtml;
+
+            // Brug data-attributter (navn/synopsis) fra linjen; fald tilbage til kortet kun hvis nødvendigt
+            const lines = Array.from(tmp.querySelectorAll('.tip-line[data-category-id][data-title]'));
+            const byCat = new Map();
+
+            lines.forEach(line => {
+              const cid   = line.getAttribute('data-category-id') || '—';
+              let cname   = (line.getAttribute('data-category-name') || '').trim();
+              const card  = line.closest('div[style*="border"]');
+
+              if (!cname) {
+                const nameFromCard =
+                  card?.querySelector('strong[style*="color"], div[style*="font-weight:600"]')?.textContent?.trim();
+                cname = nameFromCard || 'Kompetence';
+              }
+
+              const synopsisData    = (line.getAttribute('data-synopsis') || '').trim();
+              const synopsisFromCard =
+                card?.querySelector('div[style*="font-size:0.9"], div[style*="font-size:.9"]')?.textContent?.trim() || '';
+              const synopsis = synopsisData || synopsisFromCard;
+
+              const title = (line.getAttribute('data-title') || 'Råd').trim();
+              const desc  = (line.getAttribute('data-desc')  || '').trim();
+
+              if (!byCat.has(cid)) byCat.set(cid, { name: cname, synopsis, tips: {} });
+              const bucket = byCat.get(cid);
+              if (!bucket.synopsis && synopsis) bucket.synopsis = synopsis;
+              if (!bucket.tips[title] && desc) bucket.tips[title] = desc;
+            });
+
+            if (byCat.size === 0) {
+              return `<div style="font-style:italic;color:#94a3b8">Ingen udviklingsråd</div>`;
+            }
+
+            // Render op til 5 kompetencer
+            return Array.from(byCat.values()).slice(0,5).map(cat => {
+              const tipsHtml = Object.entries(cat.tips).map(([t, d]) => `
+                <li style="margin:6px 0">
+                  <div style="font-weight:600">${t}</div>
+                  ${d ? `<div style="font-style:italic;color:#475569">${d}</div>` : ''}
+                </li>
+              `).join('') || `<li style="color:#64748b">Ingen råd fundet</li>`;
+
+              return `
+                <div style="border:1px solid #e2e8f0;border-radius:6px;padding:10px;background:#fff">
+                  <div style="font-weight:700">${cat.name}</div>
+                  ${cat.synopsis ? `<div style="font-size:.9rem;color:#64748b">${cat.synopsis}</div>` : ''}
+                  <ul style="margin:8px 0 0 16px;padding:0;list-style:disc">${tipsHtml}</ul>
+                </div>
+              `;
+            }).join('');
+          })()
+        }
+      </div>
+    </section>`;
+
+  // --- 30/60/90 (fuld bredde, 3 kolonner, max 3 pr. kolonne) ---
+  const planBins = [
+    {label:'30 dage', el: document.querySelector('#plan-30 .plan-bin')},
+    {label:'60 dage', el: document.querySelector('#plan-60 .plan-bin')},
+    {label:'90 dage', el: document.querySelector('#plan-90 .plan-bin')},
+  ];
+  const planCols = planBins.map(bin => {
+    const chips = Array.from(bin.el?.querySelectorAll('.plan-chip') || []).slice(0,3).map(chip => {
+      const category = chip.getAttribute('data-category') || '';
+      const title = chip.getAttribute('title') || chip.querySelector('div[style*="font-weight:700"]')?.textContent?.trim() || 'Mål';
+      const desc  = chip.getAttribute('data-description') || '';
+      return `<div style="margin:6px 0;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;background:#fff">
+        ${category ? `<div style="font-size:11px;color:#667eea;margin-bottom:2px">${category}</div>` : ''}
+        <div style="font-weight:600">${title}</div>
+        ${desc ? `<div style="font-style:italic;color:#475569">${desc}</div>` : ''}
+      </div>`;
+    }).join('');
+    const more = Math.max(0, (bin.el?.querySelectorAll('.plan-chip')?.length || 0) - 3);
+    return `<div><div style="font-weight:700;margin-bottom:6px">${bin.label}</div>${chips}${more ? `<div style="font-size:10px;color:#64748b;margin-top:4px">+${more} flere</div>` : ''}</div>`;
+  }).join('');
+
+  const plansBlock = `<section style="border:1px solid #e2e8f0;border-radius:8px;padding:10px">
+    <div style="font-weight:700;margin-bottom:6px">📅 30/60/90</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">${planCols}</div>
+  </section>`;
+
+  // --- Teamroller (Resultater → PDF) ---
+  // 1) Læs valgte roller KUN fra Resultater-fanen, og læs rank/% fra data-attributter
+  const checked = Array.from(document.querySelectorAll('#tab-results #teamRoleCards input[type="checkbox"]:checked'));
+  let roles = checked.map(cb => {
+    const card = cb.closest('div');
+    const comps = [];
+    // forsøg at læse badges fra kortet (som i UI), ellers fra data-*
+    (card?.querySelectorAll('span') || []).forEach(span => {
+      const txt = span.textContent?.trim();
+      if (txt && txt !== 'Passer') comps.push(txt);
+    });
+    const c1 = cb.dataset.roleComp1 || '';
+    const c2 = cb.dataset.roleComp2 || '';
+    const c3 = cb.dataset.roleComp3 || '';
+    if (!comps.length) [c1,c2,c3].filter(Boolean).forEach(x => comps.push(x));
+
+    return {
+      rank: cb.dataset.roleRank || '',
+      name: cb.dataset.roleName || 'Rolle',
+      pct:  cb.dataset.rolePct  || '',
+      desc: cb.dataset.roleDescription || '',
+      comps
+    };
+  });
+
+  // 2) Fallback: hvis intet er valgt, brug Top-4 direkte fra DB (samme som fanen)
+  if (roles.length === 0) {
+    const pid = project.id;
+    const tid = person.id; // project_people.id = target_id
+    try {
+      const { data: top4, error } = await supabase.rpc('teamrole_top4', { pid, tid });
+      if (error) throw error;
+      roles = (top4 || []).map((r, idx) => ({
+        rank: String(r.rank ?? (idx+1)),
+        name: r.role_name || 'Rolle',
+        pct:  typeof r.score_pct === 'number' ? r.score_pct.toFixed(1) : (r.score_pct || ''),
+        desc: r.description || '',
+        comps: [r.comp1, r.comp2, r.comp3].filter(Boolean)
+      }));
+    } catch (e) {
+      console.error('teamrole_top4 fallback fejl:', e);
+      roles = [];
+    }
+  }
+
+  // 3) Render som en ren liste der matcher info i UI-kortene (#, navn, %, beskrivelse, badges)
+  const rolesHtml = roles.map(r => {
+    const badges = (r.comps || []).slice(0, 4).map(c =>
+      `<span style="border:1px solid #e2e8f0;border-radius:999px;padding:2px 8px;font-size:11px">${c}</span>`
+    ).join(' ');
+    return `
+      <div style="margin:6px 0;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;background:#fff">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
+          <span style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:999px;padding:2px 8px;font-size:10px;font-weight:700;color:#4f46e5">#${r.rank}</span>
+          <div style="font-weight:600;flex:1">${r.name}</div>
+          ${r.pct ? `<div style="font-weight:700;color:#334155">${r.pct}%</div>` : ``}
+        </div>
+        ${r.desc ? `<div style="font-style:italic;color:#475569;margin-bottom:4px">${r.desc}</div>` : ``}
+        ${badges ? `<div style="display:flex;gap:6px;flex-wrap:wrap">${badges}</div>` : ``}
+      </div>
+    `;
+  }).join('') || '<div style="font-style:italic;color:#94a3b8">Ingen data</div>';
+
+  const rolesBlock = `<section style="border:1px solid #e2e8f0;border-radius:8px;padding:10px">
+    <div style="font-weight:700;margin-bottom:6px">🧩 Team Roller (Top-4)</div>
+    ${rolesHtml}
+  </section>`;
+
+  // Sammensæt side 2 layout - samme header-struktur som side 1
+  const secondPageContent = `
+    ${headerHtml('📄 Coaching-resumé', personStr)}
+    <div style="margin-top:-6px;width:100%;box-sizing:border-box">
+      <div style="width:100%;box-sizing:border-box;display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:-5px 0 12px 0">
+        ${keepBlock}
+        ${developBlock}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        ${plansBlock}
+        ${rolesBlock}
+      </div>
+    </div>
+  `;
+
+  pages.push(secondPageContent);
+
+  // Wrapper til præcis 2 sider
+  const total = pages.length;
+  const wrapped = pages.map((p,idx)=> wrapPage(p, idx+1, total)).join('');
+  return wrapped;
+}
+
+// NY: Team-PDF (samme ramme som Resultater, men kun hjul + header/footer)
+async function buildTeamPdfHtml(project, teamName, categories, teamSeries, members){
+  // lokale helpers (matchende Resultater)
+  const headerHtml = (title, sub) => `
+    <div style="width:100%;box-sizing:border-box;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;border-bottom:1px solid #e5e7eb;padding-bottom:4px">
+      <div style="font-weight:700;font-size:14px">${title}</div>
+      <div style="font-size:12px;color:#64748b">${sub}</div>
+    </div>`;
+  const footerHtml = (page, total) => `
+    <div style="margin-top:12px;padding-top:8px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;color:#64748b;font-size:10px">
+      <span>${new Date().toLocaleDateString('da-DK')}</span>
+      <span>Side ${page} af ${total}</span>
+    </div>`;
+  const wrapPage = (inner, pageNo, total) => `
+    <div class="page" style="width:794px; box-sizing:border-box; padding:26px 38px 34px 38px; margin:0 auto">
+      <div style="width:100%">${inner}</div>
+      ${footerHtml(pageNo,total)}
+    </div>`;
+
+  // TEAM: vis kun maksimum pr. kategori (grøn) – som før
+  const teamSVGData = {
+    categories: categories.map((c, i) => ({
+      name: c.category_name,
+      max: Math.max(
+        teamSeries.self[i]  || 0,
+        teamSeries.peer[i]  || 0,
+        teamSeries.leader[i]|| 0
+      )
+    }))
+  };
+  const kompasSVG = generateKOMPASSVG(teamSVGData);
+  const sub = `${project.title || ''} • ${teamName || ''}`;
+
+  const firstPage = `
+    ${headerHtml('KOMPAS • Team Kompetencerapport', sub)}
+    <div style="margin-top:-6px">
+      <div style="text-align:center;background:white;border:1px solid #e2e8f0;border-radius:8px;padding:5px 15px 15px 15px;margin-bottom:12px">
+        <div style="font-size:12px;color:#64748b;margin-bottom:0;font-weight:600">🎯 Team KOMPAS Kompetencehjul</div>
+        ${kompasSVG}
+      </div>
+
+      <!-- 👥 Teammedlemmer (3 kolonner, rækkevis udfyldning) -->
+      <h3 style="color:#1e293b;margin:6px 0 6px 0;font-size:12px">👥 Teammedlemmer</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:12px">
+        ${ (members || []).map(m => {
+          const name = (m.full_name || m.name || '').toString();
+
+          // Robust udtræk af MA-nummer (flere mulige feltnavne/placeringer)
+          const cand = [
+            m.employee_no, m.employeeNo, m.ma_no, m.maNo, m.ma, m.maNumber, m.employeeNumber,
+            m.employee?.number, m.employee?.id, m.meta?.employee_no, m.meta?.ma_no, m.meta?.maNumber
+          ].find(v => v !== undefined && v !== null && String(v).trim() !== '');
+
+          const no = cand ? String(cand).trim() : '—';
+
+          return `<div style="font-size:10px;border:1px solid #e2e8f0;border-radius:4px;padding:6px;background:white">${name} — ${no}</div>`;
+        }).join('') || `<div style="font-size:10px;color:#94a3b8;font-style:italic">Ingen medlemmer valgt</div>` }
+      </div>
+
+      <div style="margin-top:12px;padding-top:8px;border-top:1px solid #e2e8f0;text-align:center;color:#64748b;font-size:9px">
+        <p style="margin:0">Genereret af KOMPAS PDF Service</p>
+      </div>
+    </div>`;
+
+  return wrapPage(firstPage, 1, 1);
+}
+
+// (Ensret med den korrekte handler ovenfor – undgå dupletter)
 $('btnPdf').onclick = async () => {
   const pid = $('selProject2').value, tid = $('selTarget').value;
   if (!pid || !tid) { alert('Vælg projekt og målperson først'); return; }
-  
   try {
     const originalText = $('btnPdf').textContent;
-    $('btnPdf').textContent = 'Genererer PDF...';
+    $('btnPdf').textContent = 'Genererer PDF.';
     $('btnPdf').disabled = true;
-    
+
     const { data: project } = await supabase.from('projects').select('*').eq('id', pid).single();
-    const { data: person } = await supabase.from('project_people').select('*').eq('id', tid).single();
-    const { data: cats } = await supabase.from('v_category_path').select('*').eq('template_id', project.template_id).order('category_sort');
-    const { data: series } = await supabase.from('v_kompas_series').select('*').eq('project_id', pid).eq('target_id', tid);
-    
-    const labels = project.settings?.labels || { self: 'Vurdering af sig selv', peer: 'Vurdering af kollega', leader: 'Føre vurdering' };
-    const seriesData = { self: [], peer: [], leader: [] };
-    cats.forEach(cat => {
-      ['self', 'peer', 'leader'].forEach(type => {
-        const record = series.find(s => s.category_id === cat.category_id && s.respondent_type === type);
-        seriesData[type].push(record ? record.safe_avg : null);
-      });
+    const { data: person }  = await supabase.from('project_people').select('*').eq('id', tid).single();
+    const { data: cats }    = await supabase.from('v_category_path')
+      .select('*').eq('template_id', project.template_id).order('category_sort');
+
+    const { data: seriesRows } = await supabase.from('v_kompas_series')
+      .select('*')
+      .eq('project_id', pid)
+      .eq('target_id', tid);
+
+    const series = { self: [], peer: [], leader: [] };
+    (cats || []).forEach(c => {
+      const s = (seriesRows || []).find(r => r.category_id === c.category_id && r.respondent_type === 'self');
+      const p = (seriesRows || []).find(r => r.category_id === c.category_id && r.respondent_type === 'peer');
+      const l = (seriesRows || []).find(r => r.category_id === c.category_id && r.respondent_type === 'leader');
+      series.self.push(s?.safe_avg ?? null);
+      series.peer.push(p?.safe_avg ?? null);
+      series.leader.push(l?.safe_avg ?? null);
     });
-    
-    const htmlContent = generatePersonReportHTML(project, person, cats, seriesData, labels);
-    const filename = `${project.title.replace(/ /g, '_')}-${person.full_name.replace(/ /g, '_')}.pdf`;
+
+    const htmlContent = await buildResultsPdfHtml(project, person, cats || [], series);
+
+    const emp  = person.employee_no ? String(person.employee_no) : 'NA';
+    const safe = (s)=> (s||'').replace(/\s+/g,'_').replace(/[^A-Za-z0-9_\-]/g,'');
+    const filename = `${safe(project.title)}_${safe(emp)}_${safe(person.full_name)}.pdf`;
+
     await generatePDFFromHTML(htmlContent, filename);
-    
     $('btnPdf').textContent = originalText;
     $('btnPdf').disabled = false;
   } catch (error) {
@@ -5111,39 +5511,22 @@ $('btnResetDevelop').onclick = async () => {
     // Generer team SVG hjul
     const teamKompasSVG = generateKOMPASSVG(teamSVGData);
 
-    const htmlContent = `<div style="font-family:Arial,sans-serif;line-height:1.2;color:#333;max-width:750px;font-size:11px">
-      <!-- Kompakt Team Header -->
-      <div style="background:linear-gradient(135deg,#f093fb 0%,#f5576c 100%);color:white;padding:15px;margin-bottom:12px;border-radius:6px;text-align:center">
-        <h1 style="margin:0 0 4px 0;font-size:18px;font-weight:300">${project.title}</h1>
-        <p style="margin:0;font-size:11px;opacity:0.9">🎯 Team Kompetencerapport</p>
-      </div>
-      
-      <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;padding:12px;border-radius:6px;margin-bottom:12px;text-align:center">
-        <h2 style="margin:0 0 4px 0;font-size:16px;font-weight:400">${teamName}</h2>
-        <div style="font-size:9px;opacity:0.9">Aggregeret kompetenceprofil baseret på maksimale værdier</div>
-      </div>
-      
-      <!-- Team KOMPAS Hjul - SVG CHART -->
-      <div style="text-align:center;background:white;border:1px solid #e2e8f0;border-radius:8px;padding:15px;margin-bottom:12px">
-        <div style="font-size:12px;color:#64748b;margin-bottom:10px;font-weight:600">🎯 Team KOMPAS Kompetencehjul</div>
-        ${teamKompasSVG}
-      </div>
-      
-      <!-- Team Kompetencer i 4 kolonner -->
-      <h3 style="color:#1e293b;margin-bottom:8px;font-size:12px">🏆 Team Kompetence Kategorier</h3>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;margin-bottom:12px">
-        ${categoryCards}
-      </div>
-      
-      <!-- Kompakt Footer -->
-      <div style="margin-top:12px;padding-top:8px;border-top:1px solid #e2e8f0;text-align:center;color:#64748b;font-size:9px">
-        <p style="margin:0"><strong>Genereret af KOMPAS PDF Service</strong></p>
-        <p style="margin:2px 0 0 0">Team rapport baseret på aggregerede maksimale værdier</p>
-      </div>
-    </div>`;
-    
-   const filename = `${project.title.replace(/ /g, '_')}_Team_Rapport.pdf`;
-   await generatePDFFromHTML(htmlContent, filename);
+    // Ensret Team PDF til samme layout som Resultater-PDF (bevar hjul, fjern kategori-kort)
+    // Berig valgte medlemmer med MA-numre ved at slå dem op i 'people' fra project_people.
+    const enrichedMembers = (selectedPeople.length > 0
+      ? selectedPeople.map(sp => people.find(x => x.id === sp.id) || sp)
+      : people);
+
+    const htmlContent = await buildTeamPdfHtml(
+      project,
+      teamName,
+      cats || [],
+      teamSeries,
+      enrichedMembers
+    );
+
+    const filename = `${project.title.replace(/ /g, '_')}_Team_Rapport.pdf`;
+    await generatePDFFromHTML(htmlContent, filename);
     
     $('btnDownloadTeamPDF').textContent = originalText;
     $('btnDownloadTeamPDF').disabled = false;
