@@ -9348,9 +9348,11 @@ function debugCoachingRecommendations(data) {
           status: resp.status,
           statusText: resp.statusText,
           body: txt,
-          url: apiUrl
+          url: apiUrl,
+          currentHost: window.location.hostname,
+          apiBaseUrl: window.API_BASE_URL
         });
-        alert(`PDF eksport fejlede (${resp.status}): ${txt || resp.statusText}\n\nSikr at din FastAPI-server kører på ${API_BASE_URL}`);
+        alert(`PDF eksport fejlede (${resp.status}): ${txt || resp.statusText}\n\nSikr at din FastAPI-server kører på ${window.API_BASE_URL}\n\nDu er på: ${window.location.hostname}\nAPI URL: ${apiUrl}`);
         return;
       }
 
