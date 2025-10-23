@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>KOMPAS • Evaluator Backoffice</title>
   <link rel="icon" href="data:," />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co wss://*.supabase.co">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' http://localhost:8000 https://minudvikling.dk https://*.supabase.co wss://*.supabase.co https://cdn.jsdelivr.net">
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
@@ -13,6 +13,8 @@
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 
   <style>
     /* Theme */
@@ -590,8 +592,7 @@
       </div>
       <div class="row" style="margin-bottom:10px">
         <button id="btnPdf" class="btn">Download PDF</button>
-        <button id="btnZip" class="btn">Download alle (ZIP)</button>
-        <button id="btnUdvSurvey" class="btn primary">Download UDV (hele undersøgelsen)</button>
+        <button id="btnUdvSurvey" class="btn primary">Download UDV</button>
       </div>
 
       <div class="section" style="background:#fff">
@@ -753,13 +754,13 @@
               <!-- NY: tillad blandede typer (FULD+LITE) → vi bruger kun fælles kategorier -->
               <label title="Hvis aktiveret: når filer er en blanding af FULD og LITE, vises kun de kategorier som findes i alle filer.">
                 <input type="checkbox" id="devAllowMix"> Tillad blandede UDV-typer (fælles kategorier)
+                <button id="devAllowMixInfo" type="button" aria-label="Forklaring" style="margin-left:6px;border:1px solid var(--line);border-radius:50%;width:18px;height:18px;line-height:16px;font-size:11px;background:#fff;cursor:pointer">?</button>
+                <span id="devAllowMixHint" class="muted" style="display:none;margin-left:8px;font-size:0.85em"></span>
               </label>
 
               <select id="devPersonSelect" class="select" style="min-width:240px">
                 <option value="">— Vælg deltager —</option>
               </select>
-
-
             </div>
           </div>
           <div>
@@ -1178,17 +1179,44 @@ window.addEventListener('load', function() {
   // State management for temporary people (before project is saved)
   let temporaryPeople = [];
 
-  const SUPABASE_URL = "https://wsrstyrsuwhcmmlmnbrz.supabase.co";
+ const SUPABASE_URL = "https://wsrstyrsuwhcmmlmnbrz.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzcnN0eXJzdXdoY21tbG1uYnJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MTU0NTIsImV4cCI6MjA3MTE5MTQ1Mn0.Rf3Z3bQGjV5CKXKZr6IMOjzPdbhVJCh3SwuvlkpxUD0";
+  
+  // API konfiguration - GØR DEN GLOBAL så den kan bruges i alle script tags
+  // Hvis du vil tvinge en bestemt URL, udkommentér den relevante linje:
+  // window.API_BASE_URL = 'http://localhost:8000';  // Lokal udvikling
+  // window.API_BASE_URL = 'https://minudvikling.dk';  // Produktion
+  
+  // Automatisk detektion (anbefalet):
+  window.API_BASE_URL = (() => {
+    // Hvis åbnet direkte som fil, brug localhost som standard
+    if (window.location.protocol === 'file:') {
+      return 'http://localhost:8000';
+    }
+    // Hvis allerede på minudvikling.dk, brug det
+    if (window.location.hostname === 'minudvikling.dk') {
+      return 'https://minudvikling.dk';
+    }
+    // Hvis på localhost/127.0.0.1, ALTID brug port 8000 (FastAPI server)
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return 'http://localhost:8000';
+    }
+    // Fallback: brug samme origin som siden
+    return window.location.origin;
+  })();
+  
+  console.log('API Base URL konfigureret til:', window.API_BASE_URL);
+  
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   // Defensive helpers (krav)
   const byId = (id)=>document.getElementById(id);
   const q = (sel,root=document)=>root.querySelector(sel);
   const qa = (sel,root=document)=>Array.from(root.querySelectorAll(sel));
-  // Bevar eksisterende alias $
-  const $ = byId;
-
+  // Gør alias globalt så funktioner udenfor denne scope (fx openDownloadDialogBackend)
+  // kan bruge det uden ReferenceError
+  window.$ = byId;
+  window.supabaseClient = supabase;
   
   // Tab-navigation
   document.querySelectorAll('.tabbtn').forEach(btn => {
@@ -4172,76 +4200,65 @@ async function buildTeamPdfHtml(project, teamName, categories, teamSeries, membe
   return wrapPage(firstPage, 1, 1);
 }
 
-// (Ensret med den korrekte handler ovenfor – undgå dupletter)
-$('btnPdf').onclick = async () => {
-  const pid = $('selProject2').value, tid = $('selTarget').value;
-  if (!pid || !tid) { alert('Vælg projekt og målperson først'); return; }
-  try {
-    const originalText = $('btnPdf').textContent;
-    $('btnPdf').textContent = 'Genererer PDF.';
-    $('btnPdf').disabled = true;
-
-    const { data: project } = await supabase.from('projects').select('*').eq('id', pid).single();
-    const { data: person }  = await supabase.from('project_people').select('*').eq('id', tid).single();
-    const { data: cats }    = await supabase.from('v_category_path')
-      .select('*').eq('template_id', project.template_id).order('category_sort');
-
-    const { data: seriesRows } = await supabase.from('v_kompas_series')
-      .select('*')
-      .eq('project_id', pid)
-      .eq('target_id', tid);
-
-    const series = { self: [], peer: [], leader: [] };
-    (cats || []).forEach(c => {
-      const s = (seriesRows || []).find(r => r.category_id === c.category_id && r.respondent_type === 'self');
-      const p = (seriesRows || []).find(r => r.category_id === c.category_id && r.respondent_type === 'peer');
-      const l = (seriesRows || []).find(r => r.category_id === c.category_id && r.respondent_type === 'leader');
-      series.self.push(s?.safe_avg ?? null);
-      series.peer.push(p?.safe_avg ?? null);
-      series.leader.push(l?.safe_avg ?? null);
-    });
-
-    const htmlContent = await buildResultsPdfHtml(project, person, cats || [], series);
-
-    const emp  = person.employee_no ? String(person.employee_no) : 'NA';
-    const safe = (s)=> (s||'').replace(/\s+/g,'_').replace(/[^A-Za-z0-9_\-]/g,'');
-    const filename = `${safe(project.title)}_${safe(emp)}_${safe(person.full_name)}.pdf`;
-
-    await generatePDFFromHTML(htmlContent, filename);
-    $('btnPdf').textContent = originalText;
-    $('btnPdf').disabled = false;
-  } catch (error) {
-    console.error('PDF error:', error);
-    alert('Fejl ved PDF generering: ' + error.message);
-    $('btnPdf').textContent = 'Download PDF';
-    $('btnPdf').disabled = false;
-  }
+// ref: :contentReference[oaicite:1]{index=1}
+$('btnPdf').onclick = () => {
+  openDownloadDialogBackend('pdf');
 };
 
-$('btnZip').onclick = () => { 
-  alert('ZIP download kræver en backend service. Brug individuel PDF download i stedet.');
+const zipBtn = $('btnZip');
+if (zipBtn) zipBtn.onclick = () => {
+  openDownloadDialogBackend('pdf');
 };
 
-  // ----- Download UDV (hele undersøgelsen) -----
-$('btnUdvSurvey').onclick = async () => {
-  const projectId = $('selProject2').value;
-  if (!projectId) { alert('Vælg et projekt først'); return; }
-  try {
-    const udv = await buildSurveyUDV(projectId);
+// ----- Download UDV via samme modal -----
+$('btnUdvSurvey').onclick = () => {
+  openDownloadDialogBackend('udv');
+};
+
+// Byg og download UDV som samlet fil eller enkeltvis (ZIP)
+async function handleUdvDownloadBackend(projectId, targetIds, isSeparate) {
+  const udvAll = await window.buildSurveyUDV(projectId);
+
+  const safe = (s) => (s || '').toString().replace(/\s+/g, '_').replace(/[^A-Za-z0-9_\-\.]/g, '');
+  const title = udvAll?.project?.title || 'survey';
+  const variant = udvAll?.variant || (udvAll?.project?.is_lite ? 'LITE' : 'FULD');
+  const d = new Date().toISOString().slice(0,10).replaceAll('-','');
+
+  if (!isSeparate) {
+    // Samlet UDV med præcis de valgte personer
+    const set = new Set(targetIds);
+    const people = (udvAll.people || []).filter(p => set.has(p.id));
+    const scores = (udvAll.scores || []).filter(s => set.has(s.target_id));
+    const udv = { ...udvAll, people, scores };
     const blob = new Blob([JSON.stringify(udv, null, 2)], { type: 'application/kompas-udv+json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    const title = (await supabase.from('projects').select('title').eq('id', projectId).single()).data?.title || 'survey';
-    const d = new Date().toISOString().slice(0,10).replaceAll('-','');
-    const variant = udv.variant || (udv.project?.is_lite ? 'LITE' : 'FULD');
-    a.download = `${title}_${variant}_${d}_survey.udv`;
+    a.download = `${safe(title)}_${variant}_${d}_survey.udv`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(a.href);
-  } catch (e) {
-    console.error(e);
-    alert('Kunne ikke generere UDV: ' + e.message);
+    return;
   }
-};
+
+  // Enkeltvis → ZIP hver UDV pr. person
+  const zip = new JSZip();
+  const byId = new Map((udvAll.people || []).map(p => [p.id, p]));
+  for (const tid of targetIds) {
+    const person = byId.get(tid);
+    if (!person) continue;
+    const people = [person];
+    const scores = (udvAll.scores || []).filter(s => s.target_id === tid);
+    const udvOne = { ...udvAll, people, scores };
+    const emp = person.employee_no ? String(person.employee_no) : 'NA';
+    const fname = `${safe(title)}_${variant}_${d}_${safe(emp)}_${safe(person.full_name || person.name || '')}.udv`;
+    zip.file(fname, JSON.stringify(udvOne, null, 2));
+  }
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${safe(title)}_${variant}_${d}_udv.zip`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
 
 // ↺ Nulstil fravalg i 📈 Udvikle (Fokusområder)
 $('btnResetDevelop').onclick = async () => {
@@ -4273,27 +4290,27 @@ $('btnResetDevelop').onclick = async () => {
   // Robust over manglende data og nye medarbejdere mellem bølger.
   async function buildSurveyUDV(projectId){
     // Projekt
-    const { data: proj } = await supabase
+    const { data: proj } = await window.supabaseClient
       .from('projects')
       .select('id, title, template_id, is_lite, settings, is_anonymous, created_at, first_response_at, close_at')
       .eq('id', projectId).single();
 
     // Personer i projektet
-    const { data: people } = await supabase
+    const { data: people } = await window.supabaseClient
       .from('project_people')
       .select('id, full_name, employee_no')
       .eq('project_id', projectId)
       .order('full_name');
 
     // Kategori-sti til labels (domæner/kategorier)
-    const { data: cats } = await supabase
+    const { data: cats } = await window.supabaseClient
       .from('v_category_path')
       .select('*')
       .eq('template_id', proj.template_id)
       .order('domain_sort, category_sort');
 
     // Sikker gennemsnit pr. kategori/respondent-type
-    const { data: series } = await supabase
+    const { data: series } = await window.supabaseClient
       .from('v_kompas_series')
       .select('*')
       .eq('project_id', projectId);
@@ -4331,15 +4348,32 @@ $('btnResetDevelop').onclick = async () => {
     };
   }
 
+  // Gør download-funktioner tilgængelige globalt for eksterne script-sektioner
+  window.buildResultsPdfHtml = buildResultsPdfHtml;
+  window.buildSurveyUDV = buildSurveyUDV;
+
   // ======= UDV IMPORT + UDVIKLING (over tid) =======
-  function setupDevelopmentTab(){
-    if (window.__devInitDone) return;
-    window.__devInitDone = true;
+// Hjælp: vis/skjul MIX-hint
+function setMixHint(){
+  const hint = $('devAllowMixHint');
+  if(!hint) return;
+  const isMix = (window.__devVariant==='MIX');
+  if(isMix){
+    hint.style.display = 'inline';
+    hint.textContent = 'Du har uploadet en blanding af FULD og LITE. Slå til for kun at bruge fælles kategorier på tværs af filer.';
+  }else{
+    hint.style.display = 'none';
+    hint.textContent = '';
+  }
+}
 
-    const drop = $('udvDrop');
-    const input = $('udvFiles');
-    const fileList = $('udvFileList');
+function setupDevelopmentTab(){
+  if (window.__devInitDone) return;
+  window.__devInitDone = true;
 
+  const drop = $('udvDrop');
+  const input = $('udvFiles');
+  const fileList = $('udvFileList');
 
     // Klik på boksen åbner file picker
     drop.onclick = () => input.click();
@@ -4358,19 +4392,21 @@ $('btnResetDevelop').onclick = async () => {
       const files=[...e.dataTransfer.files];
       await handleUdvFiles(files, fileList);
     });
-        input.onchange = async (e)=>{
-          const files=[...e.target.files];
-          await handleUdvFiles(files, fileList);
-          // tillad at vælge samme fil igen
-          e.target.value = '';
-        };
-
-
+    input.onchange = async (e)=>{
+      const files=[...e.target.files];
+      await handleUdvFiles(files, fileList);
+      // tillad at vælge samme fil igen
+      e.target.value = '';
+    };
 
     // UI events
-    ['devTypeSelf','devTypePeer','devTypeLeader','devView','devNorm','devWaveA','devWaveB','devPersonSelect']
+    ['devTypeSelf','devTypePeer','devTypeLeader','devView','devNorm','devWaveA','devWaveB','devPersonSelect','devAllowMix']
       .forEach(id=>$(id)?.addEventListener('change', renderDevelopment));
-    
+
+    $('devAllowMixInfo')?.addEventListener('click', ()=>{
+      alert('Blandede UDV-typer: Hvis flere filer er en blanding af FULD og LITE, kan skemaerne have forskellige kategorier. Når dette er slået til, bruger vi kun de kategorier, som findes i alle filer (fællesmængden), så grafer og tabeller bliver sammenlignelige.');
+    });
+
     $('btnExportDevCsv').onclick = exportDevCsv;
 
     // Lokale state på window (enkelt at debugg’e)
@@ -4408,14 +4444,17 @@ $('btnResetDevelop').onclick = async () => {
   const unique = Array.from(new Set(variants.map(v=>v.variant)));
   window.__devVariant = (unique.length===1 ? unique[0] : 'MIX');
 
-  // MIX: kræv “Tillad blandede UDV-typer”-checkbox
+  // MIX: kræv “Tillad blandede UDV-typer”-checkbox og opdater hint
   if(window.__devVariant==='MIX'){
+    setMixHint?.();
     const allowMix = $('devAllowMix')?.checked;
     if(!allowMix){
       const list = variants.map(v=>`• ${v.name} — ${v.variant}`).join('\n');
       alert('Du har uploadet en blanding af FULD og LITE.\nSlå "Tillad blandede UDV-typer (fælles kategorier)" til for at fortsætte.\n\nFiler:\n\n' + list);
       return;
     }
+  }else{
+    setMixHint?.();
   }
 
   // Sortér
@@ -4582,14 +4621,17 @@ $('btnResetDevelop').onclick = async () => {
     if(persons.length) sel.value = persons[0].key;
   }
 
-
   function renderDevelopment(){
     const st = window.__devState;
     const merged = st?.merged;
     if(!merged){ return; }
 
+    // Opdater MIX-hint, hvis element findes
+    setMixHint?.();
+
     const view = $('devView')?.value || 'team';
     const norm = $('devNorm')?.value || 'none';
+
     const types = getCheckedTypes();
     const selectedKey = $('devPersonSelect')?.value || '';
 
@@ -4641,51 +4683,106 @@ $('btnResetDevelop').onclick = async () => {
       });
     }
 
-    // KPI (fx deltagelse / datadækning)
+    // KPI (deltagelse, datadækning, bølger, typer)
+    (function(){
+      const box = $('devKpi');
+      if(!box) return;
 
-    // Linjediagram (team-snit pr. bølge)
-    const lineCtx = $('devLine');
-    if(lineCtx){
-      const labels = wavesData.map((_,i)=>`Bølge #${i+1}`);
-      let datasetLabel = 'Udvikling (snit)';
-      let seriesData = [];
+      // Antal bølger og personer
+      const waves = merged.wavesData || [];
+      const persons = merged.persons || [];
+      const waveCount = waves.length;
+      const personCount = persons.length;
 
-      if(view === 'individual' && selectedKey){
-        // Udvikling for den valgte person
-        datasetLabel = 'Udvikling (valgt deltager)';
-        seriesData = wavesSeries.map(ws=>{
-          const rec = ws.find(r=> r.person && r.person.key === selectedKey);
-          if(!rec) return null;
-          const clean = rec.perCat.filter(v=>v!=null);
-          return clean.length ? (clean.reduce((a,b)=>a+b,0)/clean.length) : null;
-        });
-      } else if(view === 'team'){
-        // Team-snit pr. bølge
-        seriesData = wavesSeries.map(ws=>{
-          const vals = ws.map(r=>{
-            const clean = r.perCat.filter(v=>v!=null);
-            return clean.length ? (clean.reduce((a,b)=>a+b,0)/clean.length) : null;
-          }).filter(v=>v!=null);
-          return vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length) : null;
-        });
-      } else {
-        // Domæne/Kategori: vis snit over personer (snit af kategori-snit)
-        seriesData = wavesSeries.map(ws=>{
-          const vals = ws.map(r=>{
-            const clean = r.perCat.filter(v=>v!=null);
-            return clean.length ? (clean.reduce((a,b)=>a+b,0)/clean.length) : null;
-          }).filter(v=>v!=null);
-          return vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length) : null;
-        });
-      }
-
-      if(st.charts.line){ st.charts.line.destroy(); }
-      st.charts.line = new Chart(lineCtx, {
-        type:'line',
-        data:{ labels, datasets:[{ label: datasetLabel, data: seriesData }] },
-        options:{ responsive:true, maintainAspectRatio:false, scales:{ y:{ beginAtZero:true } } }
+      // Deltagelse/datadækning pr. bølge = andel af personer med mindst én værdi i bølgen
+      const coverage = wavesSeries.map(ws=>{
+        const withData = ws.filter(r=>{
+          const clean = (r.perCat||[]).filter(v=>v!=null);
+          return clean.length>0;
+        }).length;
+        return personCount ? Math.round((withData/personCount)*100) : 0;
       });
 
+      // Valgte respondenttyper
+      const types = getCheckedTypes();
+      const typeLabel = (!types.length ? 'Ingen' : types.map(t=> t==='self'?'Selv':(t==='peer'?'Kollega':'Fører')).join(', '));
+
+      // Variant-info
+      const variant = (window.__devVariant || 'UKENDT');
+
+      // Render KPI’erne
+      box.innerHTML = [
+        `<div><div style="font-weight:600">Bølger</div><div>${waveCount}</div></div>`,
+        `<div><div style="font-weight:600">Personer</div><div>${personCount}</div></div>`,
+        `<div><div style="font-weight:600">Dækning (gennemsnit)</div><div>${coverage.length? Math.round(coverage.reduce((a,b)=>a+b,0)/coverage.length):0}%</div></div>`,
+        `<div><div style="font-weight:600">Dækning pr. bølge</div><div>${coverage.map((p,i)=>`#${i+1}:${p}%`).join(' · ')||'—'}</div></div>`,
+        `<div><div style="font-weight:600">Typer</div><div>${typeLabel}</div></div>`,
+        `<div><div style="font-weight:600">UDV-variant</div><div>${variant}</div></div>`
+      ].join('');
+    })();
+
+
+    // Linjediagram (team-snit pr. bølge) — vis kun hvis der er > 2 bølger
+    const lineCtx = $('devLine');
+    if (lineCtx) {
+      const lineWrapper = lineCtx.closest('.section');
+      const waveCountForLine = (wavesData || []).length;
+
+      // Skjul/vis container afhængigt af datagrundlag
+      if (waveCountForLine <= 2) {
+        if (st.charts?.line) { st.charts.line.destroy(); }
+        if (lineWrapper) lineWrapper.style.display = 'none';
+      } else {
+        if (lineWrapper) lineWrapper.style.display = 'block';
+
+        const labels = wavesData.map((_, i) => `Bølge #${i+1}`);
+        let datasetLabel = 'Udvikling (snit)';
+        let seriesData = [];
+
+        if (view === 'individual' && selectedKey) {
+          // Udvikling for den valgte person
+          datasetLabel = 'Udvikling (valgt deltager)';
+          seriesData = wavesSeries.map(ws => {
+            const rec = ws.find(r => r.person && r.person.key === selectedKey);
+            if (!rec) return null;
+            const clean = rec.perCat.filter(v => v != null);
+            return clean.length ? (clean.reduce((a, b) => a + b, 0) / clean.length) : null;
+          });
+        } else if (view === 'team') {
+          // Team-snit pr. bølge
+          seriesData = wavesSeries.map(ws => {
+            const vals = ws.map(r => {
+              const clean = r.perCat.filter(v => v != null);
+              return clean.length ? (clean.reduce((a, b) => a + b, 0) / clean.length) : null;
+            }).filter(v => v != null);
+            return vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length) : null;
+          });
+        } else {
+          // Domæne/Kategori: vis snit over personer (snit af kategori-snit)
+          seriesData = wavesSeries.map(ws => {
+            const vals = ws.map(r => {
+              const clean = r.perCat.filter(v => v != null);
+              return clean.length ? (clean.reduce((a, b) => a + b, 0) / clean.length) : null;
+            }).filter(v => v != null);
+            return vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length) : null;
+          });
+        }
+
+        if (st.charts.line) { st.charts.line.destroy(); }
+        st.charts.line = new Chart(lineCtx, {
+          type: 'line',
+          data: { labels, datasets: [{ label: datasetLabel, data: seriesData }] },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: (norm === 'zscore'
+                ? { suggestedMin: -2, suggestedMax: 2 }
+                : { beginAtZero: true })
+            }
+          }
+        });
+      }
     }
 
     // Radar (vælg bølge A/B)
@@ -4828,21 +4925,33 @@ $('btnResetDevelop').onclick = async () => {
             point: { radius: 0, hitRadius: 6 } // Ingen punkter (matcher KOMPAS)
           },
           scales: {
-            r: {
-              beginAtZero: true, 
-              min: 0, 
-              max: 5,
+            r: (norm === 'zscore' ? {
+              beginAtZero: false,
+              suggestedMin: -2,
+              suggestedMax: 2,
               grid: { circular: true },
               ticks: { display: false },
               angleLines: { color: 'rgba(0,0,0,0.08)' },
               pointLabels: {
-                // Skjul labels for tomme akser (samme som Resultater-fanen)
                 display: function(context) {
                   return orderedCategories[context.index] !== '';
                 },
                 font: { size: 12, weight: 'bold' }
               }
-            }
+            } : {
+              beginAtZero: true,
+              min: 0,
+              max: 5,
+              grid: { circular: true },
+              ticks: { display: false },
+              angleLines: { color: 'rgba(0,0,0,0.08)' },
+              pointLabels: {
+                display: function(context) {
+                  return orderedCategories[context.index] !== '';
+                },
+                font: { size: 12, weight: 'bold' }
+              }
+            }),
           },
           plugins: { legend: { position: 'bottom' } }
         },
@@ -4890,7 +4999,7 @@ $('btnResetDevelop').onclick = async () => {
     if(!bodyRows.length){ alert('Ingen data at eksportere'); return; }
     let csv = '';
     // header
-    const headCells = [...$('devTblHead').querySelectorAll('th')].map(th=>th.textContent.trim());
+    const headCells = [...$('devTblHead').querySelectorAll('th')].map(th=> th.textContent.trim());
     csv += headCells.join(',') + '\n';
     // rows
     bodyRows.forEach(tr=>{
@@ -4902,10 +5011,11 @@ $('btnResetDevelop').onclick = async () => {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = 'udvikling_panel.csv';
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
 
-
-    }
 
 
   // Team Building Variables
@@ -4952,6 +5062,7 @@ $('btnResetDevelop').onclick = async () => {
         const personData = { 
           id: person.id, 
           name: person.full_name, 
+          employee_no: person.employee_no || null, // ← medtag MA-nummer fra projekt_people
           selected: false,
           categories: {}
         };
@@ -5017,7 +5128,43 @@ $('btnResetDevelop').onclick = async () => {
       b = 120;
     }
     
-    return `rgba(${r}, ${g}, ${b}, 0.4)`;
+      return `rgba(${r}, ${g}, ${b}, 0.4)`;
+  }
+
+  // Robust opslag af MA-/medarbejdernummer på person-objekter
+  function getEmployeeNoFrom(person){
+    const cand = [
+      person.employee_no, person.employeeNo, person.ma_no, person.maNo,
+      person.ma, person.maNumber, person.employeeNumber,
+      person.employee?.number, person.employee?.id,
+      person.meta?.employee_no, person.meta?.ma_no, person.meta?.maNumber
+    ].find(v => v !== undefined && v !== null && String(v).trim() !== '');
+    return cand ? String(cand).trim() : '';
+  }
+
+  // Helper: samme farvelogik som ovenfor, men returnér ExcelJS ARGB-fill
+  function getExcelFillForValue(value, min, max, colorMode) {
+    if (value === null || colorMode === 'none') return null;
+
+    const ratio = max > min ? (value - min) / (max - min) : 0.5;
+
+    let r, g, b;
+    if (ratio < 0.5) {
+      r = 240;
+      g = 120 + Math.round(120 * (ratio * 2));
+      b = 120;
+    } else {
+      r = 240 - Math.round(120 * ((ratio - 0.5) * 2));
+      g = 240;
+      b = 120;
+    }
+
+    // 0xCC ≈ 80% alpha for en blød baggrund
+    const A = 'CC';
+    const toHex = (n) => n.toString(16).padStart(2, '0').toUpperCase();
+    const argb = A + toHex(r) + toHex(g) + toHex(b);
+
+    return { type: 'pattern', pattern: 'solid', fgColor: { argb }, bgColor: { argb: 'FFFFFFFF' } };
   }
 
   function renderTeamTable() {
@@ -5353,39 +5500,126 @@ $('btnResetDevelop').onclick = async () => {
     renderTeamTable();
   };
 
-  $('btnExportTeamData').onclick = () => {
+  // Excel-eksport (bevarer tabelstrukturen og farveskala)
+  async function exportTeamXlsx(){
     if (teamData.length === 0) {
       alert('Ingen team data at eksportere');
       return;
     }
 
-    // Create CSV data
-    let csvContent = 'Navn';
-    categories.forEach(cat => {
-      csvContent += ',' + cat.category_name;
-    });
-    csvContent += '\n';
+    const showValues = $('showValues').checked;
+    const colorMode  = document.querySelector('input[name="colorScale"]:checked').value;
 
-    teamData.forEach(person => {
-      csvContent += person.name;
-      categories.forEach(cat => {
-        const avg = calculateAverage(person, cat.category_id);
-        csvContent += ',' + (avg !== null ? avg.toFixed(1) : '');
+    // For global farveskala skal vi kende samlet min/max
+    let globalMin = 0, globalMax = 5;
+    if (colorMode === 'global') {
+      const vals = [];
+      teamData.forEach(person => {
+        categories.forEach(cat => {
+          const v = calculateAverage(person, cat.category_id);
+          if (v !== null) vals.push(v);
+        });
       });
-      csvContent += '\n';
+      if (vals.length) { globalMin = Math.min(...vals); globalMax = Math.max(...vals); }
+    }
+
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Team');
+
+    // Header – tilføj "Medarbejdernummer" efter Navn
+    const headers = ['Navn', 'Medarbejdernummer', ...categories.map(c => c.category_name)];
+    ws.addRow(headers);
+    const headerRow = ws.getRow(1);
+    headerRow.font = { bold: true };
+    headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+
+    // Kolonnebredder
+    ws.getColumn(1).width = 28; // Navn
+    ws.getColumn(2).width = 16; // Medarbejdernummer
+    for (let c = 3; c <= headers.length; c++) ws.getColumn(c).width = 8; // Kategorier
+
+    // Frys top-række og de to første kolonner (Navn + Medarbejdernummer)
+    ws.views = [{ state: 'frozen', xSplit: 2, ySplit: 1 }];
+
+    // Data-rækker
+    teamData.forEach(person => {
+      // Beregn evt. række-min/max til row-mode
+      let rowMin = 0, rowMax = 5;
+      if (colorMode === 'row') {
+        const rowVals = categories
+          .map(cat => calculateAverage(person, cat.category_id))
+          .filter(v => v !== null);
+        if (rowVals.length) { rowMin = Math.min(...rowVals); rowMax = Math.max(...rowVals); }
+      }
+
+      const values = [person.name, getEmployeeNoFrom(person)];
+      const avgs   = [];
+
+      categories.forEach(cat => {
+        const v = calculateAverage(person, cat.category_id);
+        avgs.push(v);
+        values.push(v === null ? null : Number(v.toFixed(1)));
+      });
+
+      const row = ws.addRow(values);
+
+      // Formatér celler (talformat + farver)
+      for (let i = 0; i < avgs.length; i++) {
+        const cell = row.getCell(i + 3); // +3 pga. Navn og Medarbejdernummer i kolonne 1-2
+        if (avgs[i] !== null) {
+          cell.numFmt = '0.0';
+          cell.alignment = { vertical: 'middle', horizontal: 'center' };
+          const fill = getExcelFillForValue(
+            avgs[i],
+            colorMode === 'global' ? globalMin : rowMin,
+            colorMode === 'global' ? globalMax : rowMax,
+            colorMode
+          );
+          if (fill) cell.fill = fill;
+
+          // Hvis tal er skjult i UI, eksporterer vi stadig værdierne tydeligt i Excel
+          // (det er et datasæt – Excel er til analyse)
+        } else {
+          cell.value = null;
+        }
+      }
     });
 
-    // Download CSV
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    // Tilpas kolonnebredder automatisk efter indhold
+    ws.columns.forEach((column) => {
+      let maxLength = 10;
+      column.eachCell({ includeEmpty: true }, (cell) => {
+        const val = cell.value ? cell.value.toString() : '';
+        maxLength = Math.max(maxLength, val.length + 2);
+      });
+      column.width = maxLength;
+    });
+
+    // Tynde kantlinjer for læsbarhed
+    ws.eachRow((row) => {
+      row.eachCell((cell) => {
+        cell.border = {
+          top:    { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          left:   { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          right:  { style: 'thin', color: { argb: 'FFE2E8F0' } }
+        };
+      });
+    });
+
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
     a.href = url;
-    a.download = 'team_data.csv';
+    a.download = 'team_data.xlsx';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  };
+  }
+
+  $('btnExportTeamData').onclick = exportTeamXlsx;
 
   $('btnDownloadTeamPDF').onclick = async () => {
   const projectId = $('selProject3').value;  // KORREKT - dette er fra Team Building
@@ -8956,6 +9190,184 @@ function debugCoachingRecommendations(data) {
   }
   
 });
+</script>
+
+<!-- Modal til valg af personer for backend-PDF -->
+<div id="dlModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:#fff;max-width:560px;width:92%;border-radius:12px;padding:16px 16px 12px;box-shadow:0 10px 30px rgba(0,0,0,0.3)">
+    <h3 id="dlTitle" style="margin:0 0 8px 0">Download PDF</h3>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:12px">
+      <label style="user-select:none"><input id="dlSelectAll" type="checkbox"> Markér alle</label>
+      <label style="user-select:none"><input id="dlSeparate" type="checkbox"> Enkeltvis (ZIP)</label>
+    </div>
+    <div id="dlList" style="max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:8px;margin-bottom:10px"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button id="dlCancel" class="btn">Annuller</button>
+      <button id="dlConfirm" class="btn primary">Download</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ref: :contentReference[oaicite:2]{index=2}
+  async function openDownloadDialogBackend(kind /* 'pdf' | 'udv' */) {
+    const pid = document.getElementById('selProject2').value;
+    if (!pid) { alert('Vælg projekt først'); return; }
+
+    const { data: people, error } = await window.supabaseClient
+      .from('project_people')
+      .select('id, full_name, employee_no')
+      .eq('project_id', pid)
+      .order('full_name');
+
+    if (error) { alert('Kunne ikke hente personer: ' + error.message); return; }
+    if (!people || people.length === 0) {
+      alert('Der er ingen personer i dette projekt endnu. Tilføj personer i Supabase og prøv igen.');
+      return;
+    }
+
+    const current = document.getElementById('selTarget').value || null;
+    const dlList = document.getElementById('dlList');
+    dlList.innerHTML = (people||[]).map(p => `
+      <label style="display:flex;gap:8px;align-items:center;padding:6px 4px">
+        <input type="checkbox" class="dlChk" value="${p.id}" ${p.id===current?'checked':''}>
+        <span>${p.full_name}${p.employee_no ? ' — ' + p.employee_no : ''}</span>
+      </label>
+    `).join('');
+
+    document.getElementById('dlTitle').textContent = (kind === 'pdf' ? 'Download PDF' : 'Download UDV');
+    const modal = document.getElementById('dlModal');
+    const selAll = document.getElementById('dlSelectAll');
+    const separate = document.getElementById('dlSeparate');
+    const confirmBtn = document.getElementById('dlConfirm');
+
+    selAll.checked = false;
+    separate.checked = false;
+
+    const updateConfirmState = () => {
+      const anyChecked = dlList.querySelectorAll('.dlChk:checked').length > 0;
+      confirmBtn.disabled = !anyChecked;
+    };
+
+    selAll.onchange = (e) => {
+      dlList.querySelectorAll('.dlChk').forEach(ch => ch.checked = e.target.checked);
+      updateConfirmState();
+    };
+
+    dlList.addEventListener('change', (e) => {
+      if (e.target && e.target.classList.contains('dlChk')) updateConfirmState();
+    });
+
+    updateConfirmState();
+    modal.style.display = 'flex';
+
+    const close = () => { modal.style.display = 'none'; };
+    document.getElementById('dlCancel').onclick = close;
+
+    document.getElementById('dlConfirm').onclick = async () => {
+      const ids = Array.from(dlList.querySelectorAll('.dlChk')).filter(x=>x.checked).map(x=>x.value);
+      if (!ids.length) { alert('Vælg mindst én person'); return; }
+      close();
+      if (kind === 'pdf') {
+        await handlePdfDownloadBackend(pid, ids, separate.checked);
+      } else {
+        await handleUdvDownloadBackend(pid, ids, separate.checked);
+      }
+    };
+  }
+
+ async function handlePdfDownloadBackend(projectId, targetIds, isSeparate) {
+    try {
+      // Hent projekt og kategorier én gang
+      const { data: project, error: projError } = await window.supabaseClient.from('projects').select('*').eq('id', projectId).single();
+      if (projError) throw new Error('Kunne ikke hente projekt: ' + projError.message);
+      
+      const { data: cats, error: catsError } = await window.supabaseClient.from('v_category_path')
+        .select('*').eq('template_id', project.template_id).order('category_sort');
+      if (catsError) throw new Error('Kunne ikke hente kategorier: ' + catsError.message);
+
+      // Forbered HTML per person ved at genbruge din eksisterende buildResultsPdfHtml
+      const items = [];
+      for (const tid of targetIds) {
+        const { data: person, error: personError } = await window.supabaseClient.from('project_people').select('*').eq('id', tid).single();
+        if (personError) {
+          console.error('Kunne ikke hente person:', personError);
+          continue;
+        }
+        
+        const { data: seriesRows, error: seriesError } = await window.supabaseClient.from('v_kompas_series')
+          .select('*')
+          .eq('project_id', projectId)
+          .eq('target_id', tid);
+        if (seriesError) {
+          console.error('Kunne ikke hente serier for person:', seriesError);
+          continue;
+        }
+
+        const series = { self: [], peer: [], leader: [] };
+        (cats || []).forEach(c => {
+          const s = (seriesRows || []).find(r => r.category_id === c.category_id && r.respondent_type === 'self');
+          const p = (seriesRows || []).find(r => r.category_id === c.category_id && r.respondent_type === 'peer');
+          const l = (seriesRows || []).find(r => r.category_id === c.category_id && r.respondent_type === 'leader');
+          series.self.push(s?.safe_avg ?? null);
+          series.peer.push(p?.safe_avg ?? null);
+          series.leader.push(l?.safe_avg ?? null);
+        });
+
+        const htmlContent = await window.buildResultsPdfHtml(project, person, cats || [], series);
+        const emp  = person.employee_no ? String(person.employee_no) : 'NA';
+        const safe = (s)=> (s||'').replace(/\s+/g,'_').replace(/[^A-Za-z0-9_\-æøåÆØÅ]/g,'');
+        const fname = `${safe(project.title)}_${safe(emp)}_${safe(person.full_name)}`;
+        items.push({ filename: fname, html: htmlContent });
+      }
+
+      if (items.length === 0) {
+        alert('Kunne ikke generere PDF-data for nogen af de valgte personer');
+        return;
+      }
+
+      const payload = {
+        mode: isSeparate ? 'separate' : 'combined',
+        title: project.title,
+        items
+      };
+
+      // Brug window.API_BASE_URL i stedet for relativ URL
+      const apiUrl = `${window.API_BASE_URL}/api/pdf/render`;
+      console.log('Sender PDF-anmodning til:', apiUrl);
+      
+      const resp = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      });
+
+      if (!resp.ok) {
+        const txt = await resp.text().catch(()=> '');
+        console.error('PDF backend fejl:', {
+          status: resp.status,
+          statusText: resp.statusText,
+          body: txt,
+          url: apiUrl
+        });
+        alert(`PDF eksport fejlede (${resp.status}): ${txt || resp.statusText}\n\nSikr at din FastAPI-server kører på ${API_BASE_URL}`);
+        return;
+      }
+
+      const blob = await resp.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = (isSeparate ? `${(project.title||'resultater').replace(/\s+/g,'_')}.zip`
+                               : `${(project.title||'resultater').replace(/\s+/g,'_')}.pdf`);
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+      
+      console.log('PDF downloadet succesfuldt');
+    } catch (err) {
+      console.error('Uventet fejl i handlePdfDownloadBackend:', err);
+      alert('PDF eksport fejlede: ' + (err.message || err));
+    }
+  }
 </script>
 
 </body>
