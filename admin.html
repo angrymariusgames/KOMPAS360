@@ -1183,11 +1183,19 @@ window.addEventListener('load', function() {
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzcnN0eXJzdXdoY21tbG1uYnJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MTU0NTIsImV4cCI6MjA3MTE5MTQ1Mn0.Rf3Z3bQGjV5CKXKZr6IMOjzPdbhVJCh3SwuvlkpxUD0";
   
   // API konfiguration - GØR DEN GLOBAL så den kan bruges i alle script tags
-  // Hvis du vil tvinge en bestemt URL, udkommentér den relevante linje:
-  // window.API_BASE_URL = 'http://localhost:8000';  // Lokal udvikling
-  // window.API_BASE_URL = 'https://minudvikling.dk';  // Produktion
   
-  // Automatisk detektion (anbefalet):
+  // MIDLERTIDIG LØSNING: Hardcoded til lokal FastAPI server
+  // Skift denne URL til hvor din FastAPI server faktisk kører:
+  window.API_BASE_URL = 'http://localhost:8000';  // ⬅️ AKTIVER DENNE for lokal udvikling
+  
+  // ELLER hvis FastAPI kører på en anden server:
+  // window.API_BASE_URL = 'http://DIN-SERVER-IP:8000';
+  
+  // ELLER når FastAPI er korrekt sat op på minudvikling.dk:
+  // window.API_BASE_URL = 'https://minudvikling.dk';
+  
+  // Automatisk detektion (udkommenteret indtil server er sat op):
+  /*
   window.API_BASE_URL = (() => {
     // Hvis åbnet direkte som fil, brug localhost som standard
     if (window.location.protocol === 'file:') {
@@ -1204,6 +1212,7 @@ window.addEventListener('load', function() {
     // Fallback: brug samme origin som siden
     return window.location.origin;
   })();
+  */
   
   console.log('API Base URL konfigureret til:', window.API_BASE_URL);
   
