@@ -82,6 +82,7 @@
     .btn.ghost{background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.35)}
     .btn.small{padding:6px 10px;font-size:.85rem}
     .btn.success{background:var(--success);border-color:var(--success);color:#fff}
+    .btn.error{background:var(--error);border-color:var(--error);color:#fff}
 
     /* Tabs */
     .tabbar{
@@ -430,6 +431,7 @@
       <button class="tabbtn" data-tab="teambuilding">🤝 Team Building</button>
       <button class="tabbtn" data-tab="development">🌱 Udvikling</button>
       <button class="tabbtn" data-tab="contract">📝 Udviklingskontrakt</button>
+      <button class="tabbtn" data-tab="administration">👥 Administration</button>
 
     </div>
     <div style="padding:16px 0">
@@ -804,6 +806,73 @@
       </div>
     </div>
 
+    <!-- Administration -->
+    <div id="tab-administration" class="section" style="display:none">
+      
+      <!-- Upload Projekt UDV -->
+      <div class="section" style="margin-bottom:20px">
+        <h3 style="margin-bottom:12px">📁 Indlæs Projekt</h3>
+        <div id="adminProjectDrop" style="border:2px dashed var(--line);padding:24px;border-radius:12px;background:#fff;cursor:pointer;text-align:center">
+          <strong>Slip .udv fil her</strong> eller klik for at vælge
+          <input id="adminProjectFile" type="file" accept=".udv,.json" style="display:none">
+        </div>
+        <div id="adminProjectStatus" class="muted" style="margin-top:8px;font-size:0.9rem"></div>
+      </div>
+
+      <!-- Projekt Information (skjult indtil projekt er loadet) -->
+      <div id="adminProjectInfo" class="section" style="display:none;margin-bottom:20px">
+        <h3 style="margin-bottom:16px">📊 Projekt Information</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+          <div>
+            <div class="muted" style="font-size:0.85rem;margin-bottom:4px">Titel</div>
+            <div id="adminProjectTitle" style="font-weight:600"></div>
+          </div>
+          <div>
+            <div class="muted" style="font-size:0.85rem;margin-bottom:4px">Status</div>
+            <div id="adminProjectStatus2" style="font-weight:600"></div>
+          </div>
+          <div>
+            <div class="muted" style="font-size:0.85rem;margin-bottom:4px">Total deltagere</div>
+            <div id="adminProjectCount" style="font-weight:600"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Deltagere Tabel (skjult indtil projekt er loadet) -->
+      <div id="adminParticipantsSection" class="section" style="display:none;margin-bottom:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <h3 style="margin:0">👥 Deltagere</h3>
+          <button id="adminRefreshBtn" class="btn small">🔄 Opdater</button>
+        </div>
+        
+        <div style="max-height:400px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;background:#fff">
+          <table id="adminParticipantsTable" style="width:100%;font-size:0.9rem">
+            <thead style="background:var(--card);position:sticky;top:0;z-index:10">
+              <tr>
+                <th style="padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;width:15%">MA</th>
+                <th style="padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;width:35%">Navn</th>
+                <th style="padding:10px 12px;border-bottom:1px solid var(--line);text-align:center;width:10%">Lite</th>
+                <th style="padding:10px 12px;border-bottom:1px solid var(--line);text-align:center;width:15%">Svar</th>
+                <th style="padding:10px 12px;border-bottom:1px solid var(--line);text-align:center;width:10%">Slet</th>
+              </tr>
+            </thead>
+            <tbody id="adminParticipantsBody">
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tilføj Nye Deltagere (skjult indtil projekt er loadet) -->
+      <div id="adminAddSection" class="section" style="display:none">
+        <h3 style="margin-bottom:12px">➕ Tilføj Deltagere</h3>
+        <div id="adminAddDrop" style="border:2px dashed var(--line);padding:24px;border-radius:12px;background:#fff;cursor:pointer;text-align:center">
+          <strong>Slip .udv fil her</strong> eller klik for at tilføje nye deltagere
+          <input id="adminAddFile" type="file" accept=".udv,.json" style="display:none">
+        </div>
+        <div id="adminAddStatus" class="muted" style="margin-top:8px;font-size:0.9rem"></div>
+      </div>
+
+    </div>
 
     <!-- Team Building -->
     <div id="tab-teambuilding" class="section" style="display:none">
@@ -1243,7 +1312,7 @@ window.addEventListener('load', function() {
       document.querySelectorAll('.tabbtn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       // skjul alle sektioner
-      ['projects','results','teambuilding','development','contract'].forEach(name=>{
+      ['projects','results','teambuilding','development','contract','administration'].forEach(name=>{
         const panel = $('tab-'+name);
         if(panel) panel.style.display = 'none';
       });
@@ -1308,6 +1377,10 @@ async function handleTabDataLoading(tabName) {
       case 'teambuilding': {
         const teamProject = $('selProject3').value;
         if (teamProject) await loadTeamBuildingData();
+        break;
+      }
+      case 'administration': {
+        initAdministration();
         break;
       }
       default:
@@ -4601,7 +4674,397 @@ function setupDevelopmentTab(){
     return { persons, taxonomy, wavesData };
   }
 
+// ============================================================================
+  // ADMINISTRATION FANE - DELTAGER ADMINISTRATION
+  // ============================================================================
+  
+  let adminState = {
+    currentProject: null,
+    currentProjectId: null,
+    participants: []
+  };
 
+  function initAdministration() {
+    if (window.__adminInitDone) return;
+    window.__adminInitDone = true;
+
+    const projectDrop = $('adminProjectDrop');
+    const projectInput = $('adminProjectFile');
+    const addDrop = $('adminAddDrop');
+    const addInput = $('adminAddFile');
+
+    // Setup projekt upload drag & drop
+    projectDrop.onclick = () => projectInput.click();
+    
+    ['dragenter','dragover'].forEach(evt=>{
+      projectDrop.addEventListener(evt, e=>{e.preventDefault(); projectDrop.style.background='#f8fafc';});
+    });
+    ['dragleave','drop'].forEach(evt=>{
+      projectDrop.addEventListener(evt, e=>{e.preventDefault(); projectDrop.style.background='#fff';});
+    });
+
+    projectDrop.addEventListener('drop', async e=>{
+      e.preventDefault();
+      const files=[...e.dataTransfer.files];
+      if(files.length > 0) await handleAdminProjectFile(files[0]);
+    });
+    
+    projectInput.onchange = async (e)=>{
+      const files=[...e.target.files];
+      if(files.length > 0) await handleAdminProjectFile(files[0]);
+      e.target.value = '';
+    };
+
+    // Setup tilføj deltagere drag & drop
+    addDrop.onclick = () => addInput.click();
+    
+    ['dragenter','dragover'].forEach(evt=>{
+      addDrop.addEventListener(evt, e=>{e.preventDefault(); addDrop.style.background='#f8fafc';});
+    });
+    ['dragleave','drop'].forEach(evt=>{
+      addDrop.addEventListener(evt, e=>{e.preventDefault(); addDrop.style.background='#fff';});
+    });
+
+    addDrop.addEventListener('drop', async e=>{
+      e.preventDefault();
+      const files=[...e.dataTransfer.files];
+      if(files.length > 0) await handleAdminAddFile(files[0]);
+    });
+    
+    addInput.onchange = async (e)=>{
+      const files=[...e.target.files];
+      if(files.length > 0) await handleAdminAddFile(files[0]);
+      e.target.value = '';
+    };
+
+    // Refresh button
+    $('adminRefreshBtn').onclick = async ()=>{
+      if(adminState.currentProjectId) {
+        await loadAdminParticipants(adminState.currentProjectId);
+      }
+    };
+  }
+
+  async function handleAdminProjectFile(file) {
+    const statusEl = $('adminProjectStatus');
+    
+    try {
+      statusEl.textContent = 'Indlæser...';
+      statusEl.style.color = 'var(--muted)';
+      
+      const text = await file.text();
+      let json = null;
+      try { json = JSON.parse(text); } catch {}
+      
+      if(!json || !json.udv_version) {
+        throw new Error('Ugyldig UDV-fil format');
+      }
+
+      const projectTitle = json.project?.title || json.title;
+      if(!projectTitle) {
+        throw new Error('Ingen projekt titel fundet i UDV-filen');
+      }
+
+      // Hent projekt fra database
+      const { data: project, error: projError } = await supabaseClient
+        .from('projects')
+        .select('*')
+        .eq('title', projectTitle)
+        .single();
+
+      if(projError || !project) {
+        throw new Error(`Projekt "${projectTitle}" ikke fundet i databasen`);
+      }
+
+      adminState.currentProject = project;
+      adminState.currentProjectId = project.id;
+
+      // Vis projekt info
+      $('adminProjectTitle').textContent = project.title;
+      
+      const now = new Date();
+      const openDate = new Date(project.opens_at);
+      const closeDate = new Date(project.closes_at);
+      let status = 'Åben';
+      if(now < openDate) status = 'Ikke åbnet';
+      if(now > closeDate) status = 'Lukket';
+      $('adminProjectStatus2').textContent = status;
+
+      // Vis sektioner
+      $('adminProjectInfo').style.display = 'block';
+      $('adminParticipantsSection').style.display = 'block';
+      $('adminAddSection').style.display = 'block';
+
+      // Load deltagere
+      await loadAdminParticipants(project.id);
+
+      statusEl.textContent = `✅ Projekt "${projectTitle}" indlæst`;
+      statusEl.style.color = 'var(--success)';
+
+    } catch(err) {
+      statusEl.textContent = `❌ Fejl: ${err.message}`;
+      statusEl.style.color = 'var(--error)';
+      console.error('Admin projekt load fejl:', err);
+      
+      // Skjul sektioner ved fejl
+      $('adminProjectInfo').style.display = 'none';
+      $('adminParticipantsSection').style.display = 'none';
+      $('adminAddSection').style.display = 'none';
+    }
+  }
+
+  async function loadAdminParticipants(projectId) {
+    try {
+      // Hent deltagere med svar-count
+      const { data: people, error } = await supabaseClient
+        .from('project_people')
+        .select(`
+          id,
+          employee_no,
+          full_name,
+          is_lite,
+          responses(count)
+        `)
+        .eq('project_id', projectId)
+        .order('employee_no');
+
+      if(error) throw error;
+
+      adminState.participants = people || [];
+
+      // Opdater count
+      const liteCount = people.filter(p => p.is_lite).length;
+      $('adminProjectCount').textContent = `${people.length} (${liteCount} Lite)`;
+
+      // Render tabel
+      renderAdminParticipantsTable();
+
+    } catch(err) {
+      alert(`Fejl ved indlæsning af deltagere: ${err.message}`);
+      console.error('Load participants fejl:', err);
+    }
+  }
+
+  function renderAdminParticipantsTable() {
+    const tbody = $('adminParticipantsBody');
+    tbody.innerHTML = '';
+
+    if(adminState.participants.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--muted)">Ingen deltagere</td></tr>';
+      return;
+    }
+
+    adminState.participants.forEach(person => {
+      const tr = document.createElement('tr');
+      tr.style.borderBottom = '1px solid var(--line)';
+
+      // MA nummer
+      const tdMa = document.createElement('td');
+      tdMa.style.padding = '10px 12px';
+      tdMa.textContent = person.employee_no || '-';
+      tr.appendChild(tdMa);
+
+      // Navn
+      const tdName = document.createElement('td');
+      tdName.style.padding = '10px 12px';
+      tdName.textContent = person.full_name || '-';
+      tr.appendChild(tdName);
+
+      // Lite status
+      const tdLite = document.createElement('td');
+      tdLite.style.padding = '10px 12px';
+      tdLite.style.textAlign = 'center';
+      tdLite.textContent = person.is_lite ? '✓' : '-';
+      tr.appendChild(tdLite);
+
+      // Svar count
+      const tdResponses = document.createElement('td');
+      tdResponses.style.padding = '10px 12px';
+      tdResponses.style.textAlign = 'center';
+      const responseCount = person.responses?.[0]?.count || 0;
+      const maxQuestions = person.is_lite ? 16 : 48;
+      tdResponses.textContent = `${responseCount}/${maxQuestions}`;
+      tr.appendChild(tdResponses);
+
+      // Slet knap
+      const tdDelete = document.createElement('td');
+      tdDelete.style.padding = '10px 12px';
+      tdDelete.style.textAlign = 'center';
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'btn small';
+      deleteBtn.style.background = 'var(--error)';
+      deleteBtn.style.color = 'white';
+      deleteBtn.style.borderColor = 'var(--error)';
+      deleteBtn.style.padding = '6px 10px';
+      deleteBtn.textContent = '❌';
+      deleteBtn.onclick = () => handleAdminDeleteParticipant(person);
+      tdDelete.appendChild(deleteBtn);
+      tr.appendChild(tdDelete);
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  async function handleAdminDeleteParticipant(person) {
+    const confirmMsg = `Er du sikker på du vil slette ${person.full_name} (MA: ${person.employee_no || 'N/A'})?\n\nDette sletter alle deres svar permanent.\n\nDenne handling kan ikke fortrydes!`;
+    
+    if(!confirm(confirmMsg)) return;
+
+    // Vis loading overlay
+    let loadingOverlay = document.getElementById('adminLoadingOverlay');
+    if(!loadingOverlay) {
+      loadingOverlay = document.createElement('div');
+      loadingOverlay.id = 'adminLoadingOverlay';
+      loadingOverlay.style = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000';
+      loadingOverlay.innerHTML = `
+        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;padding:30px;border-radius:12px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,0.2)">
+          <div class="spinner" style="width:28px;height:28px;border:3px solid #eee;border-top-color:var(--brand);border-radius:50%;margin:0 auto;animation:spin 1s linear infinite"></div>
+          <p style="margin:16px 0 0 0">Sletter...</p>
+        </div>`;
+      document.body.appendChild(loadingOverlay);
+    }
+    loadingOverlay.style.display = 'block';
+
+    try {
+      // 1. Slet alle responses
+      const { error: respError } = await supabaseClient
+        .from('responses')
+        .delete()
+        .eq('project_person_id', person.id);
+
+      if(respError) throw new Error(`Kunne ikke slette svar: ${respError.message}`);
+
+      // 2. Slet fra v_kompas_series (hvis der er data)
+      const { error: seriesError } = await supabaseClient
+        .from('v_kompas_series')
+        .delete()
+        .eq('target_id', person.id);
+
+      // Ignorer fejl hvis view ikke tillader delete eller ingen data
+      if(seriesError && !seriesError.message.includes('permission denied')) {
+        console.warn('Kunne ikke slette fra v_kompas_series:', seriesError);
+      }
+
+      // 3. Slet person
+      const { error: personError } = await supabaseClient
+        .from('project_people')
+        .delete()
+        .eq('id', person.id);
+
+      if(personError) throw new Error(`Kunne ikke slette person: ${personError.message}`);
+
+      // Reload deltagere
+      await loadAdminParticipants(adminState.currentProjectId);
+
+      alert(`✅ ${person.full_name} er slettet`);
+
+    } catch(err) {
+      alert(`❌ Fejl ved sletning: ${err.message}`);
+      console.error('Delete participant fejl:', err);
+    } finally {
+      loadingOverlay.style.display = 'none';
+    }
+  }
+
+  async function handleAdminAddFile(file) {
+    const statusEl = $('adminAddStatus');
+    
+    if(!adminState.currentProjectId) {
+      statusEl.textContent = '❌ Indlæs først et projekt';
+      statusEl.style.color = 'var(--error)';
+      return;
+    }
+
+    try {
+      statusEl.textContent = 'Behandler...';
+      statusEl.style.color = 'var(--muted)';
+      
+      const text = await file.text();
+      let json = null;
+      try { json = JSON.parse(text); } catch {}
+      
+      if(!json || !json.udv_version) {
+        throw new Error('Ugyldig UDV-fil format');
+      }
+
+      const newPeople = json.people || [];
+      if(newPeople.length === 0) {
+        throw new Error('Ingen deltagere fundet i UDV-filen');
+      }
+
+      let addedCount = 0;
+      let skippedCount = 0;
+      const duplicates = [];
+
+      for(const person of newPeople) {
+        const employeeNo = person.employee_no || person.ma;
+        if(!employeeNo) {
+          skippedCount++;
+          continue;
+        }
+
+        // Tjek for duplikat
+        const { data: existing, error: checkError } = await supabaseClient
+          .from('project_people')
+          .select('id')
+          .eq('project_id', adminState.currentProjectId)
+          .eq('employee_no', employeeNo);
+
+        if(checkError) {
+          console.error('Duplikat check fejl:', checkError);
+          skippedCount++;
+          continue;
+        }
+
+        if(existing && existing.length > 0) {
+          duplicates.push(`MA ${employeeNo} (${person.full_name || person.name})`);
+          skippedCount++;
+          continue;
+        }
+
+        // Tilføj ny deltager
+        const { error: insertError } = await supabaseClient
+          .from('project_people')
+          .insert({
+            project_id: adminState.currentProjectId,
+            employee_no: employeeNo,
+            full_name: person.full_name || person.name || '',
+            is_lite: person.is_lite || false,
+            role: person.role || null
+          });
+
+        if(insertError) {
+          console.error('Insert fejl for MA', employeeNo, ':', insertError);
+          skippedCount++;
+        } else {
+          addedCount++;
+        }
+      }
+
+      // Reload deltagere
+      await loadAdminParticipants(adminState.currentProjectId);
+
+      let resultMsg = `✅ ${addedCount} deltager(e) tilføjet`;
+      if(skippedCount > 0) {
+        resultMsg += `, ${skippedCount} sprunget over`;
+      }
+      if(duplicates.length > 0) {
+        resultMsg += `\n\nDuplikater fundet:\n${duplicates.join('\n')}`;
+      }
+
+      statusEl.textContent = resultMsg;
+      statusEl.style.color = 'var(--success)';
+
+      if(duplicates.length > 0) {
+        alert(`Nogle deltagere blev sprunget over fordi de allerede eksisterer:\n\n${duplicates.join('\n')}`);
+      }
+
+    } catch(err) {
+      statusEl.textContent = `❌ Fejl: ${err.message}`;
+      statusEl.style.color = 'var(--error)';
+      console.error('Admin add fejl:', err);
+    }
+  }
 
   function hydrateWaveSelects(waves){
     const a=$('devWaveA'), b=$('devWaveB');
@@ -8585,7 +9048,7 @@ async function contractExportPdf(){
 
                 const byCat = new Map();
 
-                // Læs valgte kompetencer og tips fra contractKeepState — MEDTAG ALLE
+                // Læs valgte kompetencer og tips fra contractKeepState – MEDTAG ALLE
                 for (const cid of window.contractKeepState.selectedCompetencies) {
                   const comp = contractAvailableCompetencies.find(x => x.category_id === cid);
                   if (!comp) continue;
@@ -8594,16 +9057,16 @@ async function contractExportPdf(){
                   if (!selectedTipIds || selectedTipIds.size === 0) continue;
 
                   const catTips = contractKeepAvailableTips?.get(cid) || [];
-                  const tips = {};
+                  const tips = [];  // ✅ Skift til array
 
                   for (const tipId of selectedTipIds) {
                     const tip = catTips.find(t => t.id === tipId);
                     if (tip) {
-                      tips[tip.title || 'Råd'] = tip.description || '';
+                      tips.push({ title: tip.title || 'Råd', desc: tip.description || '' });  // ✅ Push til array
                     }
                   }
 
-                  if (Object.keys(tips).length > 0) {
+                  if (tips.length > 0) {  // ✅ Skift til .length
                     byCat.set(cid, {
                       name: comp.category_name || 'Kompetence',
                       synopsis: comp.category_synopsis || '',
@@ -8616,12 +9079,12 @@ async function contractExportPdf(){
                   return `<div style="font-style:italic;color:#94a3b8">Ingen fastholdelsestips valgt</div>`;
                 }
 
-                // 🔁 Ingen slice — vis ALT
+                // 🔓 Ingen slice – vis ALT
                 return Array.from(byCat.values()).map(cat => {
-                  const tipsHtml = Object.entries(cat.tips).map(([t, d]) => `
+                  const tipsHtml = cat.tips.map(tip => `
                     <li style="margin:6px 0">
-                      <div style="font-weight:600">${t}</div>
-                      ${d ? `<div style="font-style:italic;color:#475569">${d}</div>` : ''}
+                      <div style="font-weight:600">${tip.title}</div>
+                      ${tip.desc ? `<div style="font-style:italic;color:#475569">${tip.desc}</div>` : ''}
                     </li>
                   `).join('');
 
@@ -8664,7 +9127,7 @@ async function contractExportPdf(){
                   if (!selectedTipIds || selectedTipIds.size === 0) continue;
 
                   const catTips = contractAvailableTips?.get(cid) || [];
-                  const tips = {};
+                  const tips = [];  // ✅ Skift til array
 
                   for (const tipId of selectedTipIds) {
                     const tip = catTips.find(t => t.id === tipId);
@@ -8672,11 +9135,11 @@ async function contractExportPdf(){
                     const desc  = (tip?.description || '').trim();
                     // ⛔️ Filtrér fra, hvis lagt i 30/60/90
                     if (!planTipTitles.has(title)) {
-                      tips[title] = desc;
+                      tips.push({ title, desc });  // ✅ Push til array
                     }
                   }
 
-                  if (Object.keys(tips).length > 0) {
+                  if (tips.length > 0) {  // ✅ Skift til .length
                     byCat.set(cid, {
                       name: comp.category_name || 'Kompetence',
                       synopsis: comp.category_synopsis || '',
@@ -8691,10 +9154,10 @@ async function contractExportPdf(){
 
                 // ⛔️ Fjern 5-begrænsning – medtag ALLE markerede råd (efter filtrering)
                 return Array.from(byCat.values()).map(cat => {
-                  const tipsHtml = Object.entries(cat.tips).map(([t, d]) => `
+                  const tipsHtml = cat.tips.map(tip => `
                     <li style="margin:6px 0">
-                      <div style="font-weight:600">${t}</div>
-                      ${d ? `<div style="font-style:italic;color:#475569">${d}</div>` : ''}
+                      <div style="font-weight:600">${tip.title}</div>
+                      ${tip.desc ? `<div style="font-style:italic;color:#475569">${tip.desc}</div>` : ''}
                     </li>
                   `).join('');
 
@@ -8941,27 +9404,28 @@ async function contractGeneratePdfHtml(project, person) {
         const pEl = card.querySelector('p');
         const title = (strongEl?.textContent || 'Råd').trim();
         const desc = (pEl?.textContent || '').trim();
+        
+        // VIGTIGT: Brug tipId fra data-attribute for at undgå duplikater
+        const tipId = card.dataset.tipId;
+        if (!tipId) return;
 
         // Initialiser kategori hvis den ikke findes
         if (!byCat.has(cid)) {
           byCat.set(cid, {
             name: comp.category_name || 'Kompetence',
             synopsis: comp.category_synopsis || comp.synopsis || '',
-            tips: {}
+            tips: []  // Skift til array for at bevare alle tips
           });
         }
 
-        // Tilføj tip til kategorien (brug tipId som nøgle for at undgå duplikater)
+        // Tilføj tip til kategorien (som array element så vi får alle med)
         const bucket = byCat.get(cid);
-        const tipId = card.dataset.tipId || title;
-        if (!bucket.tips[tipId]) {
-          bucket.tips[tipId] = { title, desc };
-        }
+        bucket.tips.push({ title, desc });
       });
 
       // Render: en boks pr. kompetence med alle råd listet under
       const blocks = Array.from(byCat.values()).map(cat => {
-        const tipsHtml = Object.values(cat.tips).map(tip => `
+        const tipsHtml = cat.tips.map(tip => `
           <li style="margin:6px 0">
             <div style="font-weight:600">${tip.title}</div>
             ${tip.desc && tip.desc !== 'Ingen beskrivelse tilgængelig' ? `<div style="font-style:italic;color:#475569">${tip.desc}</div>` : ''}
