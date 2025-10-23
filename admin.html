@@ -8186,9 +8186,10 @@ function contractSetupEventListeners(){
 
   if (saveDraftBtn) saveDraftBtn.addEventListener('click', ()=> contractDoSave(true));
   if (saveFinalBtn) saveFinalBtn.addEventListener('click', ()=> contractDoSave(false));
-  if (exportPdfBtn) exportPdfBtn.addEventListener('click', ()=> {
-    alert('PDF eksport er midlertidigt deaktiveret, fordi gem var slået fra tidligere. Aktiveret igen når PDF bruger snapshots.');
-  });
+  if (exportPdfBtn) {
+  exportPdfBtn.disabled = false; // aktiver direkte – kontrakt-PDF bruger samme motor som Resultater
+  exportPdfBtn.addEventListener('click', contractExportPdf);
+}
   if (startOverBtn) startOverBtn.addEventListener('click', contractStartOver);
 
   // Synlig "Indlæs kontrakt" knap i sticky action bar
@@ -8427,12 +8428,252 @@ async function contractLoadFromDb() {
 }
 
 async function contractExportPdf(){
-  // Etape 1 – deaktiver, fordi export i dag forudsætter gem
-  console.warn('contractExportPdf er midlertidigt deaktiveret (Etape 1).');
-  alert('PDF eksport er midlertidigt deaktiveret (Etape 1), da gem/indlæs genbygges i Etape 2.');
-  return;
-}
+  try {
+    // 1) Hent aktuel projekt/target fra kontrakt-fanen
+    const projectId = $('contractProjectSelect')?.value || contractState.project_id;
+    const targetId  = $('contractTargetSelect')?.value || contractState.target_id;
 
+    if (!projectId || !targetId) {
+      alert('Vælg projekt og målperson i Udviklingskontrakt-fanen først.');
+      return;
+    }
+
+    // 2) Hent projekt + målperson + kategorier + serier (samme som Resultater-PDF)
+    const { data: project, error: projError } = await window.supabaseClient.from('projects').select('*').eq('id', projectId).single();
+    if (projError) throw new Error('Kunne ikke hente projekt: ' + projError.message);
+
+    const { data: person, error: personError } = await window.supabaseClient.from('project_people').select('*').eq('id', targetId).single();
+    if (personError) throw new Error('Kunne ikke hente person: ' + personError.message);
+
+    const { data: cats, error: catsError } = await window.supabaseClient.from('v_category_path').select('*').eq('template_id', project.template_id).order('category_sort');
+    if (catsError) throw new Error('Kunne ikke hente kategorier: ' + catsError.message);
+
+    const { data: seriesRows, error: seriesError } = await window.supabaseClient.from('v_kompas_series')
+      .select('*')
+      .eq('project_id', projectId)
+      .eq('target_id', targetId);
+    if (seriesError) throw new Error('Kunne ikke hente serier: ' + seriesError.message);
+
+    const series = { self: [], peer: [], leader: [] };
+    (cats || []).forEach(c => {
+      const s = (seriesRows || []).find(r => r.category_id === c.category_id && r.respondent_type === 'self');
+      const p = (seriesRows || []).find(r => r.category_id === c.category_id && r.respondent_type === 'peer');
+      const l = (seriesRows || []).find(r => r.category_id === c.category_id && r.respondent_type === 'leader');
+      series.self.push(s?.safe_avg ?? null);
+      series.peer.push(p?.safe_avg ?? null);
+      series.leader.push(l?.safe_avg ?? null);
+    });
+
+    // 3) Byg HTML som en 1:1 kopi af Resultater-PDF — med de ønskede ekstra felter
+    //    Side 1: under KOMPAS-hjulet indsættes 👤 Medarbejder gør · 💭 Medarbejder ønsker · 👨‍💼 Leder støtter
+    //    Side 2: (kun hvis medtaget) 🤝 Kollega støtte + Opfølgningsdato
+    const buildContractPdfHtml = async (project, person, categories, series) => {
+      // === Hjælpere identiske med Resultater ===
+      const headerHtml = (title, personStr) => `
+        <div style="width:100%;box-sizing:border-box;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;border-bottom:1px solid #e5e7eb;padding-bottom:4px">
+          <div style="font-weight:700;font-size:14px">${title}</div>
+          <div style="font-size:12px;color:#64748b">${personStr}</div>
+        </div>`;
+      const footerHtml = (page, total) => `
+        <div style="margin-top:12px;padding-top:8px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;color:#64748b;font-size:10px">
+          <span>${new Date().toLocaleDateString('da-DK')}</span>
+          <span>Side ${page} af ${total}</span>
+        </div>`;
+      const wrapPage = (inner, pageNo, total) => `
+        <div class="page" style="width:794px; box-sizing:border-box; padding:26px 38px 34px 38px; margin:0 auto">
+          <div style="width:100%">${inner}</div>
+          ${footerHtml(pageNo,total)}
+        </div>`;
+
+      // === KOMPAS-data (identisk med Resultater) ===
+      const chartData = {
+        categories: categories.map((c, i) => ({
+          name: c.category_name,
+          self:   series.self[i],
+          peer:   series.peer[i],
+          leader: series.leader[i]
+        }))
+      };
+      const kompasSVG = generateKOMPASSVG(chartData, 500, 500);
+      const personStr = `${project.title || ''} • #${person.employee_no || '—'} • ${person.full_name || ''}`;
+
+      // === Kontraktfelter fra UI ===
+      const empDoes   = ($('contractEmployeeActions')?.value || '').trim();
+      const empWants  = ($('contractEmployeeWishes')?.value || '').trim();
+      const leadHelp  = ($('contractLeaderActions')?.value || '').trim();
+      const followup  = ($('contractFollowupDate')?.value || '').trim();
+      const includeCol = !!$('includeColleagueSupport')?.checked;
+
+      // Kollegastøtte HTML (kun hvis medtaget)
+      let colleagueHtml = '';
+      if (includeCol) {
+        const colRoot = $('contractColleagueSupport');
+        const clone = colRoot ? colRoot.cloneNode(true) : null;
+        if (clone) {
+          // ryd UI-kontroller
+          clone.querySelectorAll('button, input, select, .btn, label, [role="button"]').forEach(n => n.remove());
+          // kompakt liste
+          const items = Array.from(clone.querySelectorAll('[data-colleague]'));
+          if (items.length) {
+            colleagueHtml = items.map(it => {
+              const who  = it.getAttribute('data-colleague-name') || it.querySelector('[data-name]')?.textContent || 'Kollega';
+              const text = it.getAttribute('data-support') || it.textContent || '';
+              return `<div style="padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;background:#fff;margin-bottom:6px">
+                <div style="font-weight:600">${who}</div>
+                ${text ? `<div style="font-style:italic;color:#475569">${text}</div>` : ``}
+              </div>`;
+            }).join('');
+          }
+        }
+      }
+
+      // === Page 1: Resultater-layout + ekstra tre felter under hjulet ===
+      // Vi genbruger idéen fra Resultater-PDF’ens første side, men indsætter vores kontraktblok umiddelbart under hjulet.
+      const page1 = `
+        ${headerHtml('KOMPAS • Personlig Kompetencerapport', personStr)}
+        <div style="margin-top:-6px">
+          <div style="text-align:center;background:white;border:1px solid #e2e8f0;border-radius:8px;padding:5px 15px 15px 15px;margin-bottom:12px">
+            <div style="font-size:12px;color:#64748b;margin-bottom:0;font-weight:600">🎯 KOMPAS Kompetencehjul</div>
+            ${kompasSVG}
+          </div>
+
+          <!-- 🔹 Indsat kontraktblok — tre felter under hjulet -->
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+            <section style="border:1px solid #e2e8f0;border-radius:8px;padding:10px;background:#fff;min-height:84px">
+              <div style="font-weight:700;margin-bottom:6px">👤 Medarbejder gør</div>
+              ${empDoes ? `<div style="white-space:pre-wrap;color:#334155;font-size:12px">${empDoes}</div>` : `<div style="color:#94a3b8;font-style:italic;font-size:12px">Ikke udfyldt</div>`}
+            </section>
+            <section style="border:1px solid #e2e8f0;border-radius:8px;padding:10px;background:#fff;min-height:84px">
+              <div style="font-weight:700;margin-bottom:6px">💭 Medarbejder ønsker</div>
+              ${empWants ? `<div style="white-space:pre-wrap;color:#334155;font-size:12px">${empWants}</div>` : `<div style="color:#94a3b8;font-style:italic;font-size:12px">Ikke udfyldt</div>`}
+            </section>
+            <section style="border:1px solid #e2e8f0;border-radius:8px;padding:10px;background:#fff;min-height:84px">
+              <div style="font-weight:700;margin-bottom:6px">👨‍💼 Leder støtter</div>
+              ${leadHelp ? `<div style="white-space:pre-wrap;color:#334155;font-size:12px">${leadHelp}</div>` : `<div style="color:#94a3b8;font-style:italic;font-size:12px">Ikke udfyldt</div>`}
+            </section>
+          </div>
+
+          <!-- Resten af første side beholdes som i Resultater (kompetencekort) -->
+          <h3 style="color:#1e293b;margin-bottom:8px;font-size:12px">🏆 Kompetence Kategorier</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;margin-bottom:12px">
+            ${
+              categories.map((cat, i) => {
+                const badges = [];
+                if (series.self[i]   !== null && series.self[i]   !== undefined) badges.push(`<span style="background:#10b981;color:white;padding:2px 4px;border-radius:2px;font-size:9px;margin-right:2px">S:${Number(series.self[i]).toFixed(1)}</span>`);
+                if (series.peer[i]   !== null && series.peer[i]   !== undefined) badges.push(`<span style="background:#3b82f6;color:white;padding:2px 4px;border-radius:2px;font-size:9px;margin-right:2px">K:${Number(series.peer[i]).toFixed(1)}</span>`);
+                if (series.leader[i] !== null && series.leader[i] !== undefined) badges.push(`<span style="background:#f59e0b;color:white;padding:2px 4px;border-radius:2px;font-size:9px;margin-right:2px">F:${Number(series.leader[i]).toFixed(1)}</span>`);
+                return `<div style="border:1px solid #e2e8f0;border-radius:6px;padding:8px;background:#fff">
+                  <div style="font-weight:600;font-size:11px;margin-bottom:4px">${cat.category_name}</div>
+                  ${badges.join('')}
+                </div>`;
+              }).join('')
+            }
+          </div>
+
+          <div style="margin-top:12px;padding-top:8px;border-top:1px solid #e2e8f0;text-align:center;color:#64748b;font-size:9px">
+            <p style="margin:0">Genereret af KOMPAS PDF Service</p>
+          </div>
+        </div>
+      `;
+
+      // === Page 2: kopi af Resultater side 2 (coaching) + kollega-støtte og opfølgningsdato ===
+      // Vi genbruger den allerede eksisterende side-2 struktur fra Resultater ved at hente blocks fra DOM.
+      const cleanClone = (el) => {
+        if (!el) return '';
+        const clone = el.cloneNode(true);
+        clone.querySelectorAll('button, input, select, label, .btn, [role="button"]').forEach(n => n.remove());
+        return clone.innerHTML;
+      };
+      const keepEl    = document.getElementById('coaching-keep');
+      const developEl = document.getElementById('coaching-develop');
+      const keepHtml  = cleanClone(keepEl);
+      const devHtml   = cleanClone(developEl);
+
+      const keepBlock = `<section style="width:100%;box-sizing:border-box;border:1px solid #e2e8f0;border-radius:8px;padding:10px">
+        <div style="font-weight:700;margin-bottom:6px">🎯 Fastholde</div>
+        <div>${keepHtml || '<div style="font-style:italic;color:#94a3b8">Ingen valgte fastholdelsesområder</div>'}</div>
+      </section>`;
+
+      const developBlock = `<section style="width:100%;box-sizing:border-box;border:1px solid #e2e8f0;border-radius:8px;padding:10px">
+        <div style="font-weight:700;margin-bottom:6px">📈 Udvikle</div>
+        <div>${devHtml || '<div style="font-style:italic;color:#94a3b8">Ingen valgte udviklingsområder</div>'}</div>
+      </section>`;
+
+      // 30/60/90 — læs direkte fra kontraktens egne bins (#contract-plan-30/60/90) for at matche kontrakten
+      const planBins = [
+        {label:'30 dage', el: document.querySelector('#contract-plan-30 .plan-bin')},
+        {label:'60 dage', el: document.querySelector('#contract-plan-60 .plan-bin')},
+        {label:'90 dage', el: document.querySelector('#contract-plan-90 .plan-bin')},
+      ];
+      const planCols = planBins.map(bin => {
+        const chips = Array.from(bin.el?.querySelectorAll('.plan-chip') || []).slice(0,3).map(chip => {
+          const category = chip.getAttribute('data-category') || '';
+          const title = chip.getAttribute('title') || chip.querySelector('div[style*="font-weight:700"]')?.textContent?.trim() || 'Mål';
+          const desc  = chip.getAttribute('data-description') || '';
+          return `<div style="margin:6px 0;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;background:#fff">
+            ${category ? `<div style="font-size:11px;color:#667eea;margin-bottom:2px">${category}</div>` : ''}
+            <div style="font-weight:600">${title}</div>
+            ${desc ? `<div style="font-style:italic;color:#475569">${desc}</div>` : ''}
+          </div>`;
+        }).join('');
+        const more = Math.max(0, (bin.el?.querySelectorAll('.plan-chip')?.length || 0) - 3);
+        return `<div><div style="font-weight:700;margin-bottom:6px">${bin.label}</div>${chips}${more ? `<div style="font-size:10px;color:#64748b;margin-top:4px">+${more} flere</div>` : ''}</div>`;
+      }).join('');
+      const plansBlock = `<section style="border:1px solid #e2e8f0;border-radius:8px;padding:10px">
+        <div style="font-weight:700;margin-bottom:6px">📅 30/60/90</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">${planCols}</div>
+      </section>`;
+
+      // Side 2 top
+      let secondMain = `
+        ${headerHtml('📄 Coaching-resumé', personStr)}
+        <div style="margin-top:-6px;width:100%;box-sizing:border-box">
+          <div style="width:100%;box-sizing:border-box;display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:-5px 0 12px 0">
+            ${keepBlock}
+            ${developBlock}
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            ${plansBlock}
+          </div>
+        </div>
+      `;
+
+      // Tilføj (kun hvis medtaget) 🤝 Kollega støtte + Opfølgningsdato nederst på side 2
+      if (includeCol || followup) {
+        const followupHtml = followup
+          ? `<div style="margin-top:4px;font-size:12px"><strong>📅 Opfølgningsdato:</strong> ${followup}</div>`
+          : '';
+        const colSection = includeCol && colleagueHtml
+          ? `<div style="margin-top:8px">${colleagueHtml}</div>`
+          : (includeCol ? `<div style="margin-top:8px;color:#94a3b8;font-style:italic">Ingen kollegastøtte valgt</div>` : ``);
+
+        secondMain += `
+          <div style="margin-top:12px;padding:12px;border:1px solid #e2e8f0;border-radius:8px;background:#fff">
+            <div style="font-weight:700;margin-bottom:6px">🤝 Kollega støtte</div>
+            ${includeCol ? colSection : `<div style="color:#94a3b8;font-style:italic">Ikke medtaget</div>`}
+            ${followupHtml}
+          </div>
+        `;
+      }
+
+      // Wrap
+      const pages = [page1, secondMain];
+      return pages.map((p, i) => wrapPage(p, i+1, pages.length)).join('');
+    };
+
+    const htmlContent = await buildContractPdfHtml(project, person, cats || [], series);
+
+    // 4) Gem med samme PDF-motor som Resultater
+    const safe = (s)=> (s||'').replace(/\s+/g,'_').replace(/[^A-Za-z0-9_\-æøåÆØÅ]/g,'');
+    const emp = person.employee_no ? String(person.employee_no) : 'NA';
+    const filename = `${safe(project.title)}_${safe(emp)}_${safe(person.full_name)}_kontrakt.pdf`;
+
+    await window.generatePDFFromHTML(htmlContent, filename);
+  } catch (err) {
+    console.error('Kontrakt-PDF fejl:', err);
+    alert('PDF eksport fejlede: ' + (err.message || err));
+  }
+}
 
 async function contractGeneratePdfHtml(project, person) {
   // 1) Hent skabelonen (ligger ved siden af admin.html)
