@@ -4367,6 +4367,7 @@ $('btnResetDevelop').onclick = async () => {
   window.buildResultsPdfHtml = buildResultsPdfHtml;
   window.buildSurveyUDV = buildSurveyUDV;
   window.generatePDFFromHTML = generatePDFFromHTML;
+  window.handleUdvDownloadBackend = handleUdvDownloadBackend;
 
   // ======= UDV IMPORT + UDVIKLING (over tid) =======
 // Hjælp: vis/skjul MIX-hint
@@ -9287,7 +9288,7 @@ function debugCoachingRecommendations(data) {
       if (kind === 'pdf') {
         await handlePdfDownloadClientSide(pid, ids, separate.checked);
       } else {
-        await handleUdvDownloadBackend(pid, ids, separate.checked);
+        await window.handleUdvDownloadBackend(pid, ids, separate.checked);
       }
     };
   }
