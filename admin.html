@@ -3762,82 +3762,81 @@ function generatePersonReportHTML(project, person, categories, series, labels) {
 }
 
 // Multi-side PDF generator: renderer hver .page som egen side
-async function generatePDFFromHTML(htmlContent, filename) {
-  // Opret skjult container i A4-bredde
-  const tempDiv = document.createElement('div');
-  tempDiv.style.position = 'fixed';
-  tempDiv.style.left = '-9999px';
-  tempDiv.style.top = '0';
-  tempDiv.style.width = '794px'; // A4 bredde ved ~96DPI
-  tempDiv.style.background = '#ffffff';
-  tempDiv.innerHTML = htmlContent;
-  document.body.appendChild(tempDiv);
+// Hjælpefunktion: generer PDF som Blob (til ZIP)
+async function generatePDFBlob(htmlContent) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const tempDiv = document.createElement('div');
+      tempDiv.style.position = 'fixed';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.top = '0';
+      tempDiv.style.width = '794px';
+      tempDiv.style.background = '#ffffff';
+      tempDiv.innerHTML = htmlContent;
+      document.body.appendChild(tempDiv);
 
-  // Hjælp: sørg for at evt. SVG’er har width/height sat i klonen
-  const makeCanvas = async (el) => html2canvas(el, {
-    scale: 2,
-    useCORS: true,
-    allowTaint: true,
-    backgroundColor: '#ffffff',
-    logging: false,
-    imageTimeout: 0,
-    onclone: (clonedDoc) => {
-      const svgs = clonedDoc.querySelectorAll('svg');
-      svgs.forEach(svg => {
-        const r = svg.getBoundingClientRect();
-        svg.setAttribute('width', r.width);
-        svg.setAttribute('height', r.height);
+      const makeCanvas = async (el) => html2canvas(el, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        imageTimeout: 0,
+        onclone: (clonedDoc) => {
+          const svgs = clonedDoc.querySelectorAll('svg');
+          svgs.forEach(svg => {
+            const r = svg.getBoundingClientRect();
+            svg.setAttribute('width', r.width);
+            svg.setAttribute('height', r.height);
+          });
+        }
       });
-    }
-  });
 
-  try {
-    const pages = Array.from(tempDiv.querySelectorAll('.page'));
-    // Hvis skabelonen ikke bruger .page, fallback til hele tempDiv som én side
-    const targets = pages.length ? pages : [tempDiv];
+      const pages = Array.from(tempDiv.querySelectorAll('.page'));
+      const targets = pages.length ? pages : [tempDiv];
 
-    // Opret PDF
-    const pdf = new window.jspdf.jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4',
-      compress: true
-    });
+      const pdf = new window.jspdf.jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+        compress: true
+      });
 
-    // Konstanter for A4
-    const A4_W = 210;   // mm
-    const A4_H = 297;   // mm
+      const A4_W = 210;
+      const A4_H = 297;
 
-    for (let i = 0; i < targets.length; i++) {
-      const canvas = await makeCanvas(targets[i]);
+      for (let i = 0; i < targets.length; i++) {
+        const canvas = await makeCanvas(targets[i]);
+        const imgWmm = A4_W;
+        const imgHmm = (canvas.height * imgWmm) / canvas.width;
 
-      // Beregn billedstørrelse (fit til bredde, bevar ratio)
-      const imgWmm = A4_W;
-      const imgHmm = (canvas.height * imgWmm) / canvas.width;
+        let drawW = imgWmm;
+        let drawH = imgHmm;
+        if (drawH > A4_H) {
+          const s = A4_H / drawH;
+          drawW = imgWmm * s;
+          drawH = A4_H;
+        }
 
-      let drawW = imgWmm;
-      let drawH = imgHmm;
-      if (drawH > A4_H) {
-        const s = A4_H / drawH;
-        drawW = imgWmm * s;
-        drawH = A4_H;
+        const x = (A4_W - drawW) / 2;
+        const y = 5;
+        const imgData = canvas.toDataURL('image/jpeg', 0.85);
+
+        if (i > 0) pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', x, y, drawW, drawH);
       }
 
-      const x = (A4_W - drawW) / 2; // centrer vandret
-      const y = 5;                   // lille top-margin
-
-      const imgData = canvas.toDataURL('image/jpeg', 0.85);
-
-      if (i > 0) pdf.addPage();
-      pdf.addImage(imgData, 'JPEG', x, y, drawW, drawH);
+      document.body.removeChild(tempDiv);
+      resolve(pdf.output('blob'));
+      
+    } catch (err) {
+      if (document.body.contains(tempDiv)) {
+        document.body.removeChild(tempDiv);
+      }
+      reject(err);
     }
-
-    pdf.save(filename);
-  } finally {
-    document.body.removeChild(tempDiv);
-  }
+  });
 }
-
 
 // Bygger Resultater-PDF iht. krav
 async function buildResultsPdfHtml(project, person, categories, series){
@@ -4359,6 +4358,8 @@ $('btnResetDevelop').onclick = async () => {
 
   // Gør download-funktioner tilgængelige globalt for eksterne script-sektioner
   window.buildResultsPdfHtml = buildResultsPdfHtml;
+  window.generatePDFFromHTML = generatePDFFromHTML;
+  window.generatePDFBlob = generatePDFBlob;
   window.buildSurveyUDV = buildSurveyUDV;
 
   // ======= UDV IMPORT + UDVIKLING (over tid) =======
@@ -9285,7 +9286,7 @@ function debugCoachingRecommendations(data) {
     };
   }
 
- // CLIENT-SIDE PDF LØSNING (bruger jsPDF + html2canvas - INGEN server nødvendig!)
+// CLIENT-SIDE PDF LØSNING (bruger jsPDF + html2canvas - INGEN server nødvendig!)
 async function handlePdfDownloadClientSide(projectId, targetIds, isSeparate) {
     try {
       console.log('📄 Genererer PDF client-side med jsPDF + html2canvas...');
@@ -9337,7 +9338,7 @@ async function handlePdfDownloadClientSide(projectId, targetIds, isSeparate) {
           console.log(`Genererer PDF for: ${person.full_name}`);
           
           // Generer PDF via jsPDF (samme metode som team rapport)
-          const pdfBlob = await generatePDFBlob(htmlContent);
+          const pdfBlob = await window.generatePDFBlob(htmlContent);
           zip.file(filename, pdfBlob);
         }
         
@@ -9399,7 +9400,7 @@ async function handlePdfDownloadClientSide(projectId, targetIds, isSeparate) {
         const filename = `${safe(project.title)}.pdf`;
         
         // Generer samlet PDF
-        await generatePDFFromHTML(combinedHtml, filename);
+        await window.generatePDFFromHTML(combinedHtml, filename);
         
         console.log('✅ Samlet PDF downloadet succesfuldt');
       }
