@@ -842,7 +842,7 @@
       <div id="adminParticipantsSection" class="section" style="display:none;margin-bottom:20px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
           <h3 style="margin:0">👥 Deltagere</h3>
-          <button id="adminRefreshBtn" class="btn small">🔄 Opdater</button>
+          <button id="adminRefreshBtn" class="btn small" title="Gem arbejdskopien af din .UDV (åbner Gem som)">💾 Gem som…</button>
         </div>
         
         <div style="max-height:400px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;background:#fff">
@@ -881,8 +881,10 @@
         <div style="margin-bottom:16px">
           <label style="display:block;margin-bottom:8px;font-weight:600">Projekt</label>
           <select id="selProject3" class="select" style="width:100%"></select>
+          <!-- Skjult file input til lokal UDV indlæsning -->
+          <input id="teamLocalUdvFile" type="file" accept=".udv,json" style="display:none">
         </div>
-        
+
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:16px">
           <div>
             <label style="display:block;margin-bottom:8px;font-weight:600">
@@ -2098,7 +2100,14 @@ window.showLargeProjectQR = (url, title) => {
         o.value=p.id; 
         o.textContent=p.title; 
         s.appendChild(o); 
-      }); 
+      });
+      // Tilføj lokal UDV-valg nederst KUN i Team Building dropdown
+      if (id === 'selProject3') {
+        const loc = document.createElement('option');
+        loc.value = '__local_udv__';
+        loc.textContent = '📁 Vælg lokal UDV-fil …';
+        s.appendChild(loc);
+      }
     });
   }
 
@@ -2981,7 +2990,7 @@ function makeDroppable(targetEl) {
             ticks:{ stepSize:1, display:false },
             pointLabels:{
               display: function(context){ return orderedCategories[context.index] !== ''; },
-              callback: function(value){ if(!value) return ''; return value.length > 16 ? value.split(' ') : value; },
+              callback: function(value){ return value || ''; }, // altid én linje
               padding: 8,
               font:{ size: 12, weight: 'bold' }
             }
@@ -3148,10 +3157,9 @@ function makeDroppable(targetEl) {
                 // Skjul labels for tomme akser
                 return orderedCategories[context.index] !== '';
               },
-              font: {
-                size: 13,
-                weight: 'bold'
-              }
+              callback: function(value){ return value || ''; }, // lås til én linje
+              padding: 8,
+              font: { size: 12, weight: 'bold' }
             }
           }
         }, 
@@ -4309,11 +4317,39 @@ async function handleUdvDownloadBackend(projectId, targetIds, isSeparate) {
   const variant = udvAll?.variant || (udvAll?.project?.is_lite ? 'LITE' : 'FULD');
   const d = new Date().toISOString().slice(0,10).replaceAll('-','');
 
-  if (!isSeparate) {
-    // Samlet UDV med præcis de valgte personer
+   if (!isSeparate) {
     const set = new Set(targetIds);
     const people = (udvAll.people || []).filter(p => set.has(p.id));
     const scores = (udvAll.scores || []).filter(s => set.has(s.target_id));
+
+    // Hvis der kun er valgt én person, gem med "MA. Navn. Projekt.udv"
+    if (people.length === 1) {
+      const person = people[0];
+
+      // Robust udtræk af MA-nummer
+      const empCand = [
+        person.employee_no, person.employeeNo, person.ma_no, person.maNo, person.ma, person.maNumber, person.employeeNumber,
+        person.employee?.number, person.employee?.id, person.meta?.employee_no, person.meta?.ma_no, person.meta?.maNumber
+      ].find(v => v !== undefined && v !== null && String(v).trim() !== '');
+      const emp = empCand ? String(empCand).trim() : 'NA';
+
+      // Filnavns-sikring der bevarer mellemrum og punktum
+      const part = (s) => String(s || '')
+        .replace(/\s+/g, ' ')
+        .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '')
+        .trim();
+
+      const udvOne = { ...udvAll, people: [person], scores };
+      const blob = new Blob([JSON.stringify(udvOne, null, 2)], { type: 'application/kompas-udv+json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${part(emp)}. ${part(person.full_name || person.name || '')}. ${part(title)}.udv`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+      return;
+    }
+
+    // Ellers: samlet UDV for flere valgte personer
     const udv = { ...udvAll, people, scores };
     const blob = new Blob([JSON.stringify(udv, null, 2)], { type: 'application/kompas-udv+json' });
     const a = document.createElement('a');
@@ -4324,17 +4360,60 @@ async function handleUdvDownloadBackend(projectId, targetIds, isSeparate) {
     return;
   }
 
-  // Enkeltvis → ZIP hver UDV pr. person
-  const zip = new JSZip();
+  // Enkeltvis
   const byId = new Map((udvAll.people || []).map(p => [p.id, p]));
+
+  // Hvis kun én valgt, gem direkte (ikke ZIP) med "MA. Navn. Projekt.udv"
+  if (targetIds.length === 1) {
+    const tid = targetIds[0];
+    const person = byId.get(tid);
+    if (person) {
+      const scores = (udvAll.scores || []).filter(s => s.target_id === tid);
+      const udvOne = { ...udvAll, people: [person], scores };
+
+      // Robust udtræk af MA-nummer
+      const empCand = [
+        person.employee_no, person.employeeNo, person.ma_no, person.maNo, person.ma, person.maNumber, person.employeeNumber,
+        person.employee?.number, person.employee?.id, person.meta?.employee_no, person.meta?.ma_no, person.meta?.maNumber
+      ].find(v => v !== undefined && v !== null && String(v).trim() !== '');
+      const emp = empCand ? String(empCand).trim() : 'NA';
+
+      // Filnavns-sikring der bevarer mellemrum og punktum
+      const part = (s) => String(s || '')
+        .replace(/\s+/g, ' ')
+        .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '')
+        .trim();
+
+      const blob = new Blob([JSON.stringify(udvOne, null, 2)], { type: 'application/kompas-udv+json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${part(emp)}. ${part(person.full_name || person.name || '')}. ${part(title)}.udv`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+      return;
+    }
+  }
+
+  // Flere personer → ZIP (også med "MA. Navn. Projekt.udv" pr. fil)
+  const zip = new JSZip();
   for (const tid of targetIds) {
     const person = byId.get(tid);
     if (!person) continue;
-    const people = [person];
     const scores = (udvAll.scores || []).filter(s => s.target_id === tid);
-    const udvOne = { ...udvAll, people, scores };
-    const emp = person.employee_no ? String(person.employee_no) : 'NA';
-    const fname = `${safe(title)}_${variant}_${d}_${safe(emp)}_${safe(person.full_name || person.name || '')}.udv`;
+    const udvOne = { ...udvAll, people: [person], scores };
+
+    const empCand = [
+      person.employee_no, person.employeeNo, person.ma_no, person.maNo, person.ma, person.maNumber, person.employeeNumber,
+      person.employee?.number, person.employee?.id, person.meta?.employee_no, person.meta?.ma_no, person.meta?.maNumber
+    ].find(v => v !== undefined && v !== null && String(v).trim() !== '');
+    const emp = empCand ? String(empCand).trim() : 'NA';
+
+    const part = (s) => String(s || '')
+      .replace(/\s+/g, ' ')
+      .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '')
+      .trim();
+
+    const fname = `${part(emp)}. ${part(person.full_name || person.name || '')}. ${part(title)}.udv`;
     zip.file(fname, JSON.stringify(udvOne, null, 2));
   }
   const blob = await zip.generateAsync({ type: 'blob' });
@@ -4679,10 +4758,57 @@ function setupDevelopmentTab(){
   // ============================================================================
   
   let adminState = {
-    currentProject: null,
-    currentProjectId: null,
-    participants: []
-  };
+  currentProject: null,
+  currentProjectId: null,
+  participants: [],
+  fileOnly: true,           // Administration arbejder KUN på filer, ikke DB
+  workingUdv: null,         // den aktuelt indlæste UDV-arbejdskopi
+  isDirty: false,           // sættes til true ved slet/ændringer i deltagere
+  loadedFileBase: null      // basisnavn fra indlæst fil til forslag ved Gem som
+};
+
+/** Download den nuværende arbejdskopi som .udv (åbner klassisk “Gem som”) */
+async function downloadCurrentUdv({ sameName = true } = {}) {
+  if (!adminState.workingUdv) {
+    alert('Ingen .UDV indlæst.');
+    return;
+  }
+
+  // Sørg for at skrive participants -> people i UDV inden serialisering
+  const udvOut = { ...adminState.workingUdv };
+  udvOut.people = (adminState.participants || []).map(p => ({
+    // bevar øvrige felter hvis de eksisterer
+    ...p,
+    id: p.id ?? null,
+    full_name: p.full_name ?? p.name ?? '',
+    name: p.full_name ?? p.name ?? '',
+    employee_no: p.employee_no ?? p.ma ?? null
+  }));
+
+  const json = JSON.stringify(udvOut, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+
+  const base = sameName && adminState.loadedFileBase
+    ? adminState.loadedFileBase
+    : (udvOut.project?.title || 'survey');
+
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${base}.udv`;
+  console.info('[UDV] Save As initiated:', a.download);
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+
+  // succes: nulstil dirty + diskret toast (status-felt anvendes hvis tilgængeligt)
+  adminState.isDirty = false;
+  const s = document.getElementById('adminProjectStatus');
+  if (s) {
+    s.textContent = '💾 Gem som igangsat';
+    s.style.color = 'var(--muted)';
+  }
+}
 
   function initAdministration() {
     if (window.__adminInitDone) return;
@@ -4737,81 +4863,197 @@ function setupDevelopmentTab(){
       e.target.value = '';
     };
 
-    // Refresh button
-    $('adminRefreshBtn').onclick = async ()=>{
-      if(adminState.currentProjectId) {
-        await loadAdminParticipants(adminState.currentProjectId);
+    // “Gem som…”-knap (filtilstand)
+    $('adminRefreshBtn').onclick = async () => {
+      if (!adminState.workingUdv) {
+        alert('Ingen .UDV indlæst.');
+        return;
       }
+      // Download med samme basisnavn som indlæst fil
+      downloadCurrentUdv({ sameName: true });
     };
+
+    // Enable/disable afhængigt af om der er indlæst UDV
+    (function initSaveButtonState(){
+      const btn = $('adminRefreshBtn');
+      if (btn) btn.disabled = !adminState.workingUdv;
+    })();
+
+    // Genvejstaster: Ctrl+S / Cmd+S → Gem som…
+    document.addEventListener('keydown', (e) => {
+      const mac = navigator.platform.toUpperCase().includes('MAC');
+      const isSave = (!mac && e.ctrlKey && e.key.toLowerCase() === 's') || (mac && e.metaKey && e.key.toLowerCase() === 's');
+      if (isSave) {
+        e.preventDefault();
+        if (!adminState.workingUdv) {
+          alert('Ingen .UDV indlæst.');
+          return;
+        }
+        downloadCurrentUdv({ sameName: true });
+      }
+    }, { passive: false });
+
+    // Dirty guard ved forsøg på at forlade siden
+    window.addEventListener('beforeunload', (e) => {
+      if (adminState.isDirty) {
+        e.preventDefault();
+        e.returnValue = ''; // påkrævet for at vise dialog i nogle browsere
+      }
+    });
   }
 
   async function handleAdminProjectFile(file) {
     const statusEl = $('adminProjectStatus');
+
+    // Dirty guard ved indlæsning af ny fil
+    if (adminState.isDirty && adminState.workingUdv) {
+      const doSave = confirm('Du har ændringer, vil du gemme først?');
+      if (doSave) {
+        await downloadCurrentUdv({ sameName: true });
+      }
+    }
     
     try {
-      statusEl.textContent = 'Indlæser...';
+      statusEl.textContent = 'Indlæser.';
       statusEl.style.color = 'var(--muted)';
       
       const text = await file.text();
       let json = null;
       try { json = JSON.parse(text); } catch {}
-      
-      if(!json || !json.udv_version) {
+
+      if (!json || !json.udv_version) {
         throw new Error('Ugyldig UDV-fil format');
       }
 
+      // FIL-TILSTAND (ingen DB): Hydrér state direkte fra UDV
+      if (adminState.fileOnly) {
+        // husk basisnavn til Gem som
+        const name = (file && file.name) ? file.name : (json.meta?.file || 'survey.udv');
+        adminState.loadedFileBase = String(name).replace(/\.[^.]+$/, '');
+
+        adminState.workingUdv = json;
+        adminState.currentProject = json.project || { title: json.title || '(Ukendt projekt)' };
+        adminState.currentProjectId = null; // ingen DB-id i filtilstand
+
+        // deltagere fra UDV
+        // Tæl ANTAL BESVARELSER pr. target_id ved at dividere antal scores med spørgsmål pr. besvarelse
+        // LITE = 16 spørgsmål; ikke-LITE = 48 spørgsmål
+        const questionsPerResponse = (() => {
+          // eksplicit markør hvis tilgængelig
+          if (json?.variant && String(json.variant).toUpperCase() === 'LITE') return 16;
+          if (json?.project?.is_lite === true) return 16;
+          // fallback heuristik: hvis total pr. respondent_type er delelig med 48, brug 48, ellers 16
+          const s = json.scores || [];
+          const byType = s.reduce((acc, r) => {
+            if (r?.respondent_type && r?.value != null) acc[r.respondent_type] = (acc[r.respondent_type] || 0) + 1;
+            return acc;
+          }, {});
+          const vals = Object.values(byType);
+          if (vals.length && vals.every(n => n % 48 === 0)) return 48;
+          return 16;
+        })();
+
+        // Lav map med total antal scores pr. target_id
+        const scoreCountsByTarget = (() => {
+          const s = json.scores || [];
+          const m = new Map(); // Map<target_id, number>
+          s.forEach(r => {
+            const tid = r?.target_id;
+            if (tid == null) return;
+            if (r.value == null) return; // ignorer null-værdier
+            m.set(tid, (m.get(tid) || 0) + 1);
+          });
+          return m;
+        })();
+
+        // Konverter til "antal besvarelser"
+        const responsesByTarget = new Map(); // Map<target_id, number>
+        scoreCountsByTarget.forEach((cnt, tid) => {
+          responsesByTarget.set(tid, Math.floor(cnt / questionsPerResponse));
+        });
+
+        adminState.participants = (json.people || []).map(p => {
+          const id = p.id ?? p.uuid ?? p.target_id ?? null;
+          const response_count = (id != null && responsesByTarget.has(id)) ? responsesByTarget.get(id) : 0;
+          return {
+            ...p,
+            full_name: p.full_name ?? p.name ?? '',
+            employee_no: p.employee_no ?? p.ma ?? null,
+            responses: [],          // ingen DB-svar i filtilstand
+            response_count          // ANTAL BESVARELSER (ikke antal items)
+          };
+        });
+
+
+        // Vis projekt info
+        $('adminProjectTitle').textContent = adminState.currentProject.title || '(Ukendt projekt)';
+        $('adminProjectStatus2').textContent = 'Fil-tilstand';
+        $('adminProjectCount').textContent = `${adminState.participants.length}`;
+
+        // Vis sektioner
+        $('adminProjectInfo').style.display = 'block';
+        $('adminParticipantsSection').style.display = 'block';
+        $('adminAddSection').style.display = 'block';
+
+        // Enable “Gem som…” knap
+        const btn = $('adminRefreshBtn');
+        if (btn) btn.disabled = false;
+
+        // Render tabel
+        renderAdminParticipantsTable();
+
+        statusEl.textContent = `✅ UDV indlæst (${adminState.loadedFileBase}.udv)`;
+        statusEl.style.color = 'var(--success)';
+        return;
+      }
+
+      // ---- Fald tilbage til eksisterende DB-flow (hvis fileOnly=false) ----
       const projectTitle = json.project?.title || json.title;
-      if(!projectTitle) {
+      if (!projectTitle) {
         throw new Error('Ingen projekt titel fundet i UDV-filen');
       }
 
-      // Hent projekt fra database
       const { data: project, error: projError } = await supabaseClient
         .from('projects')
         .select('*')
         .eq('title', projectTitle)
         .single();
 
-      if(projError || !project) {
+      if (projError || !project) {
         throw new Error(`Projekt "${projectTitle}" ikke fundet i databasen`);
       }
 
       adminState.currentProject = project;
       adminState.currentProjectId = project.id;
 
-      // Vis projekt info
       $('adminProjectTitle').textContent = project.title;
-      
       const now = new Date();
       const openDate = new Date(project.opens_at);
       const closeDate = new Date(project.closes_at);
       let status = 'Åben';
-      if(now < openDate) status = 'Ikke åbnet';
-      if(now > closeDate) status = 'Lukket';
+      if (now < openDate) status = 'Ikke åbnet';
+      if (now > closeDate) status = 'Lukket';
       $('adminProjectStatus2').textContent = status;
 
-      // Vis sektioner
       $('adminProjectInfo').style.display = 'block';
       $('adminParticipantsSection').style.display = 'block';
       $('adminAddSection').style.display = 'block';
 
-      // Load deltagere
       await loadAdminParticipants(project.id);
 
       statusEl.textContent = `✅ Projekt "${projectTitle}" indlæst`;
       statusEl.style.color = 'var(--success)';
-
-    } catch(err) {
+    } catch (err) {
       statusEl.textContent = `❌ Fejl: ${err.message}`;
       statusEl.style.color = 'var(--error)';
       console.error('Admin projekt load fejl:', err);
       
-      // Skjul sektioner ved fejl
       $('adminProjectInfo').style.display = 'none';
       $('adminParticipantsSection').style.display = 'none';
       $('adminAddSection').style.display = 'none';
     }
   }
+
 
   async function loadAdminParticipants(projectId) {
     try {
@@ -4822,7 +5064,6 @@ function setupDevelopmentTab(){
           id,
           employee_no,
           full_name,
-          is_lite,
           responses(count)
         `)
         .eq('project_id', projectId)
@@ -4832,8 +5073,8 @@ function setupDevelopmentTab(){
 
       adminState.participants = people || [];
 
-      // Opdater count
-      const liteCount = people.filter(p => p.is_lite).length;
+      // Opdater count (projekt-niveau Lite)
+      const liteCount = adminState.currentProject?.is_lite ? (people?.length || 0) : 0;
       $('adminProjectCount').textContent = `${people.length} (${liteCount} Lite)`;
 
       // Render tabel
@@ -4848,6 +5089,8 @@ function setupDevelopmentTab(){
   function renderAdminParticipantsTable() {
     const tbody = $('adminParticipantsBody');
     tbody.innerHTML = '';
+    const liteProject = !!(adminState.currentProject?.is_lite);
+
 
     if(adminState.participants.length === 0) {
       tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--muted)">Ingen deltagere</td></tr>';
@@ -4870,35 +5113,35 @@ function setupDevelopmentTab(){
       tdName.textContent = person.full_name || '-';
       tr.appendChild(tdName);
 
-      // Lite status
+      // Lite status (projekt-niveau)
       const tdLite = document.createElement('td');
       tdLite.style.padding = '10px 12px';
       tdLite.style.textAlign = 'center';
-      tdLite.textContent = person.is_lite ? '✓' : '-';
+      tdLite.textContent = liteProject ? '✓' : '-';
       tr.appendChild(tdLite);
 
-      // Svar count
+      // Svar count – brug beregnet ANTAL BESVARELSER fra filtilstand
       const tdResponses = document.createElement('td');
       tdResponses.style.padding = '10px 12px';
       tdResponses.style.textAlign = 'center';
-      const responseCount = person.responses?.[0]?.count || 0;
-      const maxQuestions = person.is_lite ? 16 : 48;
-      tdResponses.textContent = `${responseCount}/${maxQuestions}`;
+      const responseCount = (typeof person.response_count === 'number') ? person.response_count : 0;
+      tdResponses.textContent = String(responseCount);
       tr.appendChild(tdResponses);
 
       // Slet knap
       const tdDelete = document.createElement('td');
       tdDelete.style.padding = '10px 12px';
       tdDelete.style.textAlign = 'center';
-      const deleteBtn = document.createElement('button');
-      deleteBtn.className = 'btn small';
-      deleteBtn.style.background = 'var(--error)';
-      deleteBtn.style.color = 'white';
-      deleteBtn.style.borderColor = 'var(--error)';
-      deleteBtn.style.padding = '6px 10px';
-      deleteBtn.textContent = '❌';
-      deleteBtn.onclick = () => handleAdminDeleteParticipant(person);
-      tdDelete.appendChild(deleteBtn);
+      const btnDelete = document.createElement('button');
+      btnDelete.textContent = '✖';
+      btnDelete.style.background = 'transparent';
+      btnDelete.style.border = '1px solid #ff5c5c';
+      btnDelete.style.color = '#ff5c5c';
+      btnDelete.style.padding = '4px 8px';
+      btnDelete.style.borderRadius = '6px';
+      btnDelete.style.cursor = 'pointer';
+      btnDelete.addEventListener('click', () => handleAdminDeleteParticipant(person));
+      tdDelete.appendChild(btnDelete);
       tr.appendChild(tdDelete);
 
       tbody.appendChild(tr);
@@ -4919,45 +5162,51 @@ function setupDevelopmentTab(){
       loadingOverlay.innerHTML = `
         <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;padding:30px;border-radius:12px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,0.2)">
           <div class="spinner" style="width:28px;height:28px;border:3px solid #eee;border-top-color:var(--brand);border-radius:50%;margin:0 auto;animation:spin 1s linear infinite"></div>
-          <p style="margin:16px 0 0 0">Sletter...</p>
+          <p style="margin:16px 0 0 0">Fjerner deltager...</p>
         </div>`;
       document.body.appendChild(loadingOverlay);
     }
     loadingOverlay.style.display = 'block';
 
     try {
-      // 1. Slet alle responses
-      const { error: respError } = await supabaseClient
-        .from('responses')
-        .delete()
-        .eq('project_person_id', person.id);
-
-      if(respError) throw new Error(`Kunne ikke slette svar: ${respError.message}`);
-
-      // 2. Slet fra v_kompas_series (hvis der er data)
-      const { error: seriesError } = await supabaseClient
-        .from('v_kompas_series')
-        .delete()
-        .eq('target_id', person.id);
-
-      // Ignorer fejl hvis view ikke tillader delete eller ingen data
-      if(seriesError && !seriesError.message.includes('permission denied')) {
-        console.warn('Kunne ikke slette fra v_kompas_series:', seriesError);
+      if (adminState.fileOnly) {
+        // Slet i arbejdskopien (filtilstand), markér dirty og re-render
+        const key = person.employee_no ?? person.id ?? person.full_name;
+        adminState.participants = (adminState.participants || []).filter(p =>
+          (p.employee_no ?? p.id ?? p.full_name) !== key
+        );
+        if (adminState.workingUdv) {
+          adminState.workingUdv.people = adminState.participants.map(p => ({
+            ...p,
+            full_name: p.full_name ?? p.name ?? '',
+            name: p.full_name ?? p.name ?? '',
+            employee_no: p.employee_no ?? p.ma ?? null
+          }));
+        }
+        adminState.isDirty = true;
+        renderAdminParticipantsTable();
+        alert(`✅ ${person.full_name} er fjernet fra arbejdskopien (fil)`);
+        return;
       }
 
-      // 3. Slet person
-      const { error: personError } = await supabaseClient
+      // (DB-tilstand) Slet KUN personen – FK er ON DELETE CASCADE
+      const empNo = String(person.employee_no || '').trim();
+      const delQ = supabaseClient
         .from('project_people')
         .delete()
-        .eq('id', person.id);
+        .eq('project_id', adminState.currentProjectId);
 
-      if(personError) throw new Error(`Kunne ikke slette person: ${personError.message}`);
+      if (empNo) {
+        delQ.eq('employee_no', empNo);
+      } else {
+        delQ.eq('id', person.id);
+      }
 
-      // Reload deltagere
+      const { error: personError } = await delQ;
+      if(personError) throw new Error(`Kunne ikke slette person(er): ${personError.message}`);
+
       await loadAdminParticipants(adminState.currentProjectId);
-
-      alert(`✅ ${person.full_name} er slettet`);
-
+      alert(`✅ ${person.full_name} er slettet fra projektet`);
     } catch(err) {
       alert(`❌ Fejl ved sletning: ${err.message}`);
       console.error('Delete participant fejl:', err);
@@ -4966,11 +5215,44 @@ function setupDevelopmentTab(){
     }
   }
 
+  /** Helper: læs og parse .UDV/.json fra File/Blob */
+  async function readUdvFile(file) {
+    try {
+      const text = await file.text();
+      let json = null;
+
+      // 1) Prøv ren JSON
+      try { json = JSON.parse(text); } catch {}
+
+      // 2) Evt. base64-indpakkede .udv
+      if (!json) {
+        try {
+          const decoded = atob(text.trim());
+          json = JSON.parse(decoded);
+        } catch {}
+      }
+
+      if (!json || !json.udv_version) {
+        throw new Error('Ugyldig UDV-fil format');
+      }
+
+      // Normaliser minimumsstrukturer
+      json.people = Array.isArray(json.people) ? json.people : [];
+      json.scores = Array.isArray(json.scores) ? json.scores : [];
+
+      return json;
+    } catch (e) {
+      console.error('readUdvFile fejl:', e);
+      throw e;
+    }
+  }
+
   async function handleAdminAddFile(file) {
-    const statusEl = $('adminAddStatus');
-    
-    if(!adminState.currentProjectId) {
-      statusEl.textContent = '❌ Indlæs først et projekt';
+      const statusEl = $('adminAddStatus');
+
+    // Tillad enten DB-projekt (currentProjectId) ELLER fil-tilstand (workingUdv)
+    if (!adminState.currentProjectId && !adminState.workingUdv) {
+      statusEl.textContent = '❌ Indlæs først et projekt (.UDV) eller vælg et eksisterende DB-projekt';
       statusEl.style.color = 'var(--error)';
       return;
     }
@@ -4992,70 +5274,172 @@ function setupDevelopmentTab(){
         throw new Error('Ingen deltagere fundet i UDV-filen');
       }
 
-      let addedCount = 0;
+            let addedCount = 0;
       let skippedCount = 0;
-      const duplicates = [];
+      const missingMa = [];
+      const preview = [];
 
-      for(const person of newPeople) {
-        const employeeNo = person.employee_no || person.ma;
-        if(!employeeNo) {
+      for (const person of newPeople) {
+        const employeeNo = String(person.employee_no || person.ma || '').trim();
+        if (!employeeNo) {
           skippedCount++;
+          missingMa.push(person.full_name || person.name || '(uden navn)');
           continue;
         }
+        // FIL-KUN: vi rører ikke DB – vi forbereder kun en forhåndsvisning
+        preview.push({
+          employee_no: employeeNo,
+          full_name: person.full_name || person.name || '',
+          role: person.role || null
+        });
+        addedCount++;
+      }
 
-        // Tjek for duplikat
-        const { data: existing, error: checkError } = await supabaseClient
-          .from('project_people')
-          .select('id')
-          .eq('project_id', adminState.currentProjectId)
-          .eq('employee_no', employeeNo);
+        // FIL-TILSTAND: Flet personer + scores ind i arbejdskopien (ingen DB-skrivning)
+        if (adminState.workingUdv && adminState.fileOnly) {
+          // 1) Læs hele .UDV fra filen, så vi kan få 'people' + 'scores'
+          //    (udklip af eksisterende funktion - vi bruger samme helper, som ved projekt-indlæsning)
+          const udvIn = await readUdvFile(file); // eksisterende helper der parse'r .udv/.json
+          const srcPeople = Array.isArray(udvIn?.people) ? udvIn.people : [];
+          const srcScores = Array.isArray(udvIn?.scores) ? udvIn.scores : [];
 
-        if(checkError) {
-          console.error('Duplikat check fejl:', checkError);
-          skippedCount++;
-          continue;
-        }
+          // 2) Opsæt nøgler for deduplikering (ma/employee_no) + id-bevarelse
+          const norm = v => String(v ?? '').trim();
+          const byKey = new Map();
+          const byId  = new Map();
 
-        if(existing && existing.length > 0) {
-          duplicates.push(`MA ${employeeNo} (${person.full_name || person.name})`);
-          skippedCount++;
-          continue;
-        }
-
-        // Tilføj ny deltager
-        const { error: insertError } = await supabaseClient
-          .from('project_people')
-          .insert({
-            project_id: adminState.currentProjectId,
-            employee_no: employeeNo,
-            full_name: person.full_name || person.name || '',
-            is_lite: person.is_lite || false,
-            role: person.role || null
+          (adminState.participants || []).forEach(p => {
+            const k = norm(p.ma) || norm(p.employee_no);
+            if (k) byKey.set(k, true);
+            if (p.id) byId.set(p.id, p);
           });
 
-        if(insertError) {
-          console.error('Insert fejl for MA', employeeNo, ':', insertError);
-          skippedCount++;
-        } else {
-          addedCount++;
+          // 3) Flet personer — BEVAR id fra kilden. Ingen overskrivning af eksisterende.
+          let actuallyAdded = 0;
+          const merged = [...(adminState.participants || [])];
+          for (const p of srcPeople) {
+            const key = norm(p.ma) || norm(p.employee_no);
+            if (!key || byKey.has(key)) { skippedCount++; continue; }
+
+            // bevar id fra kildefilen (kritisk for at scores rammer rigtigt)
+            merged.push({
+              id: p.id ?? null,
+              full_name: p.full_name ?? p.name ?? '',
+              name: p.name ?? p.full_name ?? '',
+              ma: p.ma ?? p.employee_no ?? null,
+              employee_no: p.employee_no ?? p.ma ?? null,
+              responses: Array.isArray(p.responses) ? p.responses : [],
+              response_count: Number.isFinite(p.response_count) ? p.response_count : 0
+            });
+
+            byKey.set(key, true);
+            actuallyAdded++;
+          }
+
+          adminState.participants = merged;
+
+          // 4) Flet scores fra kilde -> arbejdskopi. Kun for target_id der findes i merged people.
+          const keepId = new Set(merged.map(pp => pp.id).filter(Boolean));
+          const dstScores = Array.isArray(adminState.workingUdv?.scores) ? [...adminState.workingUdv.scores] : [];
+
+          // undgå dubletter: (target_id, category_id, respondent_type, value) som simpel nøgle
+          const scoreSig = s => [s.target_id, s.category_id, s.respondent_type, s.value].join('|');
+          const existingSig = new Set(dstScores.map(scoreSig));
+
+          let addedScores = 0;
+          for (const s of srcScores) {
+            if (!s || !s.target_id) continue;
+            if (!keepId.has(s.target_id)) continue; // kun hvis personen blev/er til stede
+            const sig = scoreSig(s);
+            if (existingSig.has(sig)) continue;
+            dstScores.push({
+              target_id: s.target_id,
+              category_id: s.category_id,
+              respondent_type: s.respondent_type,
+              value: s.value
+            });
+            existingSig.add(sig);
+            addedScores++;
+          }
+
+          // 5) Skriv tilbage til workingUdv (bevar eksisterende felter)
+          const udvOut = { ...(adminState.workingUdv || {}) };
+          udvOut.people = merged.map(pp => ({
+            ...pp,
+            id: pp.id ?? null,
+            name: pp.full_name ?? pp.name ?? '',
+            // Rør ikke ved eksisterende ma/employee_no for gamle personer
+            ma: pp.ma ?? null,
+            employee_no: pp.employee_no ?? null
+          }));
+          udvOut.scores = dstScores;
+          adminState.workingUdv = udvOut;
+
+          // 6) Genberegn ANTAL BESVARELSER som (antal scores / spørgsmål pr. besvarelse)
+          // Samme logik som ved indlæsning af projekt-UDV (LITE=16, FULD=48) 
+          const questionsPerResponse = (() => {
+            const j = adminState.workingUdv || {};
+            if (j?.variant && String(j.variant).toUpperCase() === 'LITE') return 16;
+            if (j?.project?.is_lite === true) return 16;
+            const s = j.scores || [];
+            const byType = s.reduce((acc, r) => {
+              if (r?.respondent_type && r?.value != null) acc[r.respondent_type] = (acc[r.respondent_type] || 0) + 1;
+              return acc;
+            }, {});
+            const vals = Object.values(byType);
+            if (vals.length && vals.every(n => n % 48 === 0)) return 48;
+            return 16;
+          })();
+
+          const scoreCountsByTarget = new Map(); // target_id -> antal scores (ikke-null)
+          for (const s of adminState.workingUdv?.scores || []) {
+            if (!s?.target_id) continue;
+            if (s.value == null) continue;
+            scoreCountsByTarget.set(s.target_id, (scoreCountsByTarget.get(s.target_id) || 0) + 1);
+          }
+
+          adminState.participants = adminState.participants.map(p => {
+            const tid = p.id ?? null;
+            const raw = (tid && scoreCountsByTarget.has(tid)) ? scoreCountsByTarget.get(tid) : 0;
+            const responses = Math.floor(raw / questionsPerResponse);
+            return { ...p, response_count: responses };
+          });
+
+
+          adminState.isDirty = true;
+          renderAdminParticipantsTable();
+
+          statusEl.style.whiteSpace = 'pre-wrap';
+          const lines = srcPeople.map(p => `MA ${p.employee_no ?? p.ma ?? ''} — ${p.name ?? p.full_name ?? ''}`);
+          const miss = (missingMa.length ? `\n⚠️ Uden MA: ${missingMa.length} (${missingMa.slice(0,5).join(', ')}${missingMa.length>5?' …':''})` : '');
+          statusEl.textContent = `✅ ${actuallyAdded} deltagere tilføjet\n✅ ${addedScores} svar flettet\n↩️ Skippet (dupl./mangler MA): ${skippedCount}${miss}\n\nForhåndsvisning:\n${lines.join('\n')}`;
+          statusEl.style.color = 'var(--success)';
+          return;
         }
-      }
+        // DB-TILSTAND: (fremtidig udvidelse) — her kunne man indsætte til DB hvis ønsket.
+        statusEl.style.whiteSpace = 'pre-wrap';
+        const lines = preview.map(p => `MA ${p.employee_no} — ${p.full_name}`);
+        statusEl.textContent = `ℹ️ Forhåndsvisning (DB-tilstand ikke aktiveret):\n${lines.join('\n')}`;
+        statusEl.style.color = 'var(--muted)';
 
-      // Reload deltagere
-      await loadAdminParticipants(adminState.currentProjectId);
-
-      let resultMsg = `✅ ${addedCount} deltager(e) tilføjet`;
-      if(skippedCount > 0) {
-        resultMsg += `, ${skippedCount} sprunget over`;
+      let resultMsg = `🔎 Forhåndsvisning: ${addedCount} deltager(e) fundet i UDV (ingen ændringer i databasen)`;
+      if (lines.length) resultMsg += `\n\n${lines.join('\n')}`;
+      if (missingMa.length > 0) {
+        resultMsg += `\n\nMangler MA/employee_no:\n${missingMa.join('\n')}`;
       }
-      if(duplicates.length > 0) {
-        resultMsg += `\n\nDuplikater fundet:\n${duplicates.join('\n')}`;
-      }
+      statusEl.innerHTML = resultMsg.replace(/\n/g, '<br>');
+      statusEl.style.color = 'var(--muted)';
 
-      statusEl.textContent = resultMsg;
+      // Vis forklaringer med linjeskift
+      statusEl.style.whiteSpace = 'pre-wrap';
+      statusEl.innerHTML = resultMsg.replace(/\n/g, '<br>');
       statusEl.style.color = 'var(--success)';
 
-      if(duplicates.length > 0) {
+      // Dialoger for begge årsager
+      if (missingMa.length > 0) {
+        alert(`Nogle deltagere blev sprunget over pga. manglende MA/employee_no:\n\n${missingMa.join('\n')}`);
+      }
+      if (duplicates.length > 0) {
         alert(`Nogle deltagere blev sprunget over fordi de allerede eksisterer:\n\n${duplicates.join('\n')}`);
       }
 
@@ -5568,6 +5952,93 @@ function setupDevelopmentTab(){
     }
   }
 
+  // NY: Indlæs Team Building direkte fra en lokal .UDV/.json (uden DB)
+  async function loadTeamBuildingFromUdv(udv){
+    try {
+      // 1) Kategorier
+      const tx = Array.isArray(udv?.taxonomy) ? udv.taxonomy : [];
+      if (tx.length) {
+        // a) Filen indeholder taxonomy → brug den
+        categories = tx.map(t => ({
+          category_id: t.category_id,
+          category_name: t.category_name,
+          domain_id: t.domain_id,
+          domain_name: t.domain_name
+        }));
+      } else {
+        // b) Ingen taxonomy i filen → hent fra DB efter template_id (samme som projekt-dropdown)
+        let fetchedCats = [];
+        try {
+          const tmplId = udv?.project?.template_id || udv?.project?.templateId || null;
+          if (tmplId && typeof supabase !== 'undefined') {
+            const { data, error } = await supabase
+              .from('v_category_path')
+              .select('*')
+              .eq('template_id', tmplId)
+              .order('category_sort');
+            if (!error && Array.isArray(data) && data.length) {
+              fetchedCats = data.map(c => ({
+                category_id: c.category_id,
+                category_name: c.category_name,
+                domain_id: c.domain_id,
+                domain_name: c.domain_name
+              }));
+            }
+          }
+        } catch(_) {}
+
+        if (fetchedCats.length) {
+          categories = fetchedCats;
+        } else {
+          // c) Sidste udvej (for at undgå crash): afled ID’er fra scores og giv midlertidige labels
+          const ids = Array.from(new Set((udv?.scores||[]).map(s => s.category_id)));
+          categories = ids.map((id, idx) => ({
+            category_id: id,
+            category_name: `Kategori ${idx+1}`
+          }));
+        }
+      }
+
+      // 2) Personer
+      const people = Array.isArray(udv?.people) ? udv.people : [];
+
+      // 3) Scores → samme struktur som DB-load forventer
+      const scores = Array.isArray(udv?.scores) ? udv.scores : [];
+
+      // 4) Byg teamData
+      const byTC = (list, targetId, categoryId, type) =>
+        (list || []).find(r =>
+          r.target_id === targetId &&
+          r.category_id === categoryId &&
+          r.respondent_type === type
+        )?.value ?? null;
+
+      teamData = (people || []).map(person => {
+        const personData = {
+          id: person.id ?? null,
+          name: person.full_name || person.name || '',
+          employee_no: person.employee_no ?? person.ma ?? null,
+          selected: false,
+          categories: {}
+        };
+        categories.forEach(cat => {
+          personData.categories[cat.category_id] = {
+            self:   byTC(scores, person.id, cat.category_id, 'self'),
+            peer:   byTC(scores, person.id, cat.category_id, 'peer'),
+            leader: byTC(scores, person.id, cat.category_id, 'leader')
+          };
+        });
+        return personData;
+      });
+
+      renderTeamTable();
+      updateTeamSelection(); // Sikrer at radar chart opdateres når data loades
+    } catch (e) {
+      console.error('Error loading local UDV for Team Building:', e);
+      alert('Kunne ikke indlæse den valgte UDV-fil.');
+    }
+  }
+
   function getSelectedTypes() {
     const types = [];
     if ($('typeSelf').checked) types.push('self');
@@ -5959,13 +6430,57 @@ function setupDevelopmentTab(){
 
 
   // Event Listeners for Team Building
-  $('selProject3').onchange = loadTeamBuildingData;
+  $('selProject3').onchange = (e) => {
+    if (e.target.value === '__local_udv__') {
+      // Åbn klassisk filvælger og nulstil valg i select'en
+      e.target.value = '';
+      const fi = $('teamLocalUdvFile');
+      if (fi) fi.click();
+      return;
+    }
+    loadTeamBuildingData();
+  };
+
+  $('teamLocalUdvFile').onchange = async (e) => {
+    const f = e.target.files && e.target.files[0];
+    // tillad at vælge samme fil igen næste gang
+    e.target.value = '';
+    if (!f) return;
+    try {
+      const udv = await readUdvFile(f); // eksisterende helper
+      await loadTeamBuildingFromUdv(udv);
+
+      // ▼ NYT: vis valgt .UDV i projekt-dropdown med filnavn
+      const s = $('selProject3');
+      if (s) {
+        // find eller opret en "loaded" option (adskilt fra __local_udv__ triggeren)
+        let opt = s.querySelector('option[value="__local_udv_loaded__"]');
+        if (!opt) {
+          opt = document.createElement('option');
+          opt.value = '__local_udv_loaded__';
+          // indsæt øverst (før DB-projekter), så den er synlig
+          if (s.firstChild) {
+            s.insertBefore(opt, s.firstChild);
+          } else {
+            s.appendChild(opt);
+          }
+        }
+        // sæt tekst til faktisk filnavn (inkl. endelse)
+        opt.textContent = `📁 ${f.name}`;
+        // vælg den nye option
+        s.value = '__local_udv_loaded__';
+      }
+    } catch (err) {
+      alert('Ugyldig UDV: ' + (err?.message || err));
+    }
+  };
+
   $('btnUpdateTeamView').onclick = renderTeamTable;
-  
+
   ['typeSelf', 'typePeer', 'typeLeader', 'showValues'].forEach(id => {
     $(id).onchange = renderTeamTable;
   });
-  
+
   document.querySelectorAll('input[name="colorScale"]').forEach(radio => {
     radio.onchange = renderTeamTable;
   });
