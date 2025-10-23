@@ -4209,6 +4209,12 @@ async function buildTeamPdfHtml(project, teamName, categories, teamSeries, membe
   return wrapPage(firstPage, 1, 1);
 }
 
+// Definer openDownloadDialogBackend som alias til openDownloadDialogClientSide
+// (begge funktioner bruger samme modal og logik)
+function openDownloadDialogBackend(kind) {
+  return openDownloadDialogClientSide(kind);
+}
+
 // ref: :contentReference[oaicite:1]{index=1}
 $('btnPdf').onclick = () => {
   openDownloadDialogClientSide('pdf');
@@ -4360,6 +4366,7 @@ $('btnResetDevelop').onclick = async () => {
   // Gør download-funktioner tilgængelige globalt for eksterne script-sektioner
   window.buildResultsPdfHtml = buildResultsPdfHtml;
   window.buildSurveyUDV = buildSurveyUDV;
+  window.generatePDFFromHTML = generatePDFFromHTML;
 
   // ======= UDV IMPORT + UDVIKLING (over tid) =======
 // Hjælp: vis/skjul MIX-hint
@@ -9337,7 +9344,7 @@ async function handlePdfDownloadClientSide(projectId, targetIds, isSeparate) {
           console.log(`Genererer PDF for: ${person.full_name}`);
           
           // Generer PDF via jsPDF (samme metode som team rapport)
-          const pdfBlob = await generatePDFBlob(htmlContent);
+          const pdfBlob = await window.generatePDFBlob(htmlContent);
           zip.file(filename, pdfBlob);
         }
         
@@ -9398,8 +9405,8 @@ async function handlePdfDownloadClientSide(projectId, targetIds, isSeparate) {
         const combinedHtml = allHtmlPages.join('\n');
         const filename = `${safe(project.title)}.pdf`;
         
-        // Generer samlet PDF
-        await generatePDFFromHTML(combinedHtml, filename);
+        // Generer samlet PDF via window objekt for at sikre tilgængelighed
+        await window.generatePDFFromHTML(combinedHtml, filename);
         
         console.log('✅ Samlet PDF downloadet succesfuldt');
       }
@@ -9483,6 +9490,9 @@ async function handlePdfDownloadClientSide(projectId, targetIds, isSeparate) {
       }
     });
   }
+
+  // Gør PDF funktioner tilgængelige globalt
+  window.generatePDFBlob = generatePDFBlob;
 </script>
 
 </body>
