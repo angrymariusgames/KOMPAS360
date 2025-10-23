@@ -3905,7 +3905,6 @@ async function buildResultsPdfHtml(project, person, categories, series){
             const tmp = document.createElement('div');
             tmp.innerHTML = keepHtml;
 
-            // Saml alle linjer og byg kompakt struktur: kategori → {navn,synopsis,tips{titel:tekst}}
             const lines = Array.from(tmp.querySelectorAll('.keep-tip-line'));
             const byCat = new Map();
 
@@ -3913,7 +3912,6 @@ async function buildResultsPdfHtml(project, person, categories, series){
               const cid  = line.getAttribute('data-category-id') || '—';
               const card = line.closest('div[style*="border"]');
 
-              // Navn/synopsis fra data-attributter; fald tilbage til kortet ved mangel
               let name     = (line.getAttribute('data-category-name') || '').trim();
               let synopsis = (line.getAttribute('data-synopsis') || '').trim();
 
@@ -3932,7 +3930,6 @@ async function buildResultsPdfHtml(project, person, categories, series){
 
               const title = (line.getAttribute('data-title') || 'Råd').trim();
               const text  = (line.getAttribute('data-desc') || line.querySelector('div[style*="flex:1"]')?.textContent || '').trim();
-              // Gem første meningsfulde tekst pr. råd (slår SELV/KOLLEGA sammen)
               if (!byCat.get(cid).tips[title] && text) byCat.get(cid).tips[title] = text;
             });
 
@@ -3940,8 +3937,8 @@ async function buildResultsPdfHtml(project, person, categories, series){
               return `<div style="font-style:italic;color:#94a3b8">Ingen fastholdelsesråd</div>`;
             }
 
-            // Render op til 5 kompetencer
-            return Array.from(byCat.values()).slice(0,5).map(cat => {
+            // ⛔️ Fjern 5-begrænsning – medtag ALLE markerede råd
+            return Array.from(byCat.values()).map(cat => {
               const tipsHtml = Object.entries(cat.tips).map(([t, d]) => `
                 <li style="margin:6px 0">
                   <div style="font-weight:600">${t}</div>
@@ -8475,7 +8472,7 @@ async function contractExportPdf(){
           <div style="font-size:12px;color:#64748b">${personStr}</div>
         </div>`;
       const footerHtml = (page, total) => `
-        <div style="margin-top:12px;padding-top:8px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;color:#64748b;font-size:10px">
+        <div style="margin-top:12px;padding-top:8px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;color:#64748b;font-size:10px">
           <span>${new Date().toLocaleDateString('da-DK')}</span>
           <span>Side ${page} af ${total}</span>
         </div>`;
@@ -8504,108 +8501,225 @@ async function contractExportPdf(){
       const followup  = ($('contractFollowupDate')?.value || '').trim();
       const includeCol = !!$('includeColleagueSupport')?.checked;
 
-      // Kollegastøtte HTML (kun hvis medtaget)
+      // Kollega støtte HTML (kun valgte kollegaer baseret på contractState.colleaguesSelected)
       let colleagueHtml = '';
-      if (includeCol) {
+      const includeColleague = !!$('includeColleagueSupport')?.checked;
+      
+      if (includeColleague && contractState.colleaguesSelected && contractState.colleaguesSelected.size > 0) {
         const colRoot = $('contractColleagueSupport');
-        const clone = colRoot ? colRoot.cloneNode(true) : null;
-        if (clone) {
-          // ryd UI-kontroller
-          clone.querySelectorAll('button, input, select, .btn, label, [role="button"]').forEach(n => n.remove());
-          // kompakt liste
-          const items = Array.from(clone.querySelectorAll('[data-colleague]'));
-          if (items.length) {
-            colleagueHtml = items.map(it => {
-              const who  = it.getAttribute('data-colleague-name') || it.querySelector('[data-name]')?.textContent || 'Kollega';
-              const text = it.getAttribute('data-support') || it.textContent || '';
-              return `<div style="padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;background:#fff;margin-bottom:6px">
-                <div style="font-weight:600">${who}</div>
-                ${text ? `<div style="font-style:italic;color:#475569">${text}</div>` : ``}
+        if (colRoot) {
+          // Find alle kollega-cards i DOM
+          const allCards = Array.from(colRoot.querySelectorAll('[data-colleague-key]'));
+          
+          // Filtrer kun de valgte
+          const selectedCards = allCards.filter(card => {
+            const key = card.getAttribute('data-colleague-key');
+            return key && contractState.colleaguesSelected.has(key);
+          });
+          
+          if (selectedCards.length > 0) {
+            // Grid som i Resultater: side-om-side, maks 3 kolonner (falder naturligt til 2/1 ved få kort)
+            const items = selectedCards.map(card => {
+              const badge = card.querySelector('.method-badge');
+              const nameDiv = card.querySelector('div[style*="font-weight:600"]');
+              const compName = badge?.textContent?.trim() || 'Kompetence';
+              const personName = nameDiv?.textContent?.trim() || 'Kollega';
+              return `<div style="padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;background:#fff">
+                <div style="font-size:11px;color:#667eea;margin-bottom:2px">${compName}</div>
+                <div style="font-weight:600">${personName}</div>
               </div>`;
             }).join('');
+            colleagueHtml = `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">${items}</div>`;
           }
         }
       }
 
-      // === Page 1: Resultater-layout + ekstra tre felter under hjulet ===
-      // Vi genbruger idéen fra Resultater-PDF’ens første side, men indsætter vores kontraktblok umiddelbart under hjulet.
+      // === Page 1: KOMPAS hjul + tre felter UNDER HINANDEN (ikke side om side) ===
       const page1 = `
-        ${headerHtml('KOMPAS • Personlig Kompetencerapport', personStr)}
+        ${headerHtml('KOMPAS • Udviklingskontrakt', personStr)}
         <div style="margin-top:-6px">
           <div style="text-align:center;background:white;border:1px solid #e2e8f0;border-radius:8px;padding:5px 15px 15px 15px;margin-bottom:12px">
             <div style="font-size:12px;color:#64748b;margin-bottom:0;font-weight:600">🎯 KOMPAS Kompetencehjul</div>
             ${kompasSVG}
           </div>
 
-          <!-- 🔹 Indsat kontraktblok — tre felter under hjulet -->
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
-            <section style="border:1px solid #e2e8f0;border-radius:8px;padding:10px;background:#fff;min-height:84px">
+          <!-- 🔹 Kontraktfelter – tre felter UNDER HINANDEN -->
+          <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
+            <section style="border:1px solid #e2e8f0;border-radius:8px;padding:10px;background:#fff">
               <div style="font-weight:700;margin-bottom:6px">👤 Medarbejder gør</div>
               ${empDoes ? `<div style="white-space:pre-wrap;color:#334155;font-size:12px">${empDoes}</div>` : `<div style="color:#94a3b8;font-style:italic;font-size:12px">Ikke udfyldt</div>`}
             </section>
-            <section style="border:1px solid #e2e8f0;border-radius:8px;padding:10px;background:#fff;min-height:84px">
+            <section style="border:1px solid #e2e8f0;border-radius:8px;padding:10px;background:#fff">
               <div style="font-weight:700;margin-bottom:6px">💭 Medarbejder ønsker</div>
               ${empWants ? `<div style="white-space:pre-wrap;color:#334155;font-size:12px">${empWants}</div>` : `<div style="color:#94a3b8;font-style:italic;font-size:12px">Ikke udfyldt</div>`}
             </section>
-            <section style="border:1px solid #e2e8f0;border-radius:8px;padding:10px;background:#fff;min-height:84px">
+            <section style="border:1px solid #e2e8f0;border-radius:8px;padding:10px;background:#fff">
               <div style="font-weight:700;margin-bottom:6px">👨‍💼 Leder støtter</div>
               ${leadHelp ? `<div style="white-space:pre-wrap;color:#334155;font-size:12px">${leadHelp}</div>` : `<div style="color:#94a3b8;font-style:italic;font-size:12px">Ikke udfyldt</div>`}
             </section>
           </div>
-
-          <!-- Resten af første side beholdes som i Resultater (kompetencekort) -->
-          <h3 style="color:#1e293b;margin-bottom:8px;font-size:12px">🏆 Kompetence Kategorier</h3>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;margin-bottom:12px">
-            ${
-              categories.map((cat, i) => {
-                const badges = [];
-                if (series.self[i]   !== null && series.self[i]   !== undefined) badges.push(`<span style="background:#10b981;color:white;padding:2px 4px;border-radius:2px;font-size:9px;margin-right:2px">S:${Number(series.self[i]).toFixed(1)}</span>`);
-                if (series.peer[i]   !== null && series.peer[i]   !== undefined) badges.push(`<span style="background:#3b82f6;color:white;padding:2px 4px;border-radius:2px;font-size:9px;margin-right:2px">K:${Number(series.peer[i]).toFixed(1)}</span>`);
-                if (series.leader[i] !== null && series.leader[i] !== undefined) badges.push(`<span style="background:#f59e0b;color:white;padding:2px 4px;border-radius:2px;font-size:9px;margin-right:2px">F:${Number(series.leader[i]).toFixed(1)}</span>`);
-                return `<div style="border:1px solid #e2e8f0;border-radius:6px;padding:8px;background:#fff">
-                  <div style="font-weight:600;font-size:11px;margin-bottom:4px">${cat.category_name}</div>
-                  ${badges.join('')}
-                </div>`;
-              }).join('')
-            }
-          </div>
-
-          <div style="margin-top:12px;padding-top:8px;border-top:1px solid #e2e8f0;text-align:center;color:#64748b;font-size:9px">
-            <p style="margin:0">Genereret af KOMPAS PDF Service</p>
-          </div>
         </div>
       `;
 
-      // === Page 2: kopi af Resultater side 2 (coaching) + kollega-støtte og opfølgningsdato ===
-      // Vi genbruger den allerede eksisterende side-2 struktur fra Resultater ved at hente blocks fra DOM.
+      // === Page 2: Fastholde/Udvikle + 30/60/90 + Kollega støtte + Opfølgningsdato ===
+      // Helper til at clone og rydde UI-støj
       const cleanClone = (el) => {
         if (!el) return '';
         const clone = el.cloneNode(true);
         clone.querySelectorAll('button, input, select, label, .btn, [role="button"]').forEach(n => n.remove());
         return clone.innerHTML;
       };
-      const keepEl    = document.getElementById('coaching-keep');
-      const developEl = document.getElementById('coaching-develop');
-      const keepHtml  = cleanClone(keepEl);
-      const devHtml   = cleanClone(developEl);
+
+      // --- Fastholde/Udvikle (fra Kontrakt-fanen) ---
+      const keepContractEl = document.getElementById('contractKeepTipsContainer');
+      const developContractEl = document.getElementById('contractTipsContainer');
 
       const keepBlock = `<section style="width:100%;box-sizing:border-box;border:1px solid #e2e8f0;border-radius:8px;padding:10px">
         <div style="font-weight:700;margin-bottom:6px">🎯 Fastholde</div>
-        <div>${keepHtml || '<div style="font-style:italic;color:#94a3b8">Ingen valgte fastholdelsesområder</div>'}</div>
-      </section>`;
+          <div style="display:flex;flex-direction:column;gap:10px">
+            ${
+              (() => {
+                if (!keepContractEl || !window.contractKeepState || !window.contractKeepState.selectedCompetencies || window.contractKeepState.selectedCompetencies.size === 0) {
+                  return `<div style="font-style:italic;color:#94a3b8">Ingen fastholdelseskompetencer valgt</div>`;
+                }
+
+                const byCat = new Map();
+
+                // Læs valgte kompetencer og tips fra contractKeepState — MEDTAG ALLE
+                for (const cid of window.contractKeepState.selectedCompetencies) {
+                  const comp = contractAvailableCompetencies.find(x => x.category_id === cid);
+                  if (!comp) continue;
+
+                  const selectedTipIds = window.contractKeepState.selectedTips?.get(cid);
+                  if (!selectedTipIds || selectedTipIds.size === 0) continue;
+
+                  const catTips = contractKeepAvailableTips?.get(cid) || [];
+                  const tips = {};
+
+                  for (const tipId of selectedTipIds) {
+                    const tip = catTips.find(t => t.id === tipId);
+                    if (tip) {
+                      tips[tip.title || 'Råd'] = tip.description || '';
+                    }
+                  }
+
+                  if (Object.keys(tips).length > 0) {
+                    byCat.set(cid, {
+                      name: comp.category_name || 'Kompetence',
+                      synopsis: comp.category_synopsis || '',
+                      tips
+                    });
+                  }
+                }
+
+                if (byCat.size === 0) {
+                  return `<div style="font-style:italic;color:#94a3b8">Ingen fastholdelsestips valgt</div>`;
+                }
+
+                // 🔁 Ingen slice — vis ALT
+                return Array.from(byCat.values()).map(cat => {
+                  const tipsHtml = Object.entries(cat.tips).map(([t, d]) => `
+                    <li style="margin:6px 0">
+                      <div style="font-weight:600">${t}</div>
+                      ${d ? `<div style="font-style:italic;color:#475569">${d}</div>` : ''}
+                    </li>
+                  `).join('');
+
+                  return `
+                    <div style="border:1px solid #e2e8f0;border-radius:6px;padding:10px;background:#fff">
+                      <div style="font-weight:700">${cat.name}</div>
+                      ${cat.synopsis ? `<div style="font-size:.9rem;color:#64748b">${cat.synopsis}</div>` : ''}
+                      <ul style="margin:8px 0 0 16px;padding:0;list-style:disc">${tipsHtml}</ul>
+                    </div>
+                  `;
+                }).join('');
+              })()
+            }
+          </div>
+        </section>`;
 
       const developBlock = `<section style="width:100%;box-sizing:border-box;border:1px solid #e2e8f0;border-radius:8px;padding:10px">
         <div style="font-weight:700;margin-bottom:6px">📈 Udvikle</div>
-        <div>${devHtml || '<div style="font-style:italic;color:#94a3b8">Ingen valgte udviklingsområder</div>'}</div>
-      </section>`;
+          <div style="display:flex;flex-direction:column;gap:10px">
+            ${
+              (() => {
+                if (!developContractEl || !contractState.selectedCompetencies || contractState.selectedCompetencies.size === 0) {
+                  return `<div style="font-style:italic;color:#94a3b8">Ingen udviklingskompetencer valgt</div>`;
+                }
 
-      // 30/60/90 — læs direkte fra kontraktens egne bins (#contract-plan-30/60/90) for at matche kontrakten
-      const planBins = [
-        {label:'30 dage', el: document.querySelector('#contract-plan-30 .plan-bin')},
-        {label:'60 dage', el: document.querySelector('#contract-plan-60 .plan-bin')},
-        {label:'90 dage', el: document.querySelector('#contract-plan-90 .plan-bin')},
+                // Hent titler fra 30/60/90-planen (Resultater-fanen) og udeluk disse
+                const planTipTitles = new Set(
+                  Array.from(document.querySelectorAll('#plan-30 .plan-chip, #plan-60 .plan-chip, #plan-90 .plan-chip'))
+                    .map(chip => chip.getAttribute('title') || chip.textContent?.trim() || '')
+                    .filter(Boolean)
+                );
+
+                const byCat = new Map();
+
+                for (const cid of contractState.selectedCompetencies) {
+                  const comp = contractAvailableCompetencies.find(x => x.category_id === cid);
+                  if (!comp) continue;
+
+                  const selectedTipIds = contractState.selectedTips?.get(cid);
+                  if (!selectedTipIds || selectedTipIds.size === 0) continue;
+
+                  const catTips = contractAvailableTips?.get(cid) || [];
+                  const tips = {};
+
+                  for (const tipId of selectedTipIds) {
+                    const tip = catTips.find(t => t.id === tipId);
+                    const title = (tip?.title || 'Råd').trim();
+                    const desc  = (tip?.description || '').trim();
+                    // ⛔️ Filtrér fra, hvis lagt i 30/60/90
+                    if (!planTipTitles.has(title)) {
+                      tips[title] = desc;
+                    }
+                  }
+
+                  if (Object.keys(tips).length > 0) {
+                    byCat.set(cid, {
+                      name: comp.category_name || 'Kompetence',
+                      synopsis: comp.category_synopsis || '',
+                      tips
+                    });
+                  }
+                }
+
+                if (byCat.size === 0) {
+                  return `<div style="font-style:italic;color:#94a3b8">Ingen udviklingstips valgt</div>`;
+                }
+
+                // ⛔️ Fjern 5-begrænsning – medtag ALLE markerede råd (efter filtrering)
+                return Array.from(byCat.values()).map(cat => {
+                  const tipsHtml = Object.entries(cat.tips).map(([t, d]) => `
+                    <li style="margin:6px 0">
+                      <div style="font-weight:600">${t}</div>
+                      ${d ? `<div style="font-style:italic;color:#475569">${d}</div>` : ''}
+                    </li>
+                  `).join('');
+
+                  return `
+                    <div style="border:1px solid #e2e8f0;border-radius:6px;padding:10px;background:#fff">
+                      <div style="font-weight:700">${cat.name}</div>
+                      ${cat.synopsis ? `<div style="font-size:.9rem;color:#64748b">${cat.synopsis}</div>` : ''}
+                      <ul style="margin:8px 0 0 16px;padding:0;list-style:disc">${tipsHtml}</ul>
+                    </div>
+                  `;
+                }).join('');
+              })()
+            }
+          </div>
+        </section>`;
+
+      // --- 30-60-90 Handlingsplaner (fra Kontrakt-fanen) ---
+      // Match Resultater-PDF opsætning: 3 kolonner, vis 3 mål pr. kolonne + “+N flere”
+      const bins = [
+        { id: 'contract-plan-30', label: 'Første 30 dage', el: document.querySelector('#contract-plan-30 .plan-bin') },
+        { id: 'contract-plan-60', label: 'Dag 31–60',       el: document.querySelector('#contract-plan-60 .plan-bin') },
+        { id: 'contract-plan-90', label: 'Dag 61–90',       el: document.querySelector('#contract-plan-90 .plan-bin') },
       ];
-      const planCols = planBins.map(bin => {
+
+      const planCols = bins.map(bin => {
         const chips = Array.from(bin.el?.querySelectorAll('.plan-chip') || []).slice(0,3).map(chip => {
           const category = chip.getAttribute('data-category') || '';
           const title = chip.getAttribute('title') || chip.querySelector('div[style*="font-weight:700"]')?.textContent?.trim() || 'Mål';
@@ -8619,13 +8733,69 @@ async function contractExportPdf(){
         const more = Math.max(0, (bin.el?.querySelectorAll('.plan-chip')?.length || 0) - 3);
         return `<div><div style="font-weight:700;margin-bottom:6px">${bin.label}</div>${chips}${more ? `<div style="font-size:10px;color:#64748b;margin-top:4px">+${more} flere</div>` : ''}</div>`;
       }).join('');
+
       const plansBlock = `<section style="border:1px solid #e2e8f0;border-radius:8px;padding:10px">
         <div style="font-weight:700;margin-bottom:6px">📅 30/60/90</div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">${planCols}</div>
       </section>`;
 
-      // Side 2 top
-      let secondMain = `
+
+      // --- Team Roller (kun de VALGTE fra Kontrakt-fanen) ---
+      let roles = [];
+      
+      // Hent ALLE Top-4 roller fra DB
+      const pid = project.id;
+      const tid = person.id;
+      try {
+        const { data: top4, error } = await supabase.rpc('teamrole_top4', { pid, tid });
+        if (error) throw error;
+        
+        const allRoles = (top4 || []).map((r, idx) => ({
+          roleId: r.role_id,
+          rank: String(r.rank ?? (idx+1)),
+          name: r.role_name || 'Rolle',
+          pct:  typeof r.score_pct === 'number' ? r.score_pct.toFixed(1) : (r.score_pct || ''),
+          desc: r.description || '',
+          comps: [r.comp1, r.comp2, r.comp3].filter(Boolean)
+        }));
+        
+        // Filtrer baseret på contractState.team_roles_selected
+        if (contractState.team_roles_selected && contractState.team_roles_selected.size > 0) {
+          roles = allRoles.filter(r => contractState.team_roles_selected.has(r.roleId));
+        } else {
+          // Hvis ingen valgt, vis de 2 første som standard
+          roles = allRoles.slice(0, 2);
+        }
+      } catch (e) {
+        console.error('teamrole_top4 fejl:', e);
+        roles = [];
+      }
+
+      // Render kun de valgte roller
+      const rolesHtml = roles.map(r => {
+        const badges = (r.comps || []).slice(0, 4).map(c =>
+          `<span style="border:1px solid #e2e8f0;border-radius:999px;padding:2px 8px;font-size:11px">${c}</span>`
+        ).join(' ');
+        return `
+          <div style="margin:6px 0;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;background:#fff">
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
+              <span style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:999px;padding:2px 8px;font-size:10px;font-weight:700;color:#4f46e5">#${r.rank}</span>
+              <div style="font-weight:600;flex:1">${r.name}</div>
+              ${r.pct ? `<div style="font-weight:700;color:#334155">${r.pct}%</div>` : ``}
+            </div>
+            ${r.desc ? `<div style="font-style:italic;color:#475569;margin-bottom:4px">${r.desc}</div>` : ``}
+            ${badges ? `<div style="display:flex;gap:6px;flex-wrap:wrap">${badges}</div>` : ``}
+          </div>
+        `;
+      }).join('') || '<div style="font-style:italic;color:#94a3b8">Ingen teamroller valgt</div>';
+
+      const rolesBlock = `<section style="border:1px solid #e2e8f0;border-radius:8px;padding:10px">
+        <div style="font-weight:700;margin-bottom:6px">🧩 Team Roller</div>
+        ${rolesHtml}
+      </section>`;
+
+      // Sammensæt side 2 layout - samme struktur som Resultater
+      let secondPageContent = `
         ${headerHtml('📄 Coaching-resumé', personStr)}
         <div style="margin-top:-6px;width:100%;box-sizing:border-box">
           <div style="width:100%;box-sizing:border-box;display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:-5px 0 12px 0">
@@ -8634,31 +8804,36 @@ async function contractExportPdf(){
           </div>
           <div style="display:flex;flex-direction:column;gap:12px">
             ${plansBlock}
+            ${rolesBlock}
           </div>
         </div>
       `;
 
-      // Tilføj (kun hvis medtaget) 🤝 Kollega støtte + Opfølgningsdato nederst på side 2
-      if (includeCol || followup) {
-        const followupHtml = followup
-          ? `<div style="margin-top:4px;font-size:12px"><strong>📅 Opfølgningsdato:</strong> ${followup}</div>`
-          : '';
-        const colSection = includeCol && colleagueHtml
-          ? `<div style="margin-top:8px">${colleagueHtml}</div>`
-          : (includeCol ? `<div style="margin-top:8px;color:#94a3b8;font-style:italic">Ingen kollegastøtte valgt</div>` : ``);
-
-        secondMain += `
+      // Tilføj Kollega støtte KUN hvis medtaget OG der er mindst én valgt
+      if (includeColleague && colleagueHtml) {
+        secondPageContent += `
           <div style="margin-top:12px;padding:12px;border:1px solid #e2e8f0;border-radius:8px;background:#fff">
             <div style="font-weight:700;margin-bottom:6px">🤝 Kollega støtte</div>
-            ${includeCol ? colSection : `<div style="color:#94a3b8;font-style:italic">Ikke medtaget</div>`}
-            ${followupHtml}
+            ${colleagueHtml}
           </div>
         `;
       }
 
-      // Wrap
-      const pages = [page1, secondMain];
-      return pages.map((p, i) => wrapPage(p, i+1, pages.length)).join('');
+      // Tilføj Opfølgning som separat rubrik
+      if (followup) {
+        secondPageContent += `
+          <div style="margin-top:12px;padding:12px;border:1px solid #e2e8f0;border-radius:8px;background:#fff">
+            <div style="font-weight:700;margin-bottom:6px">📅 Opfølgning</div>
+            <div style="font-size:12px;color:#334155"><strong>Næste samtale:</strong> ${followup}</div>
+          </div>
+        `;
+      }
+
+      // Wrapper til præcis 2 sider
+      const pages = [page1, secondPageContent];
+      const total = pages.length;
+      const wrapped = pages.map((p,idx)=> wrapPage(p, idx+1, total)).join('');
+      return wrapped;
     };
 
     const htmlContent = await buildContractPdfHtml(project, person, cats || [], series);
@@ -8743,18 +8918,67 @@ async function contractGeneratePdfHtml(project, person) {
     }
   }
   
-  //    — Aktiviteter (tips) inkl. metodebadge/titel/tekst (kun til udviklingskompetencer):
-  for (const [categoryId, tipIds] of contractState.selectedTips.entries()) {
-    const tips = (contractAvailableTips.get(categoryId) || []);
-    tipIds.forEach(tid => {
-      const tip = tips.find(t => t.id === tid);
-      if (!tip) return;
-      activitiesHtml.push(
-        `<div class="chip"><span class="pill">${contractMethodLabel(tip.method)}</span> ` +
-        `<span class="label" style="margin-left:6px">${tip.title}</span>` +
-        `<div class="desc">${tip.description}</div></div>`
-      );
-    });
+  //    – Aktiviteter (tips) pr. kompetence med ALLE valgte råd (læs fra DOM som Resultater-PDF'en):
+  //      Vi læser direkte fra de valgte tip-kort i UI'et for at sikre alle valgte tips medtages.
+  {
+    const developContractEl = document.getElementById('contractTipsContainer');
+    
+    if (developContractEl) {
+      // Læs alle valgte tip-kort fra DOM
+      const selectedCards = Array.from(developContractEl.querySelectorAll('.contract-tip-card.selected'));
+      const byCat = new Map();
+
+      selectedCards.forEach(card => {
+        const cid = card.dataset.competencyId;
+        if (!cid) return;
+
+        // Find kompetence-info
+        const comp = contractAvailableCompetencies.find(x => String(x.category_id) === String(cid));
+        if (!comp) return;
+
+        // Læs tip-data fra card HTML
+        const strongEl = card.querySelector('strong');
+        const pEl = card.querySelector('p');
+        const title = (strongEl?.textContent || 'Råd').trim();
+        const desc = (pEl?.textContent || '').trim();
+
+        // Initialiser kategori hvis den ikke findes
+        if (!byCat.has(cid)) {
+          byCat.set(cid, {
+            name: comp.category_name || 'Kompetence',
+            synopsis: comp.category_synopsis || comp.synopsis || '',
+            tips: {}
+          });
+        }
+
+        // Tilføj tip til kategorien (brug tipId som nøgle for at undgå duplikater)
+        const bucket = byCat.get(cid);
+        const tipId = card.dataset.tipId || title;
+        if (!bucket.tips[tipId]) {
+          bucket.tips[tipId] = { title, desc };
+        }
+      });
+
+      // Render: en boks pr. kompetence med alle råd listet under
+      const blocks = Array.from(byCat.values()).map(cat => {
+        const tipsHtml = Object.values(cat.tips).map(tip => `
+          <li style="margin:6px 0">
+            <div style="font-weight:600">${tip.title}</div>
+            ${tip.desc && tip.desc !== 'Ingen beskrivelse tilgængelig' ? `<div style="font-style:italic;color:#475569">${tip.desc}</div>` : ''}
+          </li>
+        `).join('');
+
+        return `
+          <div style="border:1px solid #e2e8f0;border-radius:6px;padding:10px;background:#fff">
+            <div style="font-weight:700">${cat.name}</div>
+            ${cat.synopsis ? `<div style="font-size:.9rem;color:#64748b">${cat.synopsis}</div>` : ''}
+            <ul style="margin:8px 0 0 16px;padding:0;list-style:disc">${tipsHtml}</ul>
+          </div>
+        `;
+      });
+
+      activitiesHtml.push(blocks.join(''));
+    }
   }
 
   // — Roller/ansvar (tre tekstfelter) - kun vis hvis der er REELT indhold (ikke NIL)
