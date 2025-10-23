@@ -4211,7 +4211,7 @@ async function buildTeamPdfHtml(project, teamName, categories, teamSeries, membe
 
 // ref: :contentReference[oaicite:1]{index=1}
 $('btnPdf').onclick = () => {
-  openDownloadDialogBackend('pdf');
+  openDownloadDialogClientSide('pdf');
 };
 
 const zipBtn = $('btnZip');
@@ -9219,7 +9219,7 @@ function debugCoachingRecommendations(data) {
 
 <script>
   // ref: :contentReference[oaicite:2]{index=2}
-  async function openDownloadDialogBackend(kind /* 'pdf' | 'udv' */) {
+  async function openDownloadDialogClientSide(kind /* 'pdf' | 'udv' */) {
     const pid = document.getElementById('selProject2').value;
     if (!pid) { alert('Vælg projekt først'); return; }
 
@@ -9278,15 +9278,18 @@ function debugCoachingRecommendations(data) {
       if (!ids.length) { alert('Vælg mindst én person'); return; }
       close();
       if (kind === 'pdf') {
-        await handlePdfDownloadBackend(pid, ids, separate.checked);
+        await handlePdfDownloadClientSide(pid, ids, separate.checked);
       } else {
         await handleUdvDownloadBackend(pid, ids, separate.checked);
       }
     };
   }
 
- async function handlePdfDownloadBackend(projectId, targetIds, isSeparate) {
+ // CLIENT-SIDE PDF LØSNING (bruger jsPDF + html2canvas - INGEN server nødvendig!)
+async function handlePdfDownloadClientSide(projectId, targetIds, isSeparate) {
     try {
+      console.log('📄 Genererer PDF client-side med jsPDF + html2canvas...');
+      
       // Hent projekt og kategorier én gang
       const { data: project, error: projError } = await window.supabaseClient.from('projects').select('*').eq('id', projectId).single();
       if (projError) throw new Error('Kunne ikke hente projekt: ' + projError.message);
@@ -9295,89 +9298,190 @@ function debugCoachingRecommendations(data) {
         .select('*').eq('template_id', project.template_id).order('category_sort');
       if (catsError) throw new Error('Kunne ikke hente kategorier: ' + catsError.message);
 
-      // Forbered HTML per person ved at genbruge din eksisterende buildResultsPdfHtml
-      const items = [];
-      for (const tid of targetIds) {
-        const { data: person, error: personError } = await window.supabaseClient.from('project_people').select('*').eq('id', tid).single();
-        if (personError) {
-          console.error('Kunne ikke hente person:', personError);
-          continue;
+      const safe = (s)=> (s||'').replace(/\s+/g,'_').replace(/[^A-Za-z0-9_\-æøåÆØÅ]/g,'');
+      
+      // Hvis separate: lav ZIP med individuelle PDFer
+      if (isSeparate) {
+        const zip = new JSZip();
+        
+        for (const tid of targetIds) {
+          const { data: person, error: personError } = await window.supabaseClient.from('project_people').select('*').eq('id', tid).single();
+          if (personError) {
+            console.error('Kunne ikke hente person:', personError);
+            continue;
+          }
+          
+          const { data: seriesRows, error: seriesError } = await window.supabaseClient.from('v_kompas_series')
+            .select('*')
+            .eq('project_id', projectId)
+            .eq('target_id', tid);
+          if (seriesError) {
+            console.error('Kunne ikke hente serier for person:', seriesError);
+            continue;
+          }
+
+          const series = { self: [], peer: [], leader: [] };
+          (cats || []).forEach(c => {
+            const s = (seriesRows || []).find(r => r.category_id === c.category_id && r.respondent_type === 'self');
+            const p = (seriesRows || []).find(r => r.category_id === c.category_id && r.respondent_type === 'peer');
+            const l = (seriesRows || []).find(r => r.category_id === c.category_id && r.respondent_type === 'leader');
+            series.self.push(s?.safe_avg ?? null);
+            series.peer.push(p?.safe_avg ?? null);
+            series.leader.push(l?.safe_avg ?? null);
+          });
+
+          const htmlContent = await window.buildResultsPdfHtml(project, person, cats || [], series);
+          const emp = person.employee_no ? String(person.employee_no) : 'NA';
+          const filename = `${safe(project.title)}_${safe(emp)}_${safe(person.full_name)}.pdf`;
+          
+          console.log(`Genererer PDF for: ${person.full_name}`);
+          
+          // Generer PDF via jsPDF (samme metode som team rapport)
+          const pdfBlob = await generatePDFBlob(htmlContent);
+          zip.file(filename, pdfBlob);
         }
         
-        const { data: seriesRows, error: seriesError } = await window.supabaseClient.from('v_kompas_series')
-          .select('*')
-          .eq('project_id', projectId)
-          .eq('target_id', tid);
-        if (seriesError) {
-          console.error('Kunne ikke hente serier for person:', seriesError);
-          continue;
+        // Download ZIP
+        const zipBlob = await zip.generateAsync({type: 'blob'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(zipBlob);
+        a.download = `${safe(project.title)}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+        
+        console.log('✅ ZIP med PDFer downloadet succesfuldt');
+        
+      } else {
+        // Samlet PDF: kombiner alle personer i én PDF
+        const allHtmlPages = [];
+        
+        for (const tid of targetIds) {
+          const { data: person, error: personError } = await window.supabaseClient.from('project_people').select('*').eq('id', tid).single();
+          if (personError) {
+            console.error('Kunne ikke hente person:', personError);
+            continue;
+          }
+          
+          const { data: seriesRows, error: seriesError } = await window.supabaseClient.from('v_kompas_series')
+            .select('*')
+            .eq('project_id', projectId)
+            .eq('target_id', tid);
+          if (seriesError) {
+            console.error('Kunne ikke hente serier for person:', seriesError);
+            continue;
+          }
+
+          const series = { self: [], peer: [], leader: [] };
+          (cats || []).forEach(c => {
+            const s = (seriesRows || []).find(r => r.category_id === c.category_id && r.respondent_type === 'self');
+            const p = (seriesRows || []).find(r => r.category_id === c.category_id && r.respondent_type === 'peer');
+            const l = (seriesRows || []).find(r => r.category_id === c.category_id && r.respondent_type === 'leader');
+            series.self.push(s?.safe_avg ?? null);
+            series.peer.push(p?.safe_avg ?? null);
+            series.leader.push(l?.safe_avg ?? null);
+          });
+
+          const htmlContent = await window.buildResultsPdfHtml(project, person, cats || [], series);
+          allHtmlPages.push(htmlContent);
+          
+          console.log(`Tilføjer side for: ${person.full_name}`);
         }
-
-        const series = { self: [], peer: [], leader: [] };
-        (cats || []).forEach(c => {
-          const s = (seriesRows || []).find(r => r.category_id === c.category_id && r.respondent_type === 'self');
-          const p = (seriesRows || []).find(r => r.category_id === c.category_id && r.respondent_type === 'peer');
-          const l = (seriesRows || []).find(r => r.category_id === c.category_id && r.respondent_type === 'leader');
-          series.self.push(s?.safe_avg ?? null);
-          series.peer.push(p?.safe_avg ?? null);
-          series.leader.push(l?.safe_avg ?? null);
-        });
-
-        const htmlContent = await window.buildResultsPdfHtml(project, person, cats || [], series);
-        const emp  = person.employee_no ? String(person.employee_no) : 'NA';
-        const safe = (s)=> (s||'').replace(/\s+/g,'_').replace(/[^A-Za-z0-9_\-æøåÆØÅ]/g,'');
-        const fname = `${safe(project.title)}_${safe(emp)}_${safe(person.full_name)}`;
-        items.push({ filename: fname, html: htmlContent });
+        
+        if (allHtmlPages.length === 0) {
+          alert('Kunne ikke generere PDF-data for nogen af de valgte personer');
+          return;
+        }
+        
+        // Kombiner alle HTML sider
+        const combinedHtml = allHtmlPages.join('\n');
+        const filename = `${safe(project.title)}.pdf`;
+        
+        // Generer samlet PDF
+        await generatePDFFromHTML(combinedHtml, filename);
+        
+        console.log('✅ Samlet PDF downloadet succesfuldt');
       }
-
-      if (items.length === 0) {
-        alert('Kunne ikke generere PDF-data for nogen af de valgte personer');
-        return;
-      }
-
-      const payload = {
-        mode: isSeparate ? 'separate' : 'combined',
-        title: project.title,
-        items
-      };
-
-      // Brug window.API_BASE_URL i stedet for relativ URL
-      const apiUrl = `${window.API_BASE_URL}/api/pdf/render`;
-      console.log('Sender PDF-anmodning til:', apiUrl);
       
-      const resp = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(payload)
-      });
-
-      if (!resp.ok) {
-        const txt = await resp.text().catch(()=> '');
-        console.error('PDF backend fejl:', {
-          status: resp.status,
-          statusText: resp.statusText,
-          body: txt,
-          url: apiUrl,
-          currentHost: window.location.hostname,
-          apiBaseUrl: window.API_BASE_URL
-        });
-        alert(`PDF eksport fejlede (${resp.status}): ${txt || resp.statusText}\n\nSikr at din FastAPI-server kører på ${window.API_BASE_URL}\n\nDu er på: ${window.location.hostname}\nAPI URL: ${apiUrl}`);
-        return;
-      }
-
-      const blob = await resp.blob();
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = (isSeparate ? `${(project.title||'resultater').replace(/\s+/g,'_')}.zip`
-                               : `${(project.title||'resultater').replace(/\s+/g,'_')}.pdf`);
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      URL.revokeObjectURL(a.href);
-      
-      console.log('PDF downloadet succesfuldt');
     } catch (err) {
-      console.error('Uventet fejl i handlePdfDownloadBackend:', err);
+      console.error('❌ Uventet fejl i PDF generering:', err);
       alert('PDF eksport fejlede: ' + (err.message || err));
     }
+  }
+
+  // Hjælpefunktion: generer PDF som Blob (til ZIP)
+  async function generatePDFBlob(htmlContent) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const tempDiv = document.createElement('div');
+        tempDiv.style.position = 'fixed';
+        tempDiv.style.left = '-9999px';
+        tempDiv.style.top = '0';
+        tempDiv.style.width = '794px';
+        tempDiv.style.background = '#ffffff';
+        tempDiv.innerHTML = htmlContent;
+        document.body.appendChild(tempDiv);
+
+        const makeCanvas = async (el) => html2canvas(el, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#ffffff',
+          logging: false,
+          imageTimeout: 0,
+          onclone: (clonedDoc) => {
+            const svgs = clonedDoc.querySelectorAll('svg');
+            svgs.forEach(svg => {
+              const r = svg.getBoundingClientRect();
+              svg.setAttribute('width', r.width);
+              svg.setAttribute('height', r.height);
+            });
+          }
+        });
+
+        const pages = Array.from(tempDiv.querySelectorAll('.page'));
+        const targets = pages.length ? pages : [tempDiv];
+
+        const pdf = new window.jspdf.jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: 'a4',
+          compress: true
+        });
+
+        const A4_W = 210;
+        const A4_H = 297;
+
+        for (let i = 0; i < targets.length; i++) {
+          const canvas = await makeCanvas(targets[i]);
+          const imgWmm = A4_W;
+          const imgHmm = (canvas.height * imgWmm) / canvas.width;
+
+          let drawW = imgWmm;
+          let drawH = imgHmm;
+          if (drawH > A4_H) {
+            const s = A4_H / drawH;
+            drawW = imgWmm * s;
+            drawH = A4_H;
+          }
+
+          const x = (A4_W - drawW) / 2;
+          const y = 5;
+          const imgData = canvas.toDataURL('image/jpeg', 0.85);
+
+          if (i > 0) pdf.addPage();
+          pdf.addImage(imgData, 'JPEG', x, y, drawW, drawH);
+        }
+
+        document.body.removeChild(tempDiv);
+        resolve(pdf.output('blob'));
+        
+      } catch (err) {
+        document.body.removeChild(tempDiv);
+        reject(err);
+      }
+    });
   }
 </script>
 
