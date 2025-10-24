@@ -493,6 +493,7 @@ let currentContractAssessment = null;
 // INITIALISERING
 // ============================================================================
 async function init() {
+  let authUser = null;
   try {
     // Tjek om bruger er logget ind
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -509,19 +510,20 @@ async function init() {
       window.location.href = 'login.html';
       return;
     }
+    authUser = user;
   } catch (error) {
     console.error('Kritisk fejl ved initialisering:', error);
     alert('Der opstod en fejl: ' + error.message);
     return;
   }
   
-  currentUser = user;
+  currentUser = authUser;
   
   // Hent brugerens MA og profil
   const { data: userData, error } = await supabase
     .from('individual_users')
     .select('*')
-    .eq('email', user.email)
+    .eq('email', authUser.email)
     .single();
   
   if (error || !userData) {
@@ -535,13 +537,14 @@ async function init() {
   await supabase
     .from('individual_users')
     .update({ last_login_at: new Date().toISOString() })
-    .eq('email', user.email);
+    .eq('email', authUser.email);
   
   // Opdater UI
-  document.getElementById('userEmailDisplay').textContent = user.email;
+  document.getElementById('userEmailDisplay').textContent = authUser.email;
   document.getElementById('userNameDisplay').textContent = `MA: ${userMA}`;
-  document.getElementById('welcomeName').textContent = userMA;
-  document.getElementById('accountEmail').textContent = user.email;
+  const welcomeNameEl = document.getElementById('welcomeName');
+  if (welcomeNameEl) { welcomeNameEl.textContent = userMA; }
+  document.getElementById('accountEmail').textContent = authUser.email;
   document.getElementById('accountMA').textContent = userMA;
   document.getElementById('accountCreated').textContent = new Date(userData.created_at).toLocaleDateString('da-DK');
 
@@ -550,7 +553,7 @@ async function init() {
     const { data: roleData } = await supabase
       .from('user_roles')
       .select('role')
-      .eq('user_id', user.id)
+      .eq('user_id', authUser.id)
       .single();
 
     const switchBtn = document.getElementById('switchToAdminBtn');
@@ -878,13 +881,13 @@ let comparisonChart = null;
 function renderCompareOptions() {
   if (assessments.length < 2) {
     document.getElementById('compareCheckboxes').innerHTML = '';
-    document.getElementById('emptyStateCompare').style.display = 'block';
+    document.getElementById('compareEmptyState').style.display = 'block';
     document.getElementById('btnCompare').disabled = true;
     document.getElementById('btnCompareRadar').disabled = true;
     return;
   }
   
-  document.getElementById('emptyStateCompare').style.display = 'none';
+  document.getElementById('compareEmptyState').style.display = 'none';
   
   document.getElementById('compareCheckboxes').innerHTML = assessments.map(a => `
     <label class="round-checkbox">
