@@ -668,12 +668,15 @@ function showMessage(elementId, message, type = 'error') {
   }
 }
 
-// Login form - OPDATERET til at håndtere både evaluators og individuelle brugere
+// Login form
 $('login-form').addEventListener('submit', async (e) => {
   e.preventDefault();
+  showMessage('login-message', '', 'info');
   
-  const email = $('login-email').value;
+  const email = $('login-email').value.trim().toLowerCase();
   const password = $('login-password').value;
+  
+  $('login-form').querySelector('button').disabled = true;
   
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -682,6 +685,13 @@ $('login-form').addEventListener('submit', async (e) => {
     });
     
     if (error) throw error;
+    
+    // Tjek om email er bekræftet
+    if (!data.user.email_confirmed_at && !data.user.confirmed_at) {
+      // Email ikke bekræftet - log brugeren ud igen
+      await supabase.auth.signOut();
+      throw new Error('Din email er ikke bekræftet endnu. Tjek din indbakke for bekræftelses-emailen.');
+    }
     
     // Check user role (evaluator/programmer)
     const { data: roleData } = await supabase
@@ -1030,17 +1040,28 @@ $('register-form').addEventListener('submit', async (e) => {
     if (profileData?.error) throw new Error(profileData.error);
     if (!profileData?.success) throw new Error('Kunne ikke oprette profil');
 
-    // Step 4: Login-håndtering
+    // Step 4: Email bekræftelse påkrævet
     if (!emailAlleredeOprettet) {
-      // Ny bruger – log ind med valgte kode
-      $('register-progress-text').textContent = 'Logger ind.';
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-      if (signInError) throw signInError;
-
-      // Success og redirect
+      // Ny bruger – vis bekræftelses-besked (IKKE automatisk login)
       $('register-step2').style.display = 'none';
       $('register-step3').style.display = 'block';
-      setTimeout(() => { window.location.href = 'profile.html'; }, 2000);
+      
+      // Opdater succes-beskeden
+      const successMsg = document.querySelector('#register-step3 .message.success');
+      if (successMsg) {
+        successMsg.innerHTML = `
+          <div style="text-align: center;">
+            <h3 style="margin-bottom: 12px;">✉️ Bekræft din email</h3>
+            <p style="margin-bottom: 8px;">Vi har sendt en bekræftelses-email til:</p>
+            <p style="font-weight: 600; margin-bottom: 12px;">${email}</p>
+            <p style="font-size: 0.9em; color: var(--muted);">Tjek din indbakke og klik på linket for at aktivere din konto.</p>
+            <p style="font-size: 0.9em; color: var(--muted); margin-top: 8px;">Kan du ikke finde emailen? Tjek spam/uønsket.</p>
+          </div>
+        `;
+      }
+      
+      // Ingen automatisk redirect - bruger skal bekræfte email først
+      
     } else {
       // Email fandtes i forvejen (fx admin-konto): spring auto-login over
       $('register-step2').style.display = 'none';
@@ -1074,6 +1095,14 @@ $('register-form').addEventListener('submit', async (e) => {
 // Check if already logged in - Håndterer dual profiler (admin + individ)
 supabase.auth.getUser().then(async ({ data }) => {
   if (data.user) {
+    // Tjek om email er bekræftet
+    if (!data.user.email_confirmed_at && !data.user.confirmed_at) {
+      // Email ikke bekræftet - log ud og vis besked
+      await supabase.auth.signOut();
+      showMessage('login-message', 'Din email er ikke bekræftet. Tjek din indbakke for bekræftelses-emailen.', 'error');
+      return;
+    }
+    
     // Tjek først om bruger har admin rolle
     const { data: roleData } = await supabase
       .from('user_roles')
