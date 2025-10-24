@@ -92,7 +92,7 @@
       display:flex;
       gap:0;
       position:sticky;
-      top:120px;
+      top:var(--header-height, 96px);
       z-index:20;
       justify-content:space-between;
       align-items:center;
@@ -404,6 +404,19 @@
       }
     }
   </style>
+<style>
+  /* Hårdt stop af Abine/Blur overlays som injiceres i DOM'en */
+  html body div.abineContentPanel,
+  html body iframe.abineContentFrame,
+  html body [id$="doNotRemove"],
+  html body [src^="chrome-extension://caljgklbbfbcjjanaijlacgncafpegll"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important; width: 0 !important;
+    pointer-events: none !important;
+  }
+</style>
 </head>
 <body>
 <div class="app">
@@ -418,6 +431,9 @@
     </div>
 
     <div class="header-tools" id="authArea">
+      <!-- NY: Profil-knap (skjult by default) -->
+      <button id="switchToProfileBtn" class="btn ghost" style="display:none">Profil</button>
+
       <span id="planBadge" class="btn ghost" style="cursor:default"></span>
       <button id="logoutBtn" class="btn ghost">Log ud</button>
     </div>
@@ -584,6 +600,8 @@
                       <select id="selProject2" class="select" style="width:100%">
               <option value="">-- Vælg et projekt --</option>
             </select>
+<!-- Skjult file input til lokal UDV i Resultater -->
+<input id="resultsLocalUdvFile" type="file" accept=".udv,json" style="display:none">
             
         </div>
         <div style="display:flex;gap:8px;align-items:center">
@@ -1205,10 +1223,11 @@
             </div>
           </div>
           <div style="display:flex;gap:12px">
-            <button id="contractSaveDraftBtn" class="btn ghost">💾 Gem kladde</button>
-            <button id="contractSaveFinalBtn" class="btn success" disabled>✅ Gem endelig kontrakt</button>
-            <button id="contractExportPdfBtn" class="btn primary" disabled>📄 Export PDF</button>
-            <button id="contractStartOverBtn" class="btn ghost">🔄 Start forfra</button>
+            <button id="contractSaveFinalBtn" class="btn success" disabled>Gem kontrakt</button>
+            <button id="contractExportPdfBtn" class="btn primary" disabled>Gem PDF</button>
+            <button id="contractOpenBtn" class="btn">Åben kontrakt</button>
+            <button id="contractPublishBtn" class="btn ghost" disabled title="Implementeres senere">Udgiv</button>
+            <input id="contractOpenFileInput" type="file" accept=".udv,.json" style="display:none">
           </div>
         </div>
       </div>
@@ -1250,41 +1269,56 @@ window.addEventListener('load', function() {
   // State management for temporary people (before project is saved)
   let temporaryPeople = [];
 
+  // 🔹 Udviklingskontrakt: "Åben kontrakt" (UDV)
+  const contractOpenBtn = document.getElementById('contractOpenBtn');
+  const contractOpenFileInput = document.getElementById('contractOpenFileInput');
+  if (contractOpenBtn && contractOpenFileInput) {
+    contractOpenBtn.addEventListener('click', () => contractOpenFileInput.click());
+    contractOpenFileInput.addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        // Prøv at parse som JSON (UDV er JSON-baseret i appen)
+        let udv;
+        try {
+          udv = JSON.parse(text);
+        } catch {
+          alert('Kunne ikke læse filen som JSON. Sørg for at .udv/.json er gyldig.');
+          return;
+        }
+        // Hvis der findes en loader i koden, så brug den – ellers log og informer bruger
+        if (typeof loadContractFromUdv === 'function') {
+          loadContractFromUdv(udv);
+        } else {
+          console.log('[Åben kontrakt] UDV indlæst:', udv);
+          alert('Kontraktfil indlæst. (UI-opdatering implementeres i den eksisterende loader)');
+        }
+      } catch (err) {
+        console.error('[Åben kontrakt] Fejl ved indlæsning:', err);
+        alert('Der opstod en fejl ved indlæsning af kontrakten.');
+      } finally {
+        e.target.value = '';
+      }
+    });
+  }
+
  const SUPABASE_URL = "https://wsrstyrsuwhcmmlmnbrz.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzcnN0eXJzdXdoY21tbG1uYnJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MTU0NTIsImV4cCI6MjA3MTE5MTQ1Mn0.Rf3Z3bQGjV5CKXKZr6IMOjzPdbhVJCh3SwuvlkpxUD0";
   
   // API konfiguration - GØR DEN GLOBAL så den kan bruges i alle script tags
   
-  // MIDLERTIDIG LØSNING: Hardcoded til lokal FastAPI server
-  // Skift denne URL til hvor din FastAPI server faktisk kører:
-  window.API_BASE_URL = 'http://localhost:8000';  // ⬅️ AKTIVER DENNE for lokal udvikling
-  
-  // ELLER hvis FastAPI kører på en anden server:
-  // window.API_BASE_URL = 'http://DIN-SERVER-IP:8000';
-  
-  // ELLER når FastAPI er korrekt sat op på minudvikling.dk:
-  // window.API_BASE_URL = 'https://minudvikling.dk';
-  
-  // Automatisk detektion (udkommenteret indtil server er sat op):
-  /*
+  // Dynamisk API-base (lokalt = localhost:8000, prod = minudvikling.dk, ellers samme origin)
   window.API_BASE_URL = (() => {
-    // Hvis åbnet direkte som fil, brug localhost som standard
-    if (window.location.protocol === 'file:') {
-      return 'http://localhost:8000';
-    }
-    // Hvis allerede på minudvikling.dk, brug det
-    if (window.location.hostname === 'minudvikling.dk') {
-      return 'https://minudvikling.dk';
-    }
-    // Hvis på localhost/127.0.0.1, ALTID brug port 8000 (FastAPI server)
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
       return 'http://localhost:8000';
     }
-    // Fallback: brug samme origin som siden
-    return window.location.origin;
+    if (window.location.hostname === 'minudvikling.dk') {
+      return 'https://minudvikling.dk';
+    }
+    return `${window.location.protocol}//${window.location.host}`;
   })();
-  */
-  
+
   console.log('API Base URL konfigureret til:', window.API_BASE_URL);
   
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -1297,9 +1331,90 @@ window.addEventListener('load', function() {
   // kan bruge det uden ReferenceError
   window.$ = byId;
   window.supabaseClient = supabase;
-  
+
+  // Vis "Skift til MinUdvikling", kun hvis brugeren OGSÅ har en individuel profil
+  async function checkAndShowProfileSwitch() {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const switchBtn = byId('switchToProfileBtn');
+      if (!switchBtn) return;
+
+      // Prøv sikker RPC først (RLS-safe)
+      const { data: maRpc, error: rpcErr } = await supabase.rpc('get_ma_from_auth');
+      const canShow = !!maRpc;
+      if (rpcErr) console.warn('get_ma_from_auth fejl:', rpcErr);
+
+      // Fallback: direkte SELECT hvis RPC ikke gav svar
+      let showViaSelect = false;
+      if (!canShow) {
+        const { data: ind, error: indErr } = await supabase
+          .from('individual_users')
+          .select('ma')
+          .eq('email', user.email)
+          .single();
+        showViaSelect = !!(ind && ind.ma);
+        if (!showViaSelect && indErr) console.warn('individual_users check fejl:', indErr);
+      }
+
+      if (canShow || showViaSelect) {
+        // Gør knappen synlig og sæt klik-handling
+        switchBtn.style.display = 'inline-block';
+        switchBtn.onclick = () => { window.location.href = 'profile.html'; };
+
+        // Placér knappen til venstre for en evt. "Token"-knap (ellers før "Log ud")
+        try {
+          const tools = byId('authArea');
+          if (tools) {
+            // Find en mulig Token-knap via id, data-attribut eller synlig tekst
+            const candidates = Array.from(tools.querySelectorAll('button, a, span'));
+            const tokenEl =
+              candidates.find(el => (el.id || '').toLowerCase().includes('token')) ||
+              candidates.find(el => (el.getAttribute('data-role') || '').toLowerCase() === 'token') ||
+              candidates.find(el => (el.textContent || '').trim().toLowerCase() === 'token');
+
+            if (tokenEl && tokenEl !== switchBtn) {
+              tools.insertBefore(switchBtn, tokenEl);
+            } else {
+              const logoutBtn = byId('logoutBtn');
+              if (logoutBtn && logoutBtn !== switchBtn) {
+                tools.insertBefore(switchBtn, logoutBtn);
+              }
+            }
+          }
+        } catch (posErr) {
+          console.warn('Kunne ikke positionere Profil-knap:', posErr);
+        }
+      } else {
+        switchBtn.style.display = 'none';
+      }
+    } catch (e) {
+      console.warn('Kunne ikke afgøre om brugeren også har individ-profil:', e);
+      const switchBtn = byId('switchToProfileBtn');
+      if (switchBtn) switchBtn.style.display = 'none';
+    }
+  }
+  checkAndShowProfileSwitch();
+
+  // Dynamic sticky offset (holder tabbar under header uanset højde)
+  (function setStickyOffsets(){
+    const header = document.querySelector('.header');
+    if (header) {
+      const h = header.offsetHeight || 96;
+      document.documentElement.style.setProperty('--header-height', h + 'px');
+    }
+  })();
+  window.addEventListener('resize', () => {
+    const header = document.querySelector('.header');
+    if (header) {
+      const h = header.offsetHeight || 96;
+      document.documentElement.style.setProperty('--header-height', h + 'px');
+    }
+  });
+
   // Tab-navigation
   document.querySelectorAll('.tabbtn').forEach(btn => {
+
     btn.onclick = async () => {
       // Hvis vi forlader Udviklingskontrakt, så gem midlertidig tilstand
       try {
@@ -2101,8 +2216,8 @@ window.showLargeProjectQR = (url, title) => {
         o.textContent=p.title; 
         s.appendChild(o); 
       });
-      // Tilføj lokal UDV-valg nederst KUN i Team Building dropdown
-      if (id === 'selProject3') {
+      // Tilføj lokal UDV-valg nederst i Team Building OG Resultater dropdowns
+      if (id === 'selProject3' || id === 'selProject2') {
         const loc = document.createElement('option');
         loc.value = '__local_udv__';
         loc.textContent = '📁 Vælg lokal UDV-fil …';
@@ -3004,186 +3119,182 @@ function makeDroppable(targetEl) {
     });
   }
 
-  // Funktion til at generere radar chart
-  async function generateRadarChart(){
-    const pid=$('selProject2').value, tid=$('selTarget').value;
-    if(!pid || !tid) return;
-    
-    const { data } = await supabase.from('v_kompas_series').select().eq('project_id',pid).eq('target_id',tid);
-    
-    // Organiser kategorier så de placeres MELLEM hovedakserne
-    // Chart.js starter ved toppen (0°) og går med uret
-    // Vi vil have tomme akser ved 0°, 90°, 180°, 270°
-    
-    const orderedCategories = [
-      // Tom akse ved 0° (kl. 12)
-      '', 
-      
-      // Fornyelse kvadrant (øverst højre, mellem kl. 12 og 3)
-      'Fleksibilitet',
-      'Nytænkning',
-      'Helhedsorientering',
-      'Fremtidsorientering',
-      
-      // Tom akse ved 90° (kl. 3)
-      '',
-      
-      // Resultater kvadrant (nederst højre, mellem kl. 3 og 6)
-      'Håndtering af pres',
-      'Beslutningstagning',
-      'Styring',
-      'Initiativ',
-      
-      // Tom akse ved 180° (kl. 6)
-      '',
-      
-      // Stabilitet kvadrant (nederst venstre, mellem kl. 6 og 9)
-      'Analytisk tænkning',
-      'Faglighed',
-      'Planlægning',
-      'Ressourcebevidsthed',
-      
-      // Tom akse ved 270° (kl. 9)
-      '',
-      
-      // Relationer kvadrant (øverst venstre, mellem kl. 9 og 12)
-      'Samarbejde',
-      'Udvikling af andre',
-      'Motivere andre',
-      'Kommunikation'
-    ];
-    
-    // Map data til den nye kategori rækkefølge, brug null for tomme akser
-    const self = orderedCategories.map(c => {
-      if (c === '') return null;
-      return data.find(r=>r.category_name===c && r.respondent_type==='self')?.safe_avg ?? null;
-    });
-    const peer = orderedCategories.map(c => {
-      if (c === '') return null;
-      return data.find(r=>r.category_name===c && r.respondent_type==='peer')?.safe_avg ?? null;
-    });
-    const leader = orderedCategories.map(c => {
-      if (c === '') return null;
-      return data.find(r=>r.category_name===c && r.respondent_type==='leader')?.safe_avg ?? null;
-    });
-    
-    const ctx=$('radar').getContext('2d'); 
-    if(radar) radar.destroy();
-    
-    // Plugin til at tegne kvadrant baggrunde
+// Funktion til at generere radar chart (understøtter både DB og lokal UDV)
+async function generateRadarChart(){
+  const pid = $('selProject2').value, tid = $('selTarget').value;
+  if (!pid || !tid) return;
+
+  // Fælles akseorden (matcher øvrige faner)
+  const orderedCategories = [
+    '', 
+    'Fleksibilitet','Nytænkning','Helhedsorientering','Fremtidsorientering',
+    '',
+    'Håndtering af pres','Beslutningstagning','Styring','Initiativ',
+    '',
+    'Analytisk tænkning','Faglighed','Planlægning','Ressourcebevidsthed',
+    '',
+    'Samarbejde','Udvikling af andre','Motivere andre','Kommunikation'
+  ];
+
+  // Lokalt UDV (pid === '__local_udv_loaded__')
+  if (pid === '__local_udv_loaded__' && window.__resultsUdv) {
+    const udv = window.__resultsUdv;
+
+    // 1) Forsøg at hente kategori-taxonomi (for at få rigtige navne til mapping)
+    let taxonomy = [];
+    try {
+      // prøv at finde template_id i UDV
+      const templateId = udv?.project?.template_id || udv?.template_id || null;
+      if (templateId) {
+        const { data, error } = await supabase.from('v_category_path')
+          .select('category_id, category_name')
+          .eq('template_id', templateId)
+          .order('category_sort');
+        if (!error && Array.isArray(data) && data.length) {
+          taxonomy = data.map(r => ({ category_id: r.category_id, category_name: r.category_name }));
+        }
+      }
+    } catch(_) {}
+
+    // fallback: afled fra scores hvis vi ikke fik taxonomi
+    if (taxonomy.length === 0) {
+      const ids = Array.from(new Set((udv?.scores||[]).map(s => s.category_id)));
+      taxonomy = ids.map((id, i) => ({ category_id: id, category_name: `Kategori ${i+1}` }));
+    }
+
+    // 2) Slå værdier op pr kategori & respondent_type for valgt målperson
+    const byName = (name, type) => {
+      if (name === '') return null; // tom akse
+      // find category_id via navn
+      const cat = taxonomy.find(t => t.category_name === name);
+      if (!cat) return null;
+      const rec = (udv?.scores || []).find(r =>
+        String(r.target_id) === String(tid) &&
+        r.category_id === cat.category_id &&
+        r.respondent_type === type
+      );
+      // UDV kan gemme som 'value' eller 'safe_avg'
+      return rec ? (Number.isFinite(rec.value) ? rec.value : (Number.isFinite(rec.safe_avg) ? rec.safe_avg : null)) : null;
+    };
+
+    const self   = orderedCategories.map(n => byName(n, 'self'));
+    const peer   = orderedCategories.map(n => byName(n, 'peer'));
+    const leader = orderedCategories.map(n => byName(n, 'leader'));
+
+    const ctx = $('radar').getContext('2d');
+    if (window._radarChart) window._radarChart.destroy();
+
     const quadrantBackgroundPlugin = {
       id: 'quadrantBackground',
       beforeDatasetsDraw: (chart) => {
-        const {ctx, chartArea: {top, bottom, left, right}, scales: {r}} = chart;
-        const centerX = r.xCenter;
-        const centerY = r.yCenter;
-        const radius = r.drawingArea;
-        
-        ctx.save();
-        
-        // Funktion til at tegne en sektor
-        const drawSector = (startAngle, endAngle, color) => {
-          ctx.beginPath();
-          ctx.moveTo(centerX, centerY);
-          ctx.arc(centerX, centerY, radius, startAngle, endAngle);
-          ctx.closePath();
-          ctx.fillStyle = color;
-          ctx.fill();
-        };
-        
-        // Konverter grader til radianer (Chart.js bruger -90° som start)
-        const degToRad = (deg) => (deg - 90) * Math.PI / 180;
-        
-        // Tegn de 4 kvadrant baggrunde
-        // Fornyelse (øverst højre) - støvet grøn  
-        drawSector(degToRad(0), degToRad(90), 'rgba(34, 139, 34, 0.08)');
-        
-        // Resultater (nederst højre) - støvet rød
-        drawSector(degToRad(90), degToRad(180), 'rgba(220, 20, 60, 0.08)');
-        
-        // Stabilitet (nederst venstre) - støvet grå
-        drawSector(degToRad(180), degToRad(270), 'rgba(128, 128, 128, 0.08)');
-        
-        // Relationer (øverst venstre) - støvet blå
-        drawSector(degToRad(270), degToRad(360), 'rgba(100, 149, 237, 0.08)');
-        
-        ctx.restore();
+        const {ctx, scales: {r}} = chart, cx=r.xCenter, cy=r.yCenter, radius=r.drawingArea;
+        const draw=(a,b,col)=>{ ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,radius,a,b); ctx.closePath(); ctx.fillStyle=col; ctx.fill(); };
+        const rad=(deg)=>(deg-90)*Math.PI/180;
+        draw(rad(0),rad(90),'rgba(34,139,34,0.08)');
+        draw(rad(90),rad(180),'rgba(220,20,60,0.08)');
+        draw(rad(180),rad(270),'rgba(128,128,128,0.08)');
+        draw(rad(270),rad(360),'rgba(100,149,237,0.08)');
       }
     };
-    
-    radar = new Chart(ctx,{
+
+    window._radarChart = new Chart(ctx,{
       type:'radar',
       data:{
-        labels:orderedCategories,
+        labels: orderedCategories,
         datasets:[
-          {
-            label:'Selv',
-            data:self,
-            borderColor:'rgba(34, 197, 94, 1)',
-            backgroundColor:'rgba(34, 197, 94, 0.12)',
-            pointBackgroundColor:'rgba(34, 197, 94, 1)',
-            borderWidth:2,
-            spanGaps: true  // Spring over null-værdier når linjer tegnes
-          },
-          {
-            label:'Kollega',
-            data:peer,
-            borderColor:'rgba(59, 130, 246, 1)',
-            backgroundColor:'rgba(59, 130, 246, 0.12)',
-            pointBackgroundColor:'rgba(59, 130, 246, 1)',
-            borderWidth:2,
-            spanGaps: true  // Spring over null-værdier når linjer tegnes
-          },
-          {
-            label:'Fører',
-            data:leader,
-            borderColor:'rgba(249, 115, 22, 1)',
-            backgroundColor:'rgba(249, 115, 22, 0.12)',
-            pointBackgroundColor:'rgba(249, 115, 22, 1)',
-            borderWidth:2,
-            spanGaps: true  // Spring over null-værdier når linjer tegnes
-          }
+          { label:'Selv',    data:self,   borderColor:'rgba(34,197,94,1)',  backgroundColor:'rgba(34,197,94,0.12)',  pointBackgroundColor:'rgba(34,197,94,1)',  borderWidth:2, spanGaps:true },
+          { label:'Kollega', data:peer,   borderColor:'rgba(59,130,246,1)', backgroundColor:'rgba(59,130,246,0.12)', pointBackgroundColor:'rgba(59,130,246,1)', borderWidth:2, spanGaps:true },
+          { label:'Fører',   data:leader, borderColor:'rgba(249,115,22,1)', backgroundColor:'rgba(249,115,22,0.12)', pointBackgroundColor:'rgba(249,115,22,1)', borderWidth:2, spanGaps:true }
         ]
-      }, 
-      options:{ 
-        scales:{ 
-          r:{
-            beginAtZero:true,
-            min:0,
-            max:5,
-            ticks:{stepSize:1},
-            pointLabels: {
-              display: function(context) {
-                // Skjul labels for tomme akser
-                return orderedCategories[context.index] !== '';
-              },
-              callback: function(value){ return value || ''; }, // lås til én linje
-              padding: 8,
-              font: { size: 12, weight: 'bold' }
-            }
-          }
-        }, 
-        plugins:{
-          legend:{position:'bottom'}
-        }
       },
-      plugins: [quadrantBackgroundPlugin]
+      options:{
+        responsive:true,
+        maintainAspectRatio:false,
+        scales:{ r:{ beginAtZero:true, min:0, max:5, ticks:{stepSize:1, display:false},
+          pointLabels:{ display:(ctx)=>orderedCategories[ctx.index] !== '', font:{ size:12, weight:'bold' } } } },
+        plugins:{ legend:{ position:'bottom', align:'center' } }
+      },
+      plugins:[quadrantBackgroundPlugin]
     });
-    
-    const hidden=[]; 
-    if(peer.every(v=>v===null)) hidden.push('Kollega'); 
-    if(leader.every(v=>v===null)) hidden.push('Fører');
-    $('resultNote').textContent = hidden.length? `Skjult pga. anonymitetsgrænse: ${hidden.join(', ')}`:'';
-    
-    // Opdater teamrolle-dropdown + coaching efter radar er genereret
-    await loadTeamRoleDropdown(pid, tid);
-    await loadCoachingRecommendations();
+
+    // I lokal-tilstand giver anonymitetsnote og teamroller/coaching ikke mening
+    $('resultNote').textContent = '';
+
+    // ←/→ knapper i Resultater (kun hvis funktionen findes – undgår fejl)
+    if (typeof updateNavigationButtons === 'function') {
+      try { updateNavigationButtons(); } catch(_) {}
+    }
+
+    return;
   }
 
+  // Normal DB-tilstand
+  const { data } = await supabase.from('v_kompas_series').select().eq('project_id',pid).eq('target_id',tid);
+
+  const self = orderedCategories.map(c => c===''?null : data.find(r=>r.category_name===c && r.respondent_type==='self')?.safe_avg ?? null);
+  const peer = orderedCategories.map(c => c===''?null : data.find(r=>r.category_name===c && r.respondent_type==='peer')?.safe_avg ?? null);
+  const leader = orderedCategories.map(c => c===''?null : data.find(r=>r.category_name===c && r.respondent_type==='leader')?.safe_avg ?? null);
+
+  const ctx=$('radar').getContext('2d'); 
+  if (window._radarChart) window._radarChart.destroy();
+
+  const quadrantBackgroundPlugin = {
+    id:'quadrantBackground',
+    beforeDatasetsDraw:(chart)=>{
+      const {ctx, scales:{r}}=chart, cx=r.xCenter, cy=r.yCenter, radius=r.drawingArea;
+      const draw=(a,b,col)=>{ ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,radius,a,b); ctx.closePath(); ctx.fillStyle=col; ctx.fill(); };
+      const rad=(deg)=>(deg-90)*Math.PI/180;
+      draw(rad(0),rad(90),'rgba(34,139,34,0.08)');
+      draw(rad(90),rad(180),'rgba(220,20,60,0.08)');
+      draw(rad(180),rad(270),'rgba(128,128,128,0.08)');
+      draw(rad(270),rad(360),'rgba(100,149,237,0.08)');
+    }
+  };
+
+  window._radarChart = new Chart(ctx,{
+    type:'radar',
+    data:{
+      labels:orderedCategories,
+      datasets:[
+        { label:'Selv', data:self, borderColor:'rgba(34,197,94,1)', backgroundColor:'rgba(34,197,94,0.12)', pointBackgroundColor:'rgba(34,197,94,1)', borderWidth:2, spanGaps:true },
+        { label:'Kollega', data:peer, borderColor:'rgba(59,130,246,1)', backgroundColor:'rgba(59,130,246,0.12)', pointBackgroundColor:'rgba(59,130,246,1)', borderWidth:2, spanGaps:true },
+        { label:'Fører', data:leader, borderColor:'rgba(249,115,22,1)', backgroundColor:'rgba(249,115,22,0.12)', pointBackgroundColor:'rgba(249,115,22,1)', borderWidth:2, spanGaps:true }
+      ]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      layout:{ padding:{ top:20, right:80, bottom:30, left:80 } },
+      scales:{ r:{ beginAtZero:true, min:0, max:5, grid:{ circular:true }, angleLines:{ color:'rgba(0,0,0,0.08)' },
+        ticks:{ stepSize:1, display:false },
+        pointLabels:{ display:(ctx)=>orderedCategories[ctx.index] !== '', callback:(v)=>v||'', padding:8, font:{ size:12, weight:'bold' } } } },
+      plugins:{ legend:{ position:'bottom', align:'center' } }
+    },
+    plugins:[quadrantBackgroundPlugin]
+  });
+
+  const hidden=[]; 
+  if(peer.every(v=>v===null)) hidden.push('Kollega'); 
+  if(leader.every(v=>v===null)) hidden.push('Fører');
+  $('resultNote').textContent = hidden.length? `Skjult pga. anonymitetsgrænse: ${hidden.join(', ')}`:'';
+
+  // Opdater teamrolle-dropdown + coaching efter radar er genereret (kun DB-tilstand)
+  await loadTeamRoleDropdown(pid, tid);
+  await loadCoachingRecommendations();
+}
 
   // Results
   $('selProject2').onchange = async ()=>{
     const pid=$('selProject2').value; 
+
+    // Lokalt UDV-valg → åbn filvælger og stop normal DB-flow
+    if (pid === '__local_udv__') {
+      $('selProject2').value = ''; // nulstil
+      const fi = $('resultsLocalUdvFile');
+      if (fi) fi.click();
+      return;
+    }
+
     const { data } = await supabase.from('project_people').select().eq('project_id',pid).order('full_name');
     const s=$('selTarget'); 
     s.innerHTML=''; 
@@ -3207,6 +3318,65 @@ function makeDroppable(targetEl) {
   $('selTarget').onchange = async () => {
     await generateRadarChart();
   };
+
+// Håndter lokal UDV i Resultater
+$('resultsLocalUdvFile').onchange = async (e) => {
+  const f = e.target.files && e.target.files[0];
+  e.target.value = ''; // tillad samme fil igen
+  if (!f) return;
+  try {
+    const udv = await readUdvFile(f); // genbruger eksisterende helper
+
+    // Gem globalt i denne fane
+    window.__resultsUdv = udv;
+
+    // Fyld målperson-dropdown med personer fra filen
+    const s = $('selTarget');
+    s.innerHTML = '';
+
+    // Kun personer med gyldigt id – ellers kan scores ikke matches
+    const peopleWithId = (Array.isArray(udv.people) ? udv.people : []).filter(p => p && p.id != null && p.id !== '');
+    peopleWithId.forEach(p => {
+      const o = document.createElement('option');
+      o.value = String(p.id);
+      o.textContent = p.full_name || p.name || '(uden navn)';
+      s.appendChild(o);
+    });
+
+    if (peopleWithId.length === 0) {
+      // Ingen gyldige target_id at vælge → tydelig besked
+      $('resultNote').textContent = 'Ingen gyldige profiler i UDV (mangler id på personer).';
+    } else {
+      $('resultNote').textContent = '';
+    }
+
+    // Vis valgt fil i projekt-dropdown (separat fra trigger-option)
+    const projSel = $('selProject2');
+    if (projSel) {
+      let opt = projSel.querySelector('option[value="__local_udv_loaded__"]');
+      if (!opt) {
+        opt = document.createElement('option');
+        opt.value = '__local_udv_loaded__';
+        if (projSel.firstChild) projSel.insertBefore(opt, projSel.firstChild);
+        else projSel.appendChild(opt);
+      }
+      opt.textContent = `📁 ${f.name}`;
+      projSel.value = '__local_udv_loaded__';
+    }
+
+    // Vælg første målperson og tegn + opdater navigationsknapper
+    if (s.options.length > 0) {
+      s.selectedIndex = 0;
+      await generateRadarChart();
+      updateNavigationButtons?.();
+    } else {
+      const ctx = $('radar').getContext('2d');
+      if (window._radarChart) window._radarChart.destroy?.();
+    }
+  } catch (err) {
+    alert('Ugyldig UDV: ' + (err?.message || err));
+  }
+};
 
 // === SESSIONSTO​RAGE FUNKTIONER FOR RESULTATER FANE ===
   
@@ -10940,5 +11110,37 @@ async function handlePdfDownloadClientSide(projectId, targetIds, isSeparate) {
   window.generatePDFBlob = generatePDFBlob;
 </script>
 
+<script>
+  (function hardKillAbine(){
+    const KILL = () => {
+      const sel = [
+        'div.abineContentPanel',
+        'iframe.abineContentFrame',
+        '[id$="doNotRemove"]',
+        '[src^="chrome-extension://caljgklbbfbcjjanaijlacgncafpegll"]'
+      ];
+      document.querySelectorAll(sel.join(',')).forEach(n => {
+        try { n.remove(); } catch(_){}
+      });
+    };
+    // 1) Fjern straks ved load
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', KILL, { once:true });
+    } else {
+      KILL();
+    }
+    // 2) Fjern alt der efterfølgende bliver injiceret
+    const mo = new MutationObserver(() => KILL());
+    mo.observe(document.documentElement, { subtree:true, childList:true, attributes:true });
+    // 3) Defensive: nulstil kendte inline overrides på <html>/<body>
+    const resetInline = el => {
+      if (!el) return;
+      el.style.filter = '';
+      el.style.opacity = '';
+    };
+    resetInline(document.documentElement);
+    resetInline(document.body);
+  })();
+</script>
 </body>
 </html>
