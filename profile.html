@@ -492,19 +492,23 @@ let currentContractAssessment = null;
 // ============================================================================
 // INITIALISERING
 // ============================================================================
+// Sørg for at "Log ud" altid virker – også hvis init fejler
+document.addEventListener('DOMContentLoaded', () => {
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
+});
+
 async function init() {
   let authUser = null;
   try {
     // Tjek om bruger er logget ind
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
     if (authError) {
       console.error('Auth fejl:', authError);
       alert('Kunne ikke verificere login. Omdirigerer til login...');
       window.location.href = 'login.html';
       return;
     }
-    
     if (!user) {
       console.log('Ingen bruger logget ind');
       window.location.href = 'login.html';
@@ -516,37 +520,46 @@ async function init() {
     alert('Der opstod en fejl: ' + error.message);
     return;
   }
-  
+
   currentUser = authUser;
-  
-  // Hent brugerens MA og profil
-  const { data: userData, error } = await supabase
-    .from('individual_users')
-    .select('*')
-    .eq('email', authUser.email)
-    .single();
-  
-  if (error || !userData) {
-    alert('Kunne ikke finde din profil. Kontakt support.');
+
+  // Hent MA via RPC (undgår RLS 403), og suppler profilfelter hvis muligt
+  const { data: ma, error: maErr } = await supabase.rpc('get_ma_from_auth');
+  if (maErr || !ma) {
+    alert('Kunne ikke hente din MA. Kontakt support.');
     return;
   }
-  
-  userMA = userData.ma;
-  
-  // Opdater sidste login timestamp
-  await supabase
-    .from('individual_users')
-    .update({ last_login_at: new Date().toISOString() })
-    .eq('email', authUser.email);
-  
+  userMA = ma;
+
+  // Forsøg at hente ekstra profilfelter – fortsæt hvis RLS blokerer
+  let userData = { ma: userMA, email: authUser.email };
+  try {
+    const { data: profileMaybe, error: profileErr } = await supabase
+      .from('individual_users')
+      .select('created_at,last_login_at')
+      .eq('ma', userMA)
+      .single();
+    if (!profileErr && profileMaybe) userData = { ...userData, ...profileMaybe };
+  } catch (_) {}
+
+  // Opdater sidste login timestamp (ignorer fejl hvis RLS blokerer)
+  try {
+    await supabase
+      .from('individual_users')
+      .update({ last_login_at: new Date().toISOString() })
+      .eq('ma', userMA);
+  } catch (_) {}
+
   // Opdater UI
   document.getElementById('userEmailDisplay').textContent = authUser.email;
   document.getElementById('userNameDisplay').textContent = `MA: ${userMA}`;
   const welcomeNameEl = document.getElementById('welcomeName');
-  if (welcomeNameEl) { welcomeNameEl.textContent = userMA; }
+  if (welcomeNameEl) welcomeNameEl.textContent = userMA;
   document.getElementById('accountEmail').textContent = authUser.email;
   document.getElementById('accountMA').textContent = userMA;
-  document.getElementById('accountCreated').textContent = new Date(userData.created_at).toLocaleDateString('da-DK');
+  if (userData.created_at) {
+    document.getElementById('accountCreated').textContent = new Date(userData.created_at).toLocaleDateString('da-DK');
+  }
 
   // Vis "Skift til Admin", kun hvis brugeren også har en adminrolle
   try {
@@ -888,6 +901,7 @@ function renderCompareOptions() {
   }
   
   document.getElementById('compareEmptyState').style.display = 'none';
+
   
   document.getElementById('compareCheckboxes').innerHTML = assessments.map(a => `
     <label class="round-checkbox">
@@ -1161,22 +1175,30 @@ function exportComparisonCSV() {
 // ============================================================================
 async function renderProfileInfo() {
   try {
-    // Hent bruger data
-    const { data: userData } = await supabase.auth.getUser();
-    const { data: profile } = await supabase
+    // Hent MA via RPC for at undgå RLS 403
+    const { data: ma } = await supabase.rpc('get_ma_from_auth');
+    if (!ma) return;
+
+    // Forsøg at hente profil – tolerér RLS og udfyld det vi kan
+    const { data: profile, error: profileErr } = await supabase
       .from('individual_users')
-      .select('*')
-      .eq('email', userData.user.email)
+      .select('ma,email,created_at,last_login_at')
+      .eq('ma', ma)
       .single();
-    
-    if (!profile) return;
-    
-    document.getElementById('profileMA').textContent = profile.ma;
-    document.getElementById('profileEmail').textContent = profile.email;
-    document.getElementById('profileCreated').textContent = 
-      new Date(profile.created_at).toLocaleDateString('da-DK');
-    document.getElementById('profileLastLogin').textContent = 
-      profile.last_login_at 
+
+    document.getElementById('profileMA').textContent = profile?.ma ?? ma;
+
+    // Fald tilbage til auth.getUser() for email hvis profil ikke må læses
+    const { data: authData } = await supabase.auth.getUser();
+    document.getElementById('profileEmail').textContent =
+      profile?.email ?? authData?.user?.email ?? '';
+
+    if (profile?.created_at) {
+      document.getElementById('profileCreated').textContent =
+        new Date(profile.created_at).toLocaleDateString('da-DK');
+    }
+    document.getElementById('profileLastLogin').textContent =
+      profile?.last_login_at
         ? new Date(profile.last_login_at).toLocaleDateString('da-DK')
         : 'Aldrig';
     
