@@ -629,7 +629,7 @@ async function init() {
       .from('user_roles')
       .select('role')
       .eq('user_id', authUser.id)
-      .single();
+      .maybeSingle();
 
     const switchBtn = document.getElementById('switchToAdminBtn');
     if (!switchBtn) { /* ingen knap i DOM */ }
@@ -665,7 +665,7 @@ async function init() {
   // Load data
   await loadAssessments();
   renderDashboard();
-  renderCompassRoundsSelection();
+  initializeCompassTab();
   renderFilesList();
   
   // Setup event listeners for knapper
@@ -1322,7 +1322,7 @@ async function downloadAllData() {
 async function loadAssessments() {
   try {
     const { data, error } = await supabase
-      .from('individual_assessment_rounds')
+      .from('individual_assessments')
       .select('*')
       .eq('ma', userMA)
       .order('published_at', { ascending: false });
