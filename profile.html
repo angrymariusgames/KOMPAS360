@@ -94,7 +94,7 @@
     }
 
     
-    .tabbtn:hover{color:#334155;background:rgba(102,126,234,.06)}
+    .tabbtn:hover{color:#334155;background:rgba(102,126,234,0.06)}
     .tabbtn.active{color:var(--brand);border-bottom-color:var(--brand);background:#fff}
     
     .mu-profile .content{padding:24px;display:none}
@@ -136,7 +136,7 @@
     /* Upload område */
     .upload-zone{border:2px dashed var(--line);border-radius:12px;padding:40px;text-align:center;background:var(--surface);cursor:pointer;transition:.2s}
     .upload-zone:hover{border-color:var(--brand);background:#fff}
-    .upload-zone.dragging{border-color:var(--brand);background:rgba(102,126,234,.05)}
+    .upload-zone.dragging{border-color:var(--brand);background:rgba(102,126,234,0.05)}
     
     /* Samtykke */
     .consent-box{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px;margin:20px 0}
@@ -150,7 +150,7 @@
     .danger-text{margin-bottom:16px;line-height:1.6}
     
     /* Modal */
-    .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center}
+    .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center}
     .modal.active{display:flex}
     .modal-content{background:#fff;border-radius:20px;padding:24px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto}
     .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
@@ -1972,6 +1972,7 @@ function esc(value) {
     .replace(/<\/script/gi, '<\\/script')  // forhindrer at inline <script> lukkes
     .replace(/<\/style/gi, '<\\/style');
 }
+
 function initializeContractTab() {
   // Populate assessment dropdown
   const select = document.getElementById('contractAssessmentSelect');
