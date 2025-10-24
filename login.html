@@ -9,14 +9,14 @@
   
   <style>
     /* Theme */
-    *{box-sizing:border-box;margin:0;padding:0}
-    :root{
+    .kompas-login *{box-sizing:border-box;margin:0;padding:0}
+    .kompas-login{
       --bg1:#667eea; --bg2:#764ba2; --ink:#2d3748; --muted:#718096;
       --card:#ffffff; --line:#e2e8f0; --brand:#667eea; --radius:20px;
       --success:#48bb78; --error:#f56565;
     }
     
-    body{
+    .kompas-login{
       font-family:"Segoe UI",Tahoma,Geneva,Verdana,sans-serif;
       background:linear-gradient(135deg,var(--bg1) 0%,var(--bg2) 100%);
       min-height:100vh;
@@ -25,6 +25,7 @@
       padding:20px;
       color:var(--ink);
     }
+
     
     .container{
       width:100%;
@@ -77,7 +78,7 @@
       border-bottom:1px solid var(--line);
     }
     
-    .tab{
+    .kompas-login .tab{
       flex:1;
       padding:16px;
       background:none;
@@ -89,6 +90,7 @@
       transition:.25s;
       border-bottom:3px solid transparent;
     }
+
     
     .tab.active{
       color:var(--brand);
@@ -96,9 +98,10 @@
       border-bottom-color:var(--brand);
     }
     
-    .content{
+    .kompas-login .content{
       padding:32px;
     }
+
     
     .panel{
       display:none;
@@ -140,7 +143,7 @@
       border-color:var(--error);
     }
     
-    .btn{
+    .kompas-login .btn{
       width:100%;
       padding:14px;
       border:none;
@@ -152,6 +155,7 @@
       text-transform:uppercase;
       letter-spacing:.5px;
     }
+
     
     .btn.primary{
       background:var(--brand);
@@ -307,7 +311,7 @@
     }
   </style>
 </head>
-<body>
+<body class="kompas-login">
 
 <div class="container">
   <div class="header">
@@ -321,7 +325,8 @@
   
   <div class="tabs">
     <button class="tab active" data-tab="login">Log ind</button>
-    <button class="tab" data-tab="activate">Aktivér konto</button>
+    <button class="tab" data-tab="activate">Aktivér</button>
+    <button class="tab" data-tab="register">Opret Profil</button>
     <button class="tab" data-tab="reset">Nulstil kode</button>
   </div>
   
@@ -455,6 +460,129 @@
       </p>
     </div>
     
+    <!-- Register Panel (Individual Registration) -->
+    <div id="register-panel" class="panel">
+      <div id="register-message" style="display:none"></div>
+      
+      <!-- Step 1: Registration Form -->
+      <div id="register-step1">
+        <div class="step-indicator">
+          <div class="step active"></div>
+          <div class="step"></div>
+          <div class="step"></div>
+        </div>
+        
+        <form id="register-form">
+          <div class="form-group">
+            <label for="register-ma">Medarbejdernummer (MA)</label>
+            <input
+              type="text"
+              id="register-ma"
+              class="input"
+              placeholder="123456"
+              maxlength="6"
+              pattern="\d{6}"
+              required
+              autocomplete="off"
+            />
+            <p class="help-text">Dit 6-cifrede medarbejdernummer</p>
+          </div>
+          
+          <div class="form-group">
+            <label for="register-email">Email</label>
+            <input
+              type="email"
+              id="register-email"
+              class="input"
+              placeholder="navn@firma.dk"
+              required
+              autocomplete="email"
+            />
+          </div>
+          
+          <div class="form-group">
+            <label for="register-password">Adgangskode</label>
+            <input
+              type="password"
+              id="register-password"
+              class="input"
+              required
+              autocomplete="new-password"
+            />
+            
+            <div class="password-requirements">
+              <div class="requirement" data-req="length">Mindst 8 tegn</div>
+              <div class="requirement" data-req="upper">Mindst 1 stort bogstav</div>
+              <div class="requirement" data-req="lower">Mindst 1 lille bogstav</div>
+              <div class="requirement" data-req="number">Mindst 1 tal</div>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="register-confirm-password">Bekræft adgangskode</label>
+            <input
+              type="password"
+              id="register-confirm-password"
+              class="input"
+              required
+              autocomplete="new-password"
+            />
+            <p id="register-password-match" style="display:none;margin-top:8px;font-size:.9rem"></p>
+          </div>
+          
+          <div class="form-group" style="display:flex;align-items:start;gap:12px">
+            <input
+              type="checkbox"
+              id="register-consent"
+              required
+              style="width:20px;height:20px;margin-top:2px;cursor:pointer"
+            />
+            <label for="register-consent" style="margin:0;font-weight:400;cursor:pointer">
+              Jeg accepterer vilkår og privatlivspolitik for MinUdvikling systemet
+            </label>
+          </div>
+          
+          <button type="submit" class="btn primary" disabled>Opret Profil</button>
+        </form>
+      </div>
+      
+      <!-- Step 2: Processing -->
+      <div id="register-step2" style="display:none">
+        <div class="step-indicator">
+          <div class="step completed"></div>
+          <div class="step active"></div>
+          <div class="step"></div>
+        </div>
+        
+        <div class="message info">
+          <h3 style="margin-bottom:8px">Opretter din profil...</h3>
+          <p id="register-progress-text">Vent venligst mens vi opretter din konto.</p>
+        </div>
+      </div>
+      
+      <!-- Step 3: Success -->
+      <div id="register-step3" style="display:none">
+        <div class="step-indicator">
+          <div class="step completed"></div>
+          <div class="step completed"></div>
+          <div class="step completed"></div>
+        </div>
+        
+        <div class="message success">
+          <h3 style="margin-bottom:8px">✓ Profil oprettet!</h3>
+          <p>Din profil er nu klar. Du omdirigeres automatisk...</p>
+        </div>
+      </div>
+      
+      <div id="register-divider" class="divider">
+        <span>Har du allerede en profil?</span>
+      </div>
+      
+      <p id="register-footer" class="help-text" style="text-align:center">
+        <a class="link" onclick="switchTab('login')">Log ind her</a>
+      </p>
+    </div>
+    
     <!-- Reset Password Panel -->
     <div id="reset-panel" class="panel">
       <div id="reset-message"></div>
@@ -540,7 +668,7 @@ function showMessage(elementId, message, type = 'error') {
   }
 }
 
-// Login form
+// Login form - OPDATERET til at håndtere både evaluators og individuelle brugere
 $('login-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   
@@ -555,17 +683,33 @@ $('login-form').addEventListener('submit', async (e) => {
     
     if (error) throw error;
     
-    // Check user role
+    // Check user role (evaluator/programmer)
     const { data: roleData } = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', data.user.id)
       .single();
     
-    if (roleData?.role === 'programmer') {
-      window.location.href = 'master.html';
+    // Hvis bruger har en rolle -> Admin/Evaluator
+    if (roleData?.role) {
+      if (roleData.role === 'programmer') {
+        window.location.href = 'master.html';
+      } else {
+        window.location.href = 'admin.html';
+      }
     } else {
-      window.location.href = 'admin.html';
+      // Ellers tjek om individual_user
+      const { data: individualData } = await supabase
+        .from('individual_users')
+        .select('ma')
+        .eq('email', data.user.email)
+        .single();
+      
+      if (individualData) {
+        window.location.href = 'profile.html';
+      } else {
+        throw new Error('Ingen profil fundet. Kontakt support.');
+      }
     }
   } catch (error) {
     showMessage('login-message', error.message || 'Login fejlede', 'error');
@@ -762,21 +906,196 @@ function goToAdmin() {
   window.location.href = 'admin.html';
 }
 
-// Check if already logged in
-supabase.auth.getUser().then(({ data }) => {
+// Registration form - Password validation
+$('register-password').addEventListener('input', validateRegisterPassword);
+$('register-confirm-password').addEventListener('input', validateRegisterPassword);
+$('register-ma').addEventListener('input', validateRegisterForm);
+$('register-email').addEventListener('input', validateRegisterForm);
+$('register-consent').addEventListener('change', validateRegisterForm);
+
+function validateRegisterPassword() {
+  const password = $('register-password').value;
+  const confirm = $('register-confirm-password').value;
+  
+  // Check requirements
+  const requirements = {
+    length: password.length >= 8,
+    upper: /[A-Z]/.test(password),
+    lower: /[a-z]/.test(password),
+    number: /[0-9]/.test(password)
+  };
+  
+  // Update UI
+  Object.keys(requirements).forEach(req => {
+    const el = document.querySelector(`#register-panel [data-req="${req}"]`);
+    if (requirements[req]) {
+      el.classList.add('met');
+    } else {
+      el.classList.remove('met');
+    }
+  });
+  
+  // Check if passwords match
+  const matchEl = $('register-password-match');
+  if (confirm.length > 0) {
+    if (password === confirm) {
+      matchEl.textContent = '✓ Adgangskoderne matcher';
+      matchEl.style.color = 'var(--success)';
+      matchEl.style.display = 'block';
+    } else {
+      matchEl.textContent = '✗ Adgangskoderne matcher ikke';
+      matchEl.style.color = 'var(--error)';
+      matchEl.style.display = 'block';
+    }
+  } else {
+    matchEl.style.display = 'none';
+  }
+  
+  validateRegisterForm();
+}
+
+function validateRegisterForm() {
+  const password = $('register-password').value;
+  const confirm = $('register-confirm-password').value;
+  const ma = $('register-ma').value;
+  const email = $('register-email').value;
+  const consent = $('register-consent').checked;
+  const submitBtn = $('register-form').querySelector('button[type="submit"]');
+  
+  // Password requirements
+  const requirements = {
+    length: password.length >= 8,
+    upper: /[A-Z]/.test(password),
+    lower: /[a-z]/.test(password),
+    number: /[0-9]/.test(password)
+  };
+  
+  const allRequirementsMet = Object.values(requirements).every(v => v);
+  const passwordsMatch = password === confirm && confirm.length > 0;
+  const maValid = /^\d{6}$/.test(ma);
+  const emailValid = email.length > 0 && email.includes('@');
+  
+  submitBtn.disabled = !(allRequirementsMet && passwordsMatch && maValid && emailValid && consent);
+}
+
+// Registration form submission
+$('register-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  
+  const ma = $('register-ma').value.trim();
+  const email = $('register-email').value.trim().toLowerCase();
+  const password = $('register-password').value;
+  
+  // Client-side MA validation
+  if (!/^\d{6}$/.test(ma)) {
+    showMessage('register-message', 'MA skal være præcis 6 cifre', 'error');
+    return;
+  }
+  
+  // Hide step 1, show step 2
+  $('register-step1').style.display = 'none';
+  $('register-step2').style.display = 'block';
+  $('register-divider').style.display = 'none';
+  $('register-footer').style.display = 'none';
+  
+  try {
+    // Step 1: Create auth user (eller fortsæt hvis email allerede findes)
+    $('register-progress-text').textContent = 'Opretter bruger.';
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/profile.html`
+      }
+    });
+
+    // Hvis brugeren allerede findes (fx admin-konto), så fortsæt uden at fejle
+    const emailAlleredeOprettet = !!(signUpError && (
+      (signUpError.message && signUpError.message.toLowerCase().includes('already registered')) ||
+      (signUpError.status === 400) || (signUpError.code === 'user_already_exists')
+    ));
+    if (signUpError && !emailAlleredeOprettet) throw signUpError;
+
+    // Step 2: Wait for propagation (kun relevant når ny auth bruger er lavet)
+    $('register-progress-text').textContent = 'Forbereder profil.';
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // Step 3: Create individual_user profile (tilladt også når email allerede findes i auth)
+    $('register-progress-text').textContent = 'Opretter profil.';
+    const { data: profileData, error: profileError } = await supabase.rpc(
+      'create_individual_user_profile',
+      { p_email: email, p_ma: ma }
+    );
+    if (profileError) throw profileError;
+    if (profileData?.error) throw new Error(profileData.error);
+    if (!profileData?.success) throw new Error('Kunne ikke oprette profil');
+
+    // Step 4: Login-håndtering
+    if (!emailAlleredeOprettet) {
+      // Ny bruger – log ind med valgte kode
+      $('register-progress-text').textContent = 'Logger ind.';
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInError) throw signInError;
+
+      // Success og redirect
+      $('register-step2').style.display = 'none';
+      $('register-step3').style.display = 'block';
+      setTimeout(() => { window.location.href = 'profile.html'; }, 2000);
+    } else {
+      // Email fandtes i forvejen (fx admin-konto): spring auto-login over
+      $('register-step2').style.display = 'none';
+      $('register-step3').style.display = 'block';
+      // Opdater succes-teksten så det er tydeligt hvad der skal ske nu
+      const msg = document.querySelector('#register-step3 .message.success p');
+      if (msg) msg.textContent = 'Profil oprettet. Log ind med din eksisterende adgangskode.';
+    }
+    
+  } catch (error) {
+    console.error('Registration error:', error);
+    
+    // Vis fejl og tilbage til step 1
+    $('register-step2').style.display = 'none';
+    $('register-step1').style.display = 'block';
+    $('register-divider').style.display = 'block';
+    $('register-footer').style.display = 'block';
+    
+    let errorMessage = error.message || 'Registrering fejlede';
+    // Brugervenlige fejlbeskeder (behold, men nu sjældnere relevant)
+    if (errorMessage.toLowerCase().includes('already registered') || errorMessage.toLowerCase().includes('duplicate')) {
+      errorMessage = 'Denne email findes allerede. Log ind med din eksisterende adgangskode.';
+    } else if (errorMessage.includes('Password should be')) {
+      errorMessage = 'Adgangskoden er for svag. Prøv en stærkere adgangskode.';
+    }
+    showMessage('register-message', errorMessage, 'error');
+  }
+});
+
+
+// Check if already logged in - Håndterer dual profiler (admin + individ)
+supabase.auth.getUser().then(async ({ data }) => {
   if (data.user) {
-    // Already logged in, redirect based on role
-    supabase.from('user_roles')
+    // Tjek først om bruger har admin rolle
+    const { data: roleData } = await supabase
+      .from('user_roles')
       .select('role')
       .eq('user_id', data.user.id)
-      .single()
-      .then(({ data: roleData }) => {
-        if (roleData?.role === 'programmer') {
-          window.location.href = 'master.html';
-        } else {
-          window.location.href = 'admin.html';
-        }
-      });
+      .single();
+    
+    // Tjek også om bruger har individ profil (sikker RPC pga. RLS)
+    const { data: ma, error: maErr } = await supabase.rpc('get_ma_from_auth');
+
+    // Prioritér admin hvis begge profiler eksisterer
+    if (roleData?.role) {
+      if (roleData.role === 'programmer') {
+        window.location.href = 'master.html';
+      } else {
+        window.location.href = 'admin.html';
+      }
+    } else if (ma) {
+      // Har kun individ profil
+      window.location.href = 'profile.html';
+    }
+
   }
 });
 </script>
