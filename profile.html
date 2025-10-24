@@ -1,0 +1,2148 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MinUdvikling • Din Personlige Profil</title>
+  <link rel="icon" href="data:," />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-hashes' https://cdn.jsdelivr.net; connect-src 'self' http://localhost:8000 https://minudvikling.dk https://*.supabase.co wss://*.supabase.co https://cdn.jsdelivr.net">
+  
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
+  <style>
+    /* Theme */
+    .mu-profile *{box-sizing:border-box;margin:0;padding:0}
+    .mu-profile{
+      --bg1:#667eea; --bg2:#764ba2; --ink:#2d3748; --muted:#718096;
+      --card:#ffffff; --line:#e2e8f0; --brand:#667eea; --radius:20px;
+      --success:#48bb78; --error:#f56565; --warning:#ed8936;
+      --surface:#f8fafc; --info:#3b82f6; --text-secondary:#64748b;
+    }
+
+    .mu-profile{
+      font-family:"Segoe UI",Tahoma,Geneva,Verdana,sans-serif;
+      background:linear-gradient(135deg,var(--bg1) 0%,var(--bg2) 100%);
+      min-height:100vh;
+      padding:20px;
+      color:var(--ink);
+    }
+    
+    .app{
+      max-width:1200px;
+      margin:0 auto;
+      background:#fff;
+      border-radius:20px;
+      box-shadow:0 20px 40px rgba(0,0,0,0.15);
+      overflow:hidden;
+    }
+
+    /* Header */
+    .mu-profile .header{
+      background:linear-gradient(135deg,#2d3748 0%,#4a5568 100%);
+      color:#fff;
+      padding:20px 24px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:16px;
+    }
+    
+    .logo-title{display:flex;align-items:center;gap:14px}
+    .logo-box{width:56px;height:56px;border-radius:14px;background:#fff;display:grid;place-items:center}
+    .logo-box img{height:38px;object-fit:contain}
+    .title-text h1{font-size:1.6rem;font-weight:800;margin-bottom:2px}
+    .title-text p{opacity:.85;font-size:.92rem}
+    
+    .header-actions{display:flex;gap:10px;align-items:center}
+    .user-info{background:rgba(255,255,255,.1);padding:8px 14px;border-radius:10px;font-size:.9rem}
+    
+    .mu-profile .btn{cursor:pointer;font-weight:700;border:1px solid var(--line);background:#fff;color:#111;padding:10px 14px;border-radius:10px;transition:.25s}
+    .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+    .btn.ghost{background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.35)}
+    .btn.small{padding:6px 10px;font-size:.85rem}
+    .btn.success{background:var(--success);border-color:var(--success);color:#fff}
+    .btn.error{background:var(--error);border-color:var(--error);color:#fff}
+    .btn.warning{background:var(--warning);border-color:var(--warning);color:#fff}
+
+    /* Tabs */
+    .mu-profile .tabbar{
+      background:var(--card);
+      border-bottom:1px solid var(--line);
+      padding:0 20px;
+      display:flex;
+      gap:0;
+      position:sticky;
+      top:0;
+      z-index:20;
+    }
+    
+    .mu-profile .tabbtn{
+      background:none;
+      border:none;
+      padding:16px 22px;
+      font-size:1.05rem;
+      font-weight:700;
+      color:#64748b;
+      cursor:pointer;
+      border-bottom:3px solid transparent;
+      transition:.25s;
+      white-space:nowrap;
+    }
+
+    
+    .tabbtn:hover{color:#334155;background:rgba(102,126,234,.06)}
+    .tabbtn.active{color:var(--brand);border-bottom-color:var(--brand);background:#fff}
+    
+    .mu-profile .content{padding:24px;display:none}
+    .mu-profile .content.active{display:block}
+    
+    /* Cards og sektioner */
+    .section{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin-bottom:20px}
+    .section-title{font-size:1.3rem;font-weight:700;margin-bottom:16px;color:var(--ink)}
+    .section-subtitle{color:var(--muted);font-size:.95rem;margin-top:-10px;margin-bottom:16px}
+    
+    .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px;transition:.2s}
+    .card:hover{box-shadow:0 4px 12px rgba(0,0,0,.08)}
+    .card-title{font-weight:700;font-size:1.1rem;margin-bottom:8px}
+    .card-meta{color:var(--muted);font-size:.9rem;margin-bottom:8px}
+    .card-actions{display:flex;gap:8px;margin-top:12px}
+    
+    /* Grid layouts */
+    .grid{display:grid;gap:16px}
+    .grid-2{grid-template-columns:repeat(2,1fr)}
+    .grid-3{grid-template-columns:repeat(3,1fr)}
+    @media(max-width:768px){.grid-2,.grid-3{grid-template-columns:1fr}}
+    
+    /* Kompas graf */
+    .compass-container{background:#fff;padding:20px;border-radius:12px;border:1px solid var(--line)}
+    .compass-controls{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px}
+    .round-checkbox{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface);border:2px solid var(--line);border-radius:8px;cursor:pointer;transition:.2s}
+    .round-checkbox:hover{border-color:var(--brand);background:#fff}
+    .round-checkbox input{margin:0;cursor:pointer}
+    .round-checkbox input:checked + span{color:var(--brand);font-weight:700}
+    
+    /* Liste styling */
+    .file-list{list-style:none}
+    .file-item{display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--surface);border-radius:8px;margin-bottom:8px}
+    .file-item:hover{background:#fff}
+    .file-info{flex:1}
+    .file-name{font-weight:600;margin-bottom:4px}
+    .file-meta{color:var(--muted);font-size:.9rem}
+    
+    /* Upload område */
+    .upload-zone{border:2px dashed var(--line);border-radius:12px;padding:40px;text-align:center;background:var(--surface);cursor:pointer;transition:.2s}
+    .upload-zone:hover{border-color:var(--brand);background:#fff}
+    .upload-zone.dragging{border-color:var(--brand);background:rgba(102,126,234,.05)}
+    
+    /* Samtykke */
+    .consent-box{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px;margin:20px 0}
+    .consent-text{margin-bottom:16px;line-height:1.6}
+    .consent-link{color:var(--brand);text-decoration:none;font-weight:600}
+    .consent-link:hover{text-decoration:underline}
+    
+    /* Slette konto advarsel */
+    .danger-zone{background:#fff5f5;border:2px solid var(--error);border-radius:12px;padding:20px}
+    .danger-title{color:var(--error);font-weight:700;font-size:1.1rem;margin-bottom:12px}
+    .danger-text{margin-bottom:16px;line-height:1.6}
+    
+    /* Modal */
+    .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center}
+    .modal.active{display:flex}
+    .modal-content{background:#fff;border-radius:20px;padding:24px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto}
+    .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+    .modal-title{font-size:1.4rem;font-weight:700}
+    .modal-close{background:none;border:none;font-size:1.5rem;cursor:pointer;color:var(--muted)}
+    
+    /* Input styling */
+    .input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:1rem;background:#fff}
+    .input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(102,126,234,.1)}
+    
+    /* Loading spinner */
+    .loading{text-align:center;padding:40px;color:var(--muted)}
+    .spinner{display:inline-block;width:40px;height:40px;border:4px solid var(--line);border-radius:50%;border-top-color:var(--brand);animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    
+    /* Alert/meddelelser */
+    .alert{padding:14px 18px;border-radius:10px;margin-bottom:16px;display:flex;align-items:center;gap:12px}
+    .alert.info{background:#e6fffa;color:#234e52;border:1px solid#81e6d9}
+    .alert.success{background:#c6f6d5;color:#22543d;border:1px solid#68d391}
+    .alert.warning{background:#fefcbf;color:#744210;border:1px solid#f6e05e}
+    .alert.error{background:#fed7d7;color:#9b2c2c;border:1px solid#fc8181}
+    
+    /* Empty state */
+    .empty-state{text-align:center;padding:60px 20px;color:var(--muted)}
+    .empty-icon{font-size:3rem;margin-bottom:16px;opacity:.5}
+    .empty-title{font-size:1.2rem;font-weight:600;margin-bottom:8px;color:var(--ink)}
+    .empty-text{margin-bottom:20px}
+  </style>
+</head>
+
+<body class="mu-profile">
+<div class="app">
+  <!-- Header -->
+  <div class="header">
+    <div class="logo-title">
+      <div class="logo-box">
+        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%23667eea'/%3E%3Ctext x='50' y='65' text-anchor='middle' fill='white' font-size='40' font-weight='bold'%3EM%3C/text%3E%3C/svg%3E" alt="Logo">
+      </div>
+      <div class="title-text">
+        <h1>MinUdvikling</h1>
+        <p id="userNameDisplay">Din Personlige Profil</p>
+      </div>
+    </div>
+    
+    <div class="header-actions">
+      <div class="user-info" id="userEmailDisplay"></div>
+      <button id="switchToAdminBtn" class="btn ghost small" style="display:none">Skift til Admin</button>
+      <button id="logoutBtn" class="btn ghost small">Log ud</button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabbar">
+    <button class="tabbtn active" data-tab="oversigt">Oversigt</button>
+    <button class="tabbtn" data-tab="kompas">Kompas</button>
+    <button class="tabbtn" data-tab="kontrakt">Udviklingskontrakt</button>
+    <button class="tabbtn" data-tab="sammenlign">Sammenlign</button>
+    <button class="tabbtn" data-tab="upload">Upload</button>
+    <button class="tabbtn" data-tab="profil">Profil</button>
+  </div>
+
+  <!-- Dashboard Tab -->
+  <div id="tab-oversigt" class="content active">
+    <div class="section">
+      <h2 class="section-title">Velkommen til MinUdvikling</h2>
+      <p class="section-subtitle">Her kan du se dine evalueringsresultater og udviklingskontakter</p>
+      
+      <div id="dashboardStats" class="grid grid-3">
+        <div class="card">
+          <div class="card-title">📊 Evalueringer</div>
+          <div id="statsAssessments" style="font-size:2rem;font-weight:700;color:var(--brand)">0</div>
+          <div class="card-meta">Udgivne runder</div>
+        </div>
+        
+        <div class="card">
+          <div class="card-title">📄 Kontrakter</div>
+          <div id="statsContracts" style="font-size:2rem;font-weight:700;color:var(--success)">0</div>
+          <div class="card-meta">Udviklingskontrakter</div>
+        </div>
+        
+        <div class="card">
+          <div class="card-title">📁 Filer</div>
+          <div id="statsFiles" style="font-size:2rem;font-weight:700;color:var(--info)">0</div>
+          <div class="card-meta">Totale filer</div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <h2 class="section-title">Seneste Udviklingskontrakt</h2>
+      <div id="latestContractContainer"></div>
+    </div>
+    
+    <div class="section">
+      <h2 class="section-title">Mine Evalueringer</h2>
+      <div id="assessmentsList"></div>
+    </div>
+  </div>
+
+  <!-- Kompas Tab -->
+  <div id="tab-kompas" class="content">
+    <div class="section">
+      <h2 class="section-title">🧭 Kompas - Dine Kompetencer</h2>
+      <p class="section-subtitle">Visualiser dine kompetencer med interaktivt radar diagram</p>
+      
+      <!-- Assessment vælger -->
+      <div style="margin-bottom:20px">
+        <label style="display:block;font-weight:600;margin-bottom:8px">Vælg assessment:</label>
+        <select id="compassAssessmentSelect" class="input" onchange="loadCompassForAssessment()" style="max-width:400px">
+          <option value="">-- Vælg en assessment --</option>
+        </select>
+      </div>
+      
+      <!-- Respondent type checkboxes -->
+      <div id="compassRespondentControls" class="compass-controls" style="margin-bottom:20px;display:none">
+        <label class="round-checkbox">
+          <input type="checkbox" id="cbSelf" checked onchange="updateCompassChart()">
+          <span>👤 Selv</span>
+        </label>
+        <label class="round-checkbox">
+          <input type="checkbox" id="cbPeer" checked onchange="updateCompassChart()">
+          <span>👥 Kolleger</span>
+        </label>
+        <label class="round-checkbox">
+          <input type="checkbox" id="cbLeader" checked onchange="updateCompassChart()">
+          <span>👔 Leder</span>
+        </label>
+      </div>
+      
+      <!-- Radar chart -->
+      <div class="compass-container" id="compassChartContainer" style="display:none">
+        <canvas id="compassChart" style="max-height:500px"></canvas>
+      </div>
+      
+      <!-- Actions -->
+      <div id="compassActions" style="margin-top:20px;display:none;gap:12px">
+        <button class="btn primary" onclick="downloadCompassPDF()">📥 Download Kompas PDF</button>
+        <button class="btn" onclick="exportCompassData()">📊 Eksporter Data</button>
+      </div>
+      
+      <!-- Empty state -->
+      <div id="compassEmptyState" class="empty-state">
+        <div class="empty-icon">🧭</div>
+        <div class="empty-title">Ingen assessments tilgængelige</div>
+        <div class="empty-text">Upload eller vent på at en assessment bliver udgivet</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Udviklingskontrakt Tab -->
+  <div id="tab-kontrakt" class="content">
+    <div class="section">
+      <h2 class="section-title">📋 Udviklingskontrakt</h2>
+      <p class="section-subtitle">Dine udviklingsmål og handlingsplaner</p>
+      
+      <!-- Assessment vælger -->
+      <div style="margin-bottom:20px">
+        <label style="display:block;font-weight:600;margin-bottom:8px">Vælg assessment:</label>
+        <select id="contractAssessmentSelect" class="input" onchange="loadContractForAssessment()" style="max-width:400px">
+          <option value="">-- Vælg en assessment --</option>
+        </select>
+      </div>
+      
+      <!-- Kontrakt indhold -->
+      <div id="contractContent"></div>
+      
+      <!-- Actions -->
+      <div id="contractActions" style="margin-top:20px;display:none;gap:12px">
+        <button class="btn primary" onclick="downloadContractPDF()">📥 Download Kontrakt PDF</button>
+        <button class="btn" onclick="printContract()">🖨️ Udskriv</button>
+      </div>
+      
+      <!-- Empty state -->
+      <div id="contractEmptyState" class="empty-state">
+        <div class="empty-icon">📋</div>
+        <div class="empty-title">Ingen udviklingskontrakt tilgængelig</div>
+        <div class="empty-text">Din udviklingskontrakt vil vises her når den er udgivet</div>
+      </div>
+    </div>
+  </div>
+<!-- Sammenlign Tab -->
+  <div id="tab-sammenlign" class="content">
+    <div class="section">
+     <h2 class="section-title">⚖️ Sammenlign Assessments</h2>
+      <p class="section-subtitle">Sammenlign dine resultater på tværs af forskellige evalueringsrunder</p>
+      
+      <!-- Vælg assessments -->
+      <div style="margin-bottom:20px">
+        <label style="display:block;font-weight:600;margin-bottom:12px">Vælg assessments at sammenligne (2-4):</label>
+        <div id="compareCheckboxes" class="compass-controls"></div>
+      </div>
+      
+      <!-- Action buttons -->
+      <div style="display:flex;gap:12px;margin-bottom:20px">
+        <button id="btnCompare" class="btn primary" onclick="renderComparison()" disabled>📊 Vis Tabel</button>
+        <button id="btnCompareRadar" class="btn" onclick="renderComparisonRadar()" disabled>🧭 Vis Radar</button>
+      </div>
+      
+      <!-- Comparison output -->
+      <div id="comparisonResult"></div>
+      
+      <!-- Empty state -->
+      <div id="compareEmptyState" class="empty-state">
+        <div class="empty-icon">⚖️</div>
+        <div class="empty-title">Ikke nok assessments</div>
+        <div class="empty-text">Du skal have mindst 2 assessments for at kunne sammenligne</div>
+      </div>
+    </div>
+  </div>  
+  <!-- Upload Tab -->
+  <div id="tab-upload" class="content">
+    <div class="section">
+      <h2 class="section-title">Upload .UDV Fil</h2>
+      <p class="section-subtitle">Upload din egen evaluerings-fil (self-import)</p>
+      
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="udvFileInput" accept=".udv,.json" style="display:none">
+        <div style="font-size:3rem;margin-bottom:12px">📤</div>
+        <div style="font-weight:600;margin-bottom:8px">Klik for at vælge fil eller træk den hertil</div>
+        <div style="color:var(--muted);font-size:.9rem">Understøtter .UDV og .JSON filer</div>
+      </div>
+      
+      <div id="uploadStatus" class="alert info" style="display:none"></div>
+    </div>
+    
+    <div class="section">
+      <h2 class="section-title">Mine Filer</h2>
+      <ul id="filesList" class="file-list"></ul>
+    </div>
+  </div>
+
+  <!-- Profil Tab -->
+  <div id="tab-profil" class="content">
+    <div class="section">
+      <h2 class="section-title">Kontooplysninger</h2>
+      
+      <div class="card">
+        <div class="card-title">Email</div>
+        <div id="accountEmail" style="font-size:1.1rem"></div>
+      </div>
+      
+      <div class="card">
+        <div class="card-title">Medarbejdernummer (MA)</div>
+        <div id="accountMA" style="font-size:1.1rem;font-weight:700;color:var(--brand)"></div>
+      </div>
+      
+      <div class="card">
+        <div class="card-title">Oprettet</div>
+        <div id="accountCreated"></div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <h2 class="section-title">Samtykke</h2>
+      <div class="consent-box">
+        <div class="consent-text">
+          Ved at bruge MinUdvikling accepterer du vores <a href="#" class="consent-link" onclick="showConsentModal();return false">privatlivspolitik og vilkår</a>.
+        </div>
+        <div id="consentStatus"></div>
+      </div>
+    </div>
+    
+    <div class="section danger-zone">
+      <h3 class="danger-title">⚠️ Slet Konto</h3>
+      <div class="danger-text">
+        <p><strong>Advarsel:</strong> Hvis du sletter din konto, vil alle dine data blive permanent fjernet. Denne handling kan ikke fortrydes.</p>
+        <p style="margin-top:12px">Du vil få mulighed for at downloade alle dine filer som en ZIP-fil før sletningen.</p>
+      </div>
+      <button class="btn error" onclick="initiateAccountDeletion()">Slet min konto</button>
+    </div>
+  </div>
+</div>
+
+<!-- Samtykke Modal -->
+<div id="consentModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 class="modal-title">Privatlivspolitik & Vilkår</h2>
+      <button class="modal-close" onclick="closeConsentModal()">×</button>
+    </div>
+    <div>
+      <h3>Privatlivspolitik</h3>
+      <p>MinUdvikling behandler dine personlige data i overensstemmelse med GDPR...</p>
+      
+      <h3 style="margin-top:20px">Vilkår for brug</h3>
+      <p>Ved at bruge MinUdvikling accepterer du følgende vilkår...</p>
+      
+      <div style="margin-top:24px">
+        <button class="btn primary" onclick="acceptConsent()">Acceptér og luk</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slet konto modal -->
+<div id="deleteModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 class="modal-title">Bekræft Sletning</h2>
+      <button class="modal-close" onclick="closeDeleteModal()">×</button>
+    </div>
+    <div>
+      <p style="margin-bottom:16px">Er du sikker på at du vil slette din konto? Alle dine data vil blive permanent fjernet.</p>
+      
+      <div class="alert warning" style="margin-bottom:16px">
+        <span>⚠️</span>
+        <span>Først får du mulighed for at downloade en ZIP-fil med alle dine data.</span>
+      </div>
+      
+      <div style="display:flex;gap:12px">
+        <button class="btn" onclick="closeDeleteModal()">Annuller</button>
+        <button class="btn warning" onclick="downloadDataBeforeDelete()">Download data først</button>
+        <button class="btn error" onclick="confirmAccountDeletion()">Slet nu</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================================
+// KONFIGURATION
+// ============================================================================
+const SUPABASE_URL = "https://wsrstyrsuwhcmmlmnbrz.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzcnN0eXJzdXdoY21tbG1uYnJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MTU0NTIsImV4cCI6MjA3MTE5MTQ1Mn0.Rf3Z3bQGjV5CKXKZr6IMOjzPdbhVJCh3SwuvlkpxUD0";
+const API_BASE_URL = window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'https://minudvikling.dk';
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Global state
+let currentUser = null;
+let userMA = null;
+let assessments = [];
+let selectedRounds = [];
+let compassChart = null;
+let currentCompassAssessment = null;
+let currentCompassScores = [];
+let currentContractAssessment = null;
+
+// ============================================================================
+// INITIALISERING
+// ============================================================================
+async function init() {
+  try {
+    // Tjek om bruger er logget ind
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError) {
+      console.error('Auth fejl:', authError);
+      alert('Kunne ikke verificere login. Omdirigerer til login...');
+      window.location.href = 'login.html';
+      return;
+    }
+    
+    if (!user) {
+      console.log('Ingen bruger logget ind');
+      window.location.href = 'login.html';
+      return;
+    }
+  } catch (error) {
+    console.error('Kritisk fejl ved initialisering:', error);
+    alert('Der opstod en fejl: ' + error.message);
+    return;
+  }
+  
+  currentUser = user;
+  
+  // Hent brugerens MA og profil
+  const { data: userData, error } = await supabase
+    .from('individual_users')
+    .select('*')
+    .eq('email', user.email)
+    .single();
+  
+  if (error || !userData) {
+    alert('Kunne ikke finde din profil. Kontakt support.');
+    return;
+  }
+  
+  userMA = userData.ma;
+  
+  // Opdater sidste login timestamp
+  await supabase
+    .from('individual_users')
+    .update({ last_login_at: new Date().toISOString() })
+    .eq('email', user.email);
+  
+  // Opdater UI
+  document.getElementById('userEmailDisplay').textContent = user.email;
+  document.getElementById('userNameDisplay').textContent = `MA: ${userMA}`;
+  document.getElementById('welcomeName').textContent = userMA;
+  document.getElementById('accountEmail').textContent = user.email;
+  document.getElementById('accountMA').textContent = userMA;
+  document.getElementById('accountCreated').textContent = new Date(userData.created_at).toLocaleDateString('da-DK');
+
+  // Vis "Skift til Admin", kun hvis brugeren også har en adminrolle
+  try {
+    const { data: roleData } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .single();
+
+    const switchBtn = document.getElementById('switchToAdminBtn');
+    if (!switchBtn) { /* ingen knap i DOM */ }
+    if (roleData?.role) {
+      // Kortlægning: programmer -> master.html, admin/evaluator -> admin.html
+      const role = roleData.role;
+      switchBtn.style.display = 'inline-block';
+      switchBtn.onclick = () => {
+        if (role === 'programmer') {
+          window.location.href = 'master.html';
+        } else if (role === 'admin' || role === 'evaluator') {
+          window.location.href = 'admin.html';
+        } else {
+          // Ukendt/anden rolle: vis intet
+          switchBtn.style.display = 'none';
+        }
+      };
+    } else if (switchBtn) {
+      switchBtn.style.display = 'none';
+    }
+  } catch (e) {
+    console.warn('Kunne ikke afgøre om brugeren har admin-rolle:', e);
+    const switchBtn = document.getElementById('switchToAdminBtn');
+    if (switchBtn) switchBtn.style.display = 'none';
+  }
+  
+  if (userData.consent_at) {
+    document.getElementById('consentStatus').innerHTML = `<div class="alert success">✓ Accepteret ${new Date(userData.consent_at).toLocaleDateString('da-DK')}</div>`;
+  } else {
+    document.getElementById('consentStatus').innerHTML = `<div class="alert warning">Du har endnu ikke accepteret vilkårene</div>`;
+  }
+  
+  // Load data
+  await loadAssessments();
+  renderDashboard();
+  renderCompassRoundsSelection();
+  renderFilesList();
+  
+  // Setup event listeners for knapper
+  setupEventListeners();
+  
+  // Setup tab navigation
+  try {
+    setupTabs();
+  } catch (error) {
+    console.error('Fejl ved opsætning af tabs:', error);
+  }
+  
+  try {
+    setupUploadZone();
+  } catch (error) {
+    console.error('Fejl ved opsætning af upload zone:', error);
+  }
+  
+  console.log('Profile.html initialiseret succesfuldt');
+}
+
+// ============================================================================
+// EVENT LISTENERS
+// ============================================================================
+function setupEventListeners() {
+  // Log ud knap
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', handleLogout);
+  }
+}
+
+// ============================================================================
+// TABS
+// ============================================================================
+function setupTabs() {
+  try {
+    document.querySelectorAll('.tabbtn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const target = btn.getAttribute('data-tab');
+        
+        if (!target) {
+          console.error('Tab mangler data-tab attribut');
+          return;
+        }
+        
+        // Update tabs
+        document.querySelectorAll('.tabbtn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        
+        // Update content
+        document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+        const contentEl = document.getElementById(`tab-${target}`);
+        if (contentEl) {
+          contentEl.classList.add('active');
+        } else {
+          console.error(`Kunne ikke finde indhold for tab: ${target}`);
+          return;
+        }
+        
+        // Refresh content baseret på tab
+        try {
+          if (target === 'oversigt') renderDashboard();
+          if (target === 'kompas') initializeCompassTab();
+          if (target === 'kontrakt') initializeContractTab();
+          if (target === 'sammenlign') renderCompareOptions();
+          if (target === 'upload') renderFilesList();
+          if (target === 'profil') renderProfileInfo();
+        } catch (err) {
+          console.error(`Fejl ved indlæsning af tab ${target}:`, err);
+          alert(`Der opstod en fejl ved indlæsning af denne fane: ${err.message}`);
+        }
+      });
+    });
+    
+    // Aktivér første tab som standard
+    const firstTab = document.querySelector('.tabbtn');
+    if (firstTab) {
+      firstTab.click();
+    }
+  } catch (error) {
+    console.error('Fejl ved opsætning af tabs:', error);
+    alert('Der opstod en fejl ved indlæsning af navigation');
+  }
+}
+
+function switchTab(tabName) {
+  const btn = document.querySelector(`[data-tab="${tabName}"]`);
+  if (btn) btn.click();
+}
+
+// ============================================================================
+// UPLOAD FUNKTIONALITET
+// ============================================================================
+// Note: Upload zone event listeners sættes op i setupUploadZone() funktionen senere
+async function handleUDVUpload(file) {
+  const statusEl = document.getElementById('uploadStatus');
+  
+  if (!statusEl) {
+    console.error('Upload status element ikke fundet');
+    return;
+  }
+  
+  statusEl.style.display = 'block';
+  statusEl.className = 'alert info';
+  statusEl.textContent = 'Uploader fil...';
+  
+  try {
+    // Valider fil
+    if (!file.name.endsWith('.udv') && !file.name.endsWith('.json')) {
+      throw new Error('Kun .UDV og .JSON filer er tilladt');
+    }
+    
+    if (file.size > 10 * 1024 * 1024) {
+      throw new Error('Filen er for stor (maks 10 MB)');
+    }
+    
+    // Læs fil
+    const text = await file.text();
+    let assessment, categories, responses, contract;
+    
+    // Parse baseret på filtype
+    if (file.name.endsWith('.json')) {
+      // Direkte JSON import
+      const data = JSON.parse(text);
+      assessment = data.assessment || data;
+      categories = data.categories || { categories: [] };
+      responses = data.responses || {};
+      contract = data.contract || {};
+    } else {
+      // .UDV fil (ZIP format)
+      const zip = await JSZip.loadAsync(file);
+      
+      const assessmentJson = await zip.file('assessment.json')?.async('text');
+      const categoriesJson = await zip.file('categories.json')?.async('text');
+      const responsesJson = await zip.file('responses.json')?.async('text');
+      const contractJson = await zip.file('development_contract.json')?.async('text');
+      
+      if (!assessmentJson || !categoriesJson) {
+        throw new Error('UDV filen mangler nødvendige filer');
+      }
+      
+      assessment = JSON.parse(assessmentJson);
+      categories = JSON.parse(categoriesJson);
+      responses = responsesJson ? JSON.parse(responsesJson) : {};
+      contract = contractJson ? JSON.parse(contractJson) : {};
+    }
+    
+    // Valider MA
+    if (assessment.ma !== userMA) {
+      throw new Error('Denne fil tilhører ikke dig (MA mismatch)');
+    }
+    
+    statusEl.textContent = 'Importerer til database...';
+    
+    // Import til database
+    const { data, error } = await supabase.rpc('import_individual_assessment', {
+      p_ma: assessment.ma,
+      p_project_label: assessment.project_label,
+      p_variant: assessment.variant,
+      p_completed_at: assessment.completed_at,
+      p_udv_json: { assessment, responses, categories, contract },
+      p_categories: categories.categories || [],
+      p_development_contract: contract
+    });
+    
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+    if (!data?.success) throw new Error('Import fejlede');
+    
+    // Success!
+    statusEl.className = 'alert success';
+    statusEl.textContent = '✅ Fil uploadet succesfuldt!';
+    
+    // Reload assessments og skift til oversigt
+    await loadAssessments();
+    setTimeout(() => {
+      switchTab('oversigt');
+      statusEl.style.display = 'none';
+      document.getElementById('udvFileInput').value = '';
+    }, 2000);
+    
+  } catch (error) {
+    console.error('Upload error:', error);
+    statusEl.className = 'alert error';
+    statusEl.textContent = `❌ ${error.message || 'Upload fejlede'}`;
+  }
+}
+
+// ============================================================================
+// TIMELINE RENDERING
+// ============================================================================
+function renderTimeline() {
+  const container = document.getElementById('assessmentTimeline');
+  const emptyState = document.getElementById('emptyStateOversigt');
+  
+  if (assessments.length === 0) {
+    container.innerHTML = '';
+    emptyState.style.display = 'block';
+    return;
+  }
+  
+  emptyState.style.display = 'none';
+  
+  // Sort by date desc
+  const sorted = [...assessments].sort((a, b) => 
+    new Date(b.published_at) - new Date(a.published_at)
+  );
+  
+  container.innerHTML = `
+    <div class="grid grid-2">
+      ${sorted.map(a => {
+        const date = new Date(a.published_at).toLocaleDateString('da-DK', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric'
+        });
+        
+        const categoryCount = (a.udv_json?.categories?.categories || []).length;
+        const variant = a.variant === 'FULL' ? 'FULL' : 'LITE';
+        const badgeColor = variant === 'FULL' ? 'var(--brand)' : 'var(--info)';
+        
+        return `
+          <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px">
+              <div class="card-title">${a.project_label}</div>
+              <div style="background:${badgeColor};color:#fff;padding:4px 10px;border-radius:6px;font-size:0.8rem;font-weight:700">
+                ${variant}
+              </div>
+            </div>
+            <div class="card-meta">
+              📅 ${date}<br/>
+              📈 ${categoryCount} kategorier
+            </div>
+            <div class="card-actions">
+              <button class="btn small primary" onclick="viewAssessmentDetails('${a.id}')">
+                Vis Detaljer
+              </button>
+              <button class="btn small" onclick="downloadUDV('${a.id}')">
+                ⬇ Download
+              </button>
+              <button class="btn small error" onclick="deleteAssessment('${a.id}')">
+                🗑
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function viewAssessmentDetails(assessmentId) {
+  selectedAssessment = assessmentId;
+  switchTab('kompas');
+  renderCompassForAssessment(assessmentId);
+}
+
+async function deleteAssessment(assessmentId) {
+  if (!confirm('Er du sikker på du vil slette denne assessment? Dette kan ikke fortrydes.')) {
+    return;
+  }
+  
+  try {
+    const { error } = await supabase
+      .from('individual_assessments')
+      .delete()
+      .eq('id', assessmentId);
+    
+    if (error) throw error;
+    
+    await loadAssessments();
+    renderTimeline();
+    
+  } catch (error) {
+    console.error('Delete error:', error);
+    alert('Kunne ikke slette assessment');
+  }
+}
+
+// ============================================================================
+// SAMMENLIGN FUNKTIONALITET (MED RADAR OVERLAY)
+// ============================================================================
+let selectedForComparison = [];
+let comparisonChart = null;
+
+function renderCompareOptions() {
+  if (assessments.length < 2) {
+    document.getElementById('compareCheckboxes').innerHTML = '';
+    document.getElementById('emptyStateCompare').style.display = 'block';
+    document.getElementById('btnCompare').disabled = true;
+    document.getElementById('btnCompareRadar').disabled = true;
+    return;
+  }
+  
+  document.getElementById('emptyStateCompare').style.display = 'none';
+  
+  document.getElementById('compareCheckboxes').innerHTML = assessments.map(a => `
+    <label class="round-checkbox">
+      <input type="checkbox" value="${a.id}" onchange="updateCompareSelection(this)">
+      <span>${a.project_label} (${a.variant})</span>
+    </label>
+  `).join('');
+  
+  updateCompareSelection();
+}
+
+function updateCompareSelection(checkbox) {
+  if (checkbox) {
+    if (checkbox.checked) {
+      if (selectedForComparison.length < 4) {
+        selectedForComparison.push(checkbox.value);
+      } else {
+        checkbox.checked = false;
+        alert('Du kan maksimalt sammenligne 4 assessments');
+      }
+    } else {
+      selectedForComparison = selectedForComparison.filter(id => id !== checkbox.value);
+    }
+  }
+  
+  document.getElementById('btnCompare').disabled = selectedForComparison.length < 2;
+  document.getElementById('btnCompare').textContent = `📊 Vis Tabel (${selectedForComparison.length})`;
+  
+  document.getElementById('btnCompareRadar').disabled = selectedForComparison.length < 2;
+  document.getElementById('btnCompareRadar').textContent = `🧭 Vis Radar (${selectedForComparison.length})`;
+}
+
+async function renderComparison() {
+  const container = document.getElementById('comparisonResult');
+  
+  if (selectedForComparison.length < 2) {
+    container.innerHTML = '<div class="alert warning">Vælg mindst 2 assessments</div>';
+    return;
+  }
+  
+  try {
+    // Hent scores for alle valgte assessments
+    const { data: scores, error } = await supabase
+      .from('individual_compass_scores')
+      .select('*')
+      .in('assessment_id', selectedForComparison);
+    
+    if (error) throw error;
+    
+    const assessmentLabels = selectedForComparison.map(id => {
+      const a = assessments.find(x => x.id === id);
+      return { id, label: a?.project_label || 'Ukendt' };
+    });
+    
+    // Grupper data
+    const categories = [...new Set(scores.map(s => s.category_name))];
+    const respondentTypes = ['self', 'peer', 'leader'];
+    
+    let html = '<div class="compass-container">';
+    html += '<h3 style="margin-bottom:20px">📊 Sammenligning - Tabelvisning</h3>';
+    
+    respondentTypes.forEach(type => {
+      const typeLabel = type === 'self' ? '👤 Selv' : type === 'peer' ? '👥 Kolleger' : '👔 Leder';
+      const typeScores = scores.filter(s => s.respondent_type === type);
+      
+      if (typeScores.length === 0) return;
+      
+      html += `<h4 style="margin-top:25px;margin-bottom:15px;color:var(--brand)">${typeLabel}</h4>`;
+      html += '<table style="width:100%;border-collapse:collapse;font-size:0.95em">';
+      html += '<thead><tr style="background:var(--surface)"><th style="padding:10px;text-align:left">Kategori</th>';
+      
+      assessmentLabels.forEach(a => {
+        html += `<th style="padding:10px;text-align:center">${a.label}</th>`;
+      });
+      
+      html += '<th style="padding:10px;text-align:center">Ændring</th></tr></thead><tbody>';
+      
+      categories.forEach((cat, idx) => {
+        html += `<tr style="border-bottom:1px solid var(--line);background:${idx % 2 === 0 ? '#fff' : 'var(--surface)'}">`;
+        html += `<td style="padding:10px">${cat}</td>`;
+        
+        const values = assessmentLabels.map(a => {
+          const score = typeScores.find(s => s.assessment_id === a.id && s.category_name === cat);
+          return score ? parseFloat(score.score_numeric) : 0;
+        });
+        
+        values.forEach(v => {
+          html += `<td style="padding:10px;text-align:center;font-weight:600">${v > 0 ? v.toFixed(2) : '-'}</td>`;
+        });
+        
+        // Ændring
+        const delta = values[values.length - 1] - values[0];
+        const arrow = delta > 0 ? '▲' : delta < 0 ? '▼' : '━';
+        const color = delta > 0 ? 'var(--success)' : delta < 0 ? 'var(--error)' : 'var(--muted)';
+        
+        html += `<td style="padding:10px;text-align:center;color:${color};font-weight:700">${arrow} ${Math.abs(delta).toFixed(2)}</td>`;
+        html += '</tr>';
+      });
+      
+      html += '</tbody></table>';
+    });
+    
+    html += '<div style="margin-top:25px">';
+    html += '<button class="btn primary" onclick="downloadComparisonPDF()">📥 Download Sammenligning PDF</button>';
+    html += '<button class="btn" onclick="exportComparisonCSV()" style="margin-left:10px">📊 Eksporter CSV</button>';
+    html += '</div>';
+    
+    html += '</div>';
+    
+    container.innerHTML = html;
+    
+  } catch (error) {
+    console.error('Comparison error:', error);
+    container.innerHTML = '<div class="alert error">Kunne ikke sammenligne assessments</div>';
+  }
+}
+
+async function renderComparisonRadar() {
+  const container = document.getElementById('comparisonResult');
+  
+  if (selectedForComparison.length < 2) {
+    container.innerHTML = '<div class="alert warning">Vælg mindst 2 assessments</div>';
+    return;
+  }
+  
+  try {
+    // Hent scores
+    const { data: scores, error } = await supabase
+      .from('individual_compass_scores')
+      .select('*')
+      .in('assessment_id', selectedForComparison);
+    
+    if (error) throw error;
+    
+    // Respondent type selector
+    let html = '<div class="compass-container">';
+    html += '<h3 style="margin-bottom:20px">🧭 Sammenligning - Radar Overlay</h3>';
+    
+    html += '<div style="margin-bottom:20px">';
+    html += '<label style="font-weight:600;display:block;margin-bottom:8px">Vælg respondent type:</label>';
+    html += '<select id="comparisonRespondentType" class="input" onchange="updateComparisonRadar()" style="max-width:300px">';
+    html += '<option value="self">👤 Selv</option>';
+    html += '<option value="peer">👥 Kolleger</option>';
+    html += '<option value="leader">👔 Leder</option>';
+    html += '</select>';
+    html += '</div>';
+    
+    html += '<div style="max-width:700px;margin:0 auto">';
+    html += '<canvas id="comparisonRadarChart" style="max-height:500px"></canvas>';
+    html += '</div>';
+    
+    html += '<div style="margin-top:25px">';
+    html += '<button class="btn primary" onclick="downloadComparisonPDF()">📥 Download Sammenligning PDF</button>';
+    html += '<button class="btn" onclick="exportComparisonCSV()" style="margin-left:10px">📊 Eksporter CSV</button>';
+    html += '</div>';
+    
+    html += '</div>';
+    
+    container.innerHTML = html;
+    
+    // Render initial chart
+    updateComparisonRadar();
+    
+  } catch (error) {
+    console.error('Comparison radar error:', error);
+    container.innerHTML = '<div class="alert error">Kunne ikke oprette radar sammenligning</div>';
+  }
+}
+
+async function updateComparisonRadar() {
+  const select = document.getElementById('comparisonRespondentType');
+  if (!select) return;
+  
+  const respondentType = select.value;
+  
+  try {
+    // Hent scores
+    const { data: scores, error } = await supabase
+      .from('individual_compass_scores')
+      .select('*')
+      .in('assessment_id', selectedForComparison)
+      .eq('respondent_type', respondentType);
+    
+    if (error) throw error;
+    
+    // Organiser data
+    const categories = Array.from(new Set(scores.map(s => s.category_name)));
+    const colors = ['#667eea', '#48bb78', '#ed8936', '#f56565'];
+    
+    const datasets = selectedForComparison.map((assessmentId, idx) => {
+      const assessment = assessments.find(a => a.id === assessmentId);
+      const assessmentScores = scores.filter(s => s.assessment_id === assessmentId);
+      
+      return {
+        label: assessment.project_label,
+        data: categories.map(cat => {
+          const score = assessmentScores.find(s => s.category_name === cat);
+          return score ? parseFloat(score.score_numeric) : null;
+        }),
+        borderColor: colors[idx % colors.length],
+        backgroundColor: colors[idx % colors.length] + '33',
+        borderWidth: 2,
+        pointRadius: 4,
+        pointHoverRadius: 6
+      };
+    });
+    
+    const ctx = document.getElementById('comparisonRadarChart');
+    
+    if (comparisonChart) {
+      comparisonChart.destroy();
+    }
+    
+    comparisonChart = new Chart(ctx, {
+      type: 'radar',
+      data: {
+        labels: categories,
+        datasets: datasets
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        scales: {
+          r: {
+            beginAtZero: true,
+            min: 0,
+            max: 5,
+            ticks: {
+              stepSize: 1
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              padding: 15,
+              font: {
+                size: 13,
+                weight: '600'
+              }
+            }
+          },
+          title: {
+            display: true,
+            text: `Sammenligning - ${respondentType === 'self' ? 'Selv' : respondentType === 'peer' ? 'Kolleger' : 'Leder'}`,
+            font: {
+              size: 18,
+              weight: 'bold'
+            }
+          }
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('Update comparison radar error:', error);
+  }
+}
+
+async function downloadComparisonPDF() {
+  alert('PDF download af sammenligning implementeres (samme princip som kompas PDF)');
+}
+
+function exportComparisonCSV() {
+  alert('CSV eksport implementeres');
+}
+
+// ============================================================================
+// PROFIL INFO
+// ============================================================================
+async function renderProfileInfo() {
+  try {
+    // Hent bruger data
+    const { data: userData } = await supabase.auth.getUser();
+    const { data: profile } = await supabase
+      .from('individual_users')
+      .select('*')
+      .eq('email', userData.user.email)
+      .single();
+    
+    if (!profile) return;
+    
+    document.getElementById('profileMA').textContent = profile.ma;
+    document.getElementById('profileEmail').textContent = profile.email;
+    document.getElementById('profileCreated').textContent = 
+      new Date(profile.created_at).toLocaleDateString('da-DK');
+    document.getElementById('profileLastLogin').textContent = 
+      profile.last_login_at 
+        ? new Date(profile.last_login_at).toLocaleDateString('da-DK')
+        : 'Aldrig';
+    
+    // Statistik
+    document.getElementById('statsCount').textContent = assessments.length;
+    
+    if (assessments.length > 0) {
+      const sorted = [...assessments].sort((a, b) => 
+        new Date(a.published_at) - new Date(b.published_at)
+      );
+      document.getElementById('statsFirst').textContent = 
+        new Date(sorted[0].published_at).toLocaleDateString('da-DK');
+      document.getElementById('statsLast').textContent = 
+        new Date(sorted[sorted.length - 1].published_at).toLocaleDateString('da-DK');
+    }
+    
+  } catch (error) {
+    console.error('Profile error:', error);
+  }
+}
+
+function initiatePasswordChange() {
+  alert('Skift adgangskode funktionalitet implementeres. Brug "Glemt adgangskode" på login siden.');
+}
+
+async function downloadAllData() {
+  try {
+    if (assessments.length === 0) {
+      alert('Ingen data at downloade');
+      return;
+    }
+    
+    const zip = new JSZip();
+    
+    assessments.forEach(a => {
+      const filename = `${a.project_label}_${a.variant}.json`;
+      zip.file(filename, JSON.stringify(a.udv_json, null, 2));
+    });
+    
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `MinUdvikling_${userMA}_Alle_Data.zip`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+  } catch (error) {
+    console.error('Download error:', error);
+    alert('Kunne ikke downloade data');
+  }
+}
+
+// ============================================================================
+// DATA LOADING
+// ============================================================================
+async function loadAssessments() {
+  try {
+    const { data, error } = await supabase
+      .from('individual_assessment_rounds')
+      .select('*')
+      .eq('ma', userMA)
+      .order('published_at', { ascending: false });
+    
+    if (error) throw error;
+    
+    assessments = data || [];
+    
+  } catch (error) {
+    console.error('Load assessments error:', error);
+    assessments = [];
+  }
+}
+
+// ============================================================================
+// DASHBOARD RENDERING
+// ============================================================================
+function renderDashboard() {
+  // Stats
+  document.getElementById('statsAssessments').textContent = assessments.length;
+  
+  const contractsCount = assessments.filter(a => a.development_contract).length;
+  document.getElementById('statsContracts').textContent = contractsCount;
+  
+  // Filer tælles senere når vi implementerer artifacts
+  document.getElementById('statsFiles').textContent = assessments.length; // Placeholder
+  
+  // Seneste kontrakt
+  const latestWithContract = assessments.find(a => a.development_contract);
+  const contractContainer = document.getElementById('latestContractContainer');
+  
+  if (latestWithContract) {
+    contractContainer.innerHTML = `
+      <div class="card">
+        <div class="card-title">${esc(latestWithContract.project_label)}</div>
+        <div class="card-meta">Udgivet ${new Date(latestWithContract.published_at).toLocaleDateString('da-DK')}</div>
+        <div class="card-actions">
+          <button class="btn primary small" onclick="viewContract('${latestWithContract.id}')">Se kontrakt</button>
+          <button class="btn small" onclick="downloadContract('${latestWithContract.id}')">Download PDF</button>
+        </div>
+      </div>
+    `;
+  } else {
+    contractContainer.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">📋</div>
+        <div class="empty-title">Ingen udviklingskontrakt endnu</div>
+        <div class="empty-text">Din kontrakt vil blive vist her når den er udgivet</div>
+      </div>
+    `;
+  }
+  
+  // Assessments liste
+  const assessmentsList = document.getElementById('assessmentsList');
+  
+  if (assessments.length === 0) {
+    assessmentsList.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">📊</div>
+        <div class="empty-title">Ingen evalueringer endnu</div>
+        <div class="empty-text">Dine evalueringsresultater vil blive vist her når de er udgivet</div>
+      </div>
+    `;
+  } else {
+    assessmentsList.innerHTML = assessments.map(a => `
+      <div class="card">
+        <div class="card-title">${a.project_label}</div>
+        <div class="card-meta">
+          ${a.variant} • Udgivet ${new Date(a.published_at).toLocaleDateString('da-DK')}
+        </div>
+        <div class="card-actions">
+          <button class="btn primary small" onclick="viewCompass('${a.id}')">Se Kompas</button>
+          <button class="btn small" onclick="downloadUDV('${a.id}')">Download .UDV</button>
+        </div>
+      </div>
+    `).join('');
+  }
+}
+
+// ============================================================================
+// KOMPAS VISUALIZATION
+// ============================================================================
+function initializeCompassTab() {
+  // Populate assessment dropdown
+  const select = document.getElementById('compassAssessmentSelect');
+  
+  if (assessments.length === 0) {
+    document.getElementById('compassEmptyState').style.display = 'block';
+    document.getElementById('compassRespondentControls').style.display = 'none';
+    document.getElementById('compassChartContainer').style.display = 'none';
+    document.getElementById('compassActions').style.display = 'none';
+    return;
+  }
+  
+  document.getElementById('compassEmptyState').style.display = 'none';
+  
+  select.innerHTML = '<option value="">-- Vælg en assessment --</option>' +
+    assessments.map(a => `<option value="${a.id}">${a.project_label} (${a.variant})</option>`).join('');
+  
+  // Auto-select første
+  if (assessments.length > 0) {
+    select.value = assessments[0].id;
+    loadCompassForAssessment();
+  }
+}
+
+async function loadCompassForAssessment() {
+  const select = document.getElementById('compassAssessmentSelect');
+  const assessmentId = select.value;
+  
+  if (!assessmentId) {
+    document.getElementById('compassRespondentControls').style.display = 'none';
+    document.getElementById('compassChartContainer').style.display = 'none';
+    document.getElementById('compassActions').style.display = 'none';
+    return;
+  }
+  
+  currentCompassAssessment = assessmentId;
+  
+  try {
+    // Hent scores for valgt assessment
+    const { data: scores, error } = await supabase
+      .from('individual_compass_scores')
+      .select('*')
+      .eq('assessment_id', assessmentId);
+    
+    if (error) throw error;
+    
+    currentCompassScores = scores || [];
+    
+    // Vis controls og chart
+    document.getElementById('compassRespondentControls').style.display = 'flex';
+    document.getElementById('compassChartContainer').style.display = 'block';
+    document.getElementById('compassActions').style.display = 'flex';
+    
+    // Render chart
+    updateCompassChart();
+    
+  } catch (error) {
+    console.error('Fejl ved indlæsning af kompas data:', error);
+    alert('Kunne ikke indlæse kompas data');
+  }
+}
+
+function updateCompassChart() {
+  if (!currentCompassAssessment || currentCompassScores.length === 0) {
+    return;
+  }
+  
+  // Check hvilke respondent typer er valgt
+  const showSelf = document.getElementById('cbSelf').checked;
+  const showPeer = document.getElementById('cbPeer').checked;
+  const showLeader = document.getElementById('cbLeader').checked;
+  
+  // Find unikke kategorier
+  const categories = [...new Set(currentCompassScores.map(s => s.category_name))];
+  
+  // Opbyg datasets
+  const datasets = [];
+  const colors = {
+    self: { border: '#667eea', bg: 'rgba(102, 126, 234, 0.2)' },
+    peer: { border: '#48bb78', bg: 'rgba(72, 187, 120, 0.2)' },
+    leader: { border: '#ed8936', bg: 'rgba(237, 137, 54, 0.2)' }
+  };
+  const labels = {
+    self: '👤 Selv',
+    peer: '👥 Kolleger',
+    leader: '👔 Leder'
+  };
+  
+  ['self', 'peer', 'leader'].forEach(type => {
+    if ((type === 'self' && showSelf) || 
+        (type === 'peer' && showPeer) || 
+        (type === 'leader' && showLeader)) {
+      
+      const typeScores = currentCompassScores.filter(s => s.respondent_type === type);
+      
+      if (typeScores.length > 0) {
+        datasets.push({
+          label: labels[type],
+          data: categories.map(cat => {
+            const score = typeScores.find(s => s.category_name === cat);
+            return score ? parseFloat(score.score_numeric) : null;
+          }),
+          borderColor: colors[type].border,
+          backgroundColor: colors[type].bg,
+          borderWidth: 2,
+          pointRadius: 4,
+          pointHoverRadius: 6
+        });
+      }
+    }
+  });
+  
+  // Opdater eller opret chart
+  const ctx = document.getElementById('compassChart');
+  
+  if (compassChart) {
+    compassChart.destroy();
+  }
+  
+  if (datasets.length === 0) {
+    ctx.parentElement.innerHTML = '<div class="alert warning">Vælg mindst én respondent type</div><canvas id="compassChart" style="max-height:500px"></canvas>';
+    return;
+  }
+  
+  compassChart = new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels: categories,
+      datasets: datasets
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      scales: {
+        r: {
+          beginAtZero: true,
+          min: 0,
+          max: 5,
+          ticks: {
+            stepSize: 1,
+            callback: function(value) {
+              return value.toFixed(0);
+            }
+          },
+          pointLabels: {
+            font: {
+              size: 12,
+              weight: '600'
+            }
+          }
+        }
+      },
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            padding: 15,
+            font: {
+              size: 13,
+              weight: '600'
+            }
+          }
+        },
+        title: {
+          display: true,
+          text: `Kompas - ${assessments.find(a => a.id === currentCompassAssessment)?.project_label || ''}`,
+          font: {
+            size: 18,
+            weight: 'bold'
+          },
+          padding: 20
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return `${context.dataset.label}: ${context.parsed.r.toFixed(2)}`;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+async function downloadCompassPDF() {
+  if (!compassChart) {
+    alert('Ingen graf at downloade');
+    return;
+  }
+  
+  try {
+    const assessment = assessments.find(a => a.id === currentCompassAssessment);
+    
+    // Opret PDF container
+    const container = document.createElement('div');
+    container.style.width = '800px';
+    container.style.padding = '40px';
+    container.style.background = '#fff';
+    container.innerHTML = `
+      <h1 style="color:#667eea;margin-bottom:10px">🧭 KOMPAS - Kompetenceprofil</h1>
+      <h2 style="color:#666;margin-bottom:30px">${assessment.project_label} (${assessment.variant})</h2>
+      <p style="margin-bottom:20px;color:#555">Medarbejdernummer: ${userMA}</p>
+      <div id="chartForPdf" style="width:700px;height:500px;margin:20px auto"></div>
+      <div style="margin-top:30px;padding:20px;background:#f8fafc;border-radius:10px">
+        <h3 style="margin-bottom:15px;color:#667eea">📊 Kategorier og scores</h3>
+        <div id="scoresTable"></div>
+      </div>
+      <div style="margin-top:30px;padding:15px;background:#e6fffa;border-radius:10px;font-size:0.9em;color:#234e52">
+        <strong>Note:</strong> Dette er et øjebliksbillede af dine kompetencer baseret på feedback fra dig selv, kolleger og leder.
+      </div>
+    `;
+    
+    // Tilføj scores tabel
+    const categories = [...new Set(currentCompassScores.map(s => s.category_name))];
+    let tableHtml = '<table style="width:100%;border-collapse:collapse;font-size:0.95em">';
+    tableHtml += '<thead><tr style="background:#667eea;color:#fff"><th style="padding:10px;text-align:left">Kategori</th>';
+    tableHtml += '<th style="padding:10px;text-align:center">Selv</th>';
+    tableHtml += '<th style="padding:10px;text-align:center">Kolleger</th>';
+    tableHtml += '<th style="padding:10px;text-align:center">Leder</th></tr></thead><tbody>';
+    
+    categories.forEach((cat, idx) => {
+      const selfScore = currentCompassScores.find(s => s.category_name === cat && s.respondent_type === 'self');
+      const peerScore = currentCompassScores.find(s => s.category_name === cat && s.respondent_type === 'peer');
+      const leaderScore = currentCompassScores.find(s => s.category_name === cat && s.respondent_type === 'leader');
+      
+      tableHtml += `<tr style="border-bottom:1px solid #e2e8f0;background:${idx % 2 === 0 ? '#fff' : '#f8fafc'}">`;
+      tableHtml += `<td style="padding:10px">${cat}</td>`;
+      tableHtml += `<td style="padding:10px;text-align:center;font-weight:600">${selfScore ? parseFloat(selfScore.score_numeric).toFixed(2) : '-'}</td>`;
+      tableHtml += `<td style="padding:10px;text-align:center;font-weight:600">${peerScore ? parseFloat(peerScore.score_numeric).toFixed(2) : '-'}</td>`;
+      tableHtml += `<td style="padding:10px;text-align:center;font-weight:600">${leaderScore ? parseFloat(leaderScore.score_numeric).toFixed(2) : '-'}</td>`;
+      tableHtml += '</tr>';
+    });
+    
+    tableHtml += '</tbody></table>';
+    container.querySelector('#scoresTable').innerHTML = tableHtml;
+    
+    document.body.appendChild(container);
+    
+    // Render chart til PDF container
+    const pdfCanvas = document.createElement('canvas');
+    pdfCanvas.width = 700;
+    pdfCanvas.height = 500;
+    document.getElementById('chartForPdf').appendChild(pdfCanvas);
+    
+    const pdfChart = new Chart(pdfCanvas, {
+      type: 'radar',
+      data: compassChart.data,
+      options: compassChart.options
+    });
+    
+    // Vent på chart render
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Generer PDF
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      backgroundColor: '#ffffff'
+    });
+    
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
+    const imgWidth = 210;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    
+    pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+    pdf.save(`Kompas_${userMA}_${assessment.project_label}.pdf`);
+    
+    // Cleanup
+    pdfChart.destroy();
+    document.body.removeChild(container);
+    
+  } catch (error) {
+    console.error('PDF generation error:', error);
+    alert('Kunne ikke generere PDF');
+  }
+}
+
+function exportCompassData() {
+  if (currentCompassScores.length === 0) {
+    alert('Ingen data at eksportere');
+    return;
+  }
+  
+  const assessment = assessments.find(a => a.id === currentCompassAssessment);
+  
+  // CSV format
+  let csv = 'Kategori,Selv,Kolleger,Leder\n';
+  
+  const categories = [...new Set(currentCompassScores.map(s => s.category_name))];
+  categories.forEach(cat => {
+    const selfScore = currentCompassScores.find(s => s.category_name === cat && s.respondent_type === 'self');
+    const peerScore = currentCompassScores.find(s => s.category_name === cat && s.respondent_type === 'peer');
+    const leaderScore = currentCompassScores.find(s => s.category_name === cat && s.respondent_type === 'leader');
+    
+    csv += `"${cat}",`;
+    csv += `${selfScore ? parseFloat(selfScore.score_numeric).toFixed(2) : ''},`;
+    csv += `${peerScore ? parseFloat(peerScore.score_numeric).toFixed(2) : ''},`;
+    csv += `${leaderScore ? parseFloat(leaderScore.score_numeric).toFixed(2) : ''}\n`;
+  });
+  
+  // Download
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Kompas_Data_${userMA}_${assessment.project_label}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ============================================================================
+// FILE UPLOAD (SELF-IMPORT)
+// ============================================================================
+function setupUploadZone() {
+  const zone = document.getElementById('udvFileInput');
+  const uploadZone = document.querySelector('.upload-zone');
+  
+  if (!zone || !uploadZone) return;
+  
+  // File input change
+  zone.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) handleUDVUpload(file);
+  });
+  
+  // Drag and drop
+  uploadZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadZone.classList.add('dragging');
+  });
+  
+  uploadZone.addEventListener('dragleave', () => {
+    uploadZone.classList.remove('dragging');
+  });
+  
+  uploadZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadZone.classList.remove('dragging');
+    
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      zone.files = e.dataTransfer.files;
+      handleUDVUpload(file);
+    }
+  });
+}
+
+// ============================================================================
+// FILES LIST
+// ============================================================================
+function renderFilesList() {
+  const list = document.getElementById('filesList');
+  
+  if (assessments.length === 0) {
+    list.innerHTML = `
+      <li class="empty-state">
+        <div class="empty-icon">📁</div>
+        <div class="empty-title">Ingen filer endnu</div>
+      </li>
+    `;
+    return;
+  }
+  
+  list.innerHTML = assessments.map(a => `
+    <li class="file-item">
+      <div class="file-info">
+        <div class="file-name">${a.project_label}.udv</div>
+        <div class="file-meta">Udgivet ${new Date(a.published_at).toLocaleDateString('da-DK')}</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn small" onclick="downloadUDV('${a.id}')">Download</button>
+      </div>
+    </li>
+  `).join('');
+}
+
+// ============================================================================
+// DOWNLOAD FUNKTIONER
+// ============================================================================
+async function downloadUDV(assessmentId) {
+  try {
+    const assessment = assessments.find(a => a.id === assessmentId);
+    if (!assessment) return;
+    
+    const udvData = assessment.udv_json;
+    const filename = `${userMA}.${assessment.project_label}.udv`;
+    
+    const blob = new Blob([JSON.stringify(udvData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+  } catch (error) {
+    console.error('Download fejl:', error);
+    alert('Kunne ikke downloade fil');
+  }
+}
+
+async function downloadCompassPDF() {
+  alert('PDF download funktionalitet implementeres');
+  // TODO: Generer PDF med jsPDF + html2canvas (samme som admin.html)
+}
+
+async function downloadContract(assessmentId) {
+  alert('Kontrakt PDF download implementeres');
+  // TODO: Generer kontrakt PDF
+}
+
+// ============================================================================
+// KONTO ADMINISTRATION
+// ============================================================================
+function showConsentModal() {
+  document.getElementById('consentModal').classList.add('active');
+}
+
+function closeConsentModal() {
+  document.getElementById('consentModal').classList.remove('active');
+}
+
+async function acceptConsent() {
+  try {
+    const { error } = await supabase
+      .from('individual_users')
+      .update({ consent_at: new Date().toISOString() })
+      .eq('ma', userMA);
+    
+    if (error) throw error;
+    
+    document.getElementById('consentStatus').innerHTML = `<div class="alert success">✓ Accepteret lige nu</div>`;
+    closeConsentModal();
+    
+  } catch (error) {
+    console.error('Fejl ved opdatering af samtykke:', error);
+    alert('Kunne ikke gemme samtykke');
+  }
+}
+
+function initiateAccountDeletion() {
+  document.getElementById('deleteModal').classList.add('active');
+}
+
+function closeDeleteModal() {
+  document.getElementById('deleteModal').classList.remove('active');
+}
+
+async function downloadDataBeforeDelete() {
+  try {
+    // Hent alle data
+    const response = await fetch(`${API_BASE_URL}/api/minudvikling/export-zip/${userMA}`);
+    const result = await response.json();
+    
+    if (result.files && result.files.length > 0) {
+      // Opret ZIP
+      const zip = new JSZip();
+      
+      for (const file of result.files) {
+        if (file.type === 'udv') {
+          zip.file(file.filename, JSON.stringify(file.content, null, 2));
+        }
+      }
+      
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `MinUdvikling_${userMA}_Export.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      alert('Dine data er downloadet. Du kan nu fortsætte med sletningen hvis du ønsker det.');
+    } else {
+      alert('Ingen data at downloade');
+    }
+    
+  } catch (error) {
+    console.error('Download fejl:', error);
+    alert('Kunne ikke downloade data');
+  }
+}
+
+async function confirmAccountDeletion() {
+  const confirm = prompt('Skriv "SLET" for at bekræfte (stort bogstaver):');
+  
+  if (confirm !== 'SLET') {
+    alert('Sletning annulleret');
+    return;
+  }
+  
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/minudvikling/delete-account/${userMA}`, {
+      method: 'DELETE'
+    });
+    
+    const result = await response.json();
+    
+    if (result.status === 'deleted') {
+      // Log bruger ud af Supabase
+      await supabase.auth.signOut();
+      
+      alert('Din konto er blevet slettet. Du vil nu blive logget ud.');
+      window.location.href = 'login.html';
+    } else {
+      throw new Error(result.message || 'Sletning fejlede');
+    }
+    
+  } catch (error) {
+    console.error('Sletning fejl:', error);
+    alert('Kunne ikke slette konto: ' + error.message);
+  }
+}
+
+async function handleLogout() {
+  await supabase.auth.signOut();
+  window.location.href = 'login.html';
+}
+
+// ============================================================================
+// UDVIKLINGSKONTRAKT
+// ============================================================================
+// SIKKER ESCAPE til alt der indsættes i template-strings/innerHTML
+function esc(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/<\/script/gi, '<\\/script')  // forhindrer at inline <script> lukkes
+    .replace(/<\/style/gi, '<\\/style');
+}
+function initializeContractTab() {
+  // Populate assessment dropdown
+  const select = document.getElementById('contractAssessmentSelect');
+  
+  const assessmentsWithContract = assessments.filter(a => a.development_contract);
+  
+  if (assessmentsWithContract.length === 0) {
+    document.getElementById('contractEmptyState').style.display = 'block';
+    document.getElementById('contractContent').innerHTML = '';
+    document.getElementById('contractActions').style.display = 'none';
+    return;
+  }
+  
+  document.getElementById('contractEmptyState').style.display = 'none';
+  
+  select.innerHTML = '<option value="">-- Vælg en assessment --</option>' +
+    assessmentsWithContract.map(a => `<option value="${a.id}">${a.project_label} (${a.variant})</option>`).join('');
+  
+  // Auto-select første
+  if (assessmentsWithContract.length > 0) {
+    select.value = assessmentsWithContract[0].id;
+    loadContractForAssessment();
+  }
+}
+
+function loadContractForAssessment() {
+  const select = document.getElementById('contractAssessmentSelect');
+  const assessmentId = select.value;
+  
+  if (!assessmentId) {
+    document.getElementById('contractContent').innerHTML = '';
+    document.getElementById('contractActions').style.display = 'none';
+    return;
+  }
+  
+  currentContractAssessment = assessmentId;
+  const assessment = assessments.find(a => a.id === assessmentId);
+  
+  if (!assessment || !assessment.development_contract) {
+    document.getElementById('contractContent').innerHTML = '<div class="alert warning">Ingen udviklingskontrakt for denne assessment</div>';
+    document.getElementById('contractActions').style.display = 'none';
+    return;
+  }
+  
+  const contract = assessment.development_contract;
+  
+  let html = `
+    <div id="contractPrintable" style="background:#fff;padding:30px;border-radius:12px;border:1px solid var(--line)">
+      <div style="text-align:center;margin-bottom:30px;padding-bottom:20px;border-bottom:2px solid var(--brand)">
+        <h2 style="color:var(--brand);margin-bottom:10px">📋 UDVIKLINGSKONTRAKT</h2>
+        <div style="font-size:1.1em;color:#666">${esc(assessment.project_label)}</div>
+        <div style="margin-top:10px;color:#888">Medarbejdernummer: ${esc(userMA)}</div>
+        <div style="margin-top:5px;color:#888">Udgivet: ${esc(new Date(assessment.published_at).toLocaleDateString('da-DK'))}</div>
+      </div>
+`;
+  
+  // Mål
+  if (contract.goals && contract.goals.length > 0) {
+    html += '<div style="margin-bottom:30px">';
+    html += '<h3 style="color:var(--brand);margin-bottom:15px;display:flex;align-items:center;gap:8px"><span>🎯</span> Udviklingsmål</h3>';
+    
+    contract.goals.forEach((goal, idx) => {
+      const statusColor = goal.status === 'completed' ? 'var(--success)' : 
+                         goal.status === 'in_progress' ? 'var(--info)' : 
+                         'var(--muted)';
+      const statusLabel = goal.status === 'completed' ? '✓ Afsluttet' : 
+                         goal.status === 'in_progress' ? '⟳ I gang' : 
+                         '○ Ikke startet';
+      
+      html += `
+        <div class="card" style="margin-bottom:15px">
+          <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px">
+            <div style="font-weight:700;font-size:1.05em">${idx + 1}. ${esc(goal.title)}</div>
+            <div style="color:${statusColor};font-size:0.85em;font-weight:600;padding:4px 10px;background:var(--surface);border-radius:6px">${statusLabel}</div>
+          </div>
+          <div style="color:#666;margin-bottom:12px;line-height:1.6">${esc(goal.description || '')}</div>
+          ${goal.focus_areas && goal.focus_areas.length > 0 ? `
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+              ${goal.focus_areas.map(area => `<span style="background:var(--surface);padding:4px 10px;border-radius:6px;font-size:0.85em">${esc(area)}</span>`).join('')}
+            </div>
+          ` : ''}
+          ${goal.deadline ? `
+            <div style="color:#888;font-size:0.9em">📅 Deadline: ${new Date(goal.deadline).toLocaleDateString('da-DK')}</div>
+          ` : ''}
+        </div>
+      `;
+    });
+    
+    html += '</div>';
+  }
+  
+  // Handlingsplan
+  if (contract.action_items && contract.action_items.length > 0) {
+    html += '<div style="margin-bottom:30px">';
+    html += '<h3 style="color:var(--brand);margin-bottom:15px;display:flex;align-items:center;gap:8px"><span>✓</span> Handlingsplan</h3>';
+    
+    // Grupper efter mål
+    const itemsByGoal = {};
+    contract.action_items.forEach(item => {
+      const goalId = item.goal_id || 'other';
+      if (!itemsByGoal[goalId]) itemsByGoal[goalId] = [];
+      itemsByGoal[goalId].push(item);
+    });
+    
+    Object.entries(itemsByGoal).forEach(([goalId, items]) => {
+      const goal = contract.goals?.find(g => g.id === goalId);
+      
+      if (goal) {
+        html += `<div style="margin-bottom:20px">`;
+        html += `<div style="font-weight:600;margin-bottom:10px;color:#555">Handlinger for: ${goal.title}</div>`;
+      }
+      
+      html += '<div style="background:var(--surface);padding:15px;border-radius:10px">';
+      items.forEach(item => {
+        const completed = item.completed ? 'checked' : '';
+        const textStyle = item.completed ? 'text-decoration:line-through;color:#888' : '';
+        
+        html += `
+          <div style="display:flex;align-items:start;gap:10px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #e2e8f0">
+            <input type="checkbox" ${completed} disabled style="margin-top:4px">
+            <div style="flex:1">
+              <div style="${textStyle}">${esc(item.action)}</div>
+              ${item.deadline ? `<div style="color:#888;font-size:0.85em;margin-top:4px">⏰ ${esc(new Date(item.deadline).toLocaleDateString('da-DK'))}</div>` : ''}
+            </div>
+          </div>
+        `;
+      });
+      html += '</div>';
+      
+      if (goal) html += '</div>';
+    });
+    
+    html += '</div>';
+  }
+  
+  // Noter
+  if (contract.notes) {
+    html += `
+      <div style="background:#fffbeb;border-left:4px solid #f59e0b;padding:20px;border-radius:8px;margin-bottom:20px">
+        <h4 style="color:#92400e;margin-bottom:10px">📝 Noter</h4>
+        <div style="color:#78350f;line-height:1.6">${esc(contract.notes)}</div>
+      </div>
+    `;
+  }
+
+  
+  html += '</div>';
+  
+  document.getElementById('contractContent').innerHTML = html;
+  document.getElementById('contractActions').style.display = 'flex';
+}
+
+async function downloadContractPDF() {
+  if (!currentContractAssessment) {
+    alert('Ingen kontrakt valgt');
+    return;
+  }
+  
+  try {
+    const container = document.getElementById('contractPrintable');
+    
+    if (!container) {
+      alert('Kunne ikke finde kontrakt indhold');
+      return;
+    }
+    
+    const assessment = assessments.find(a => a.id === currentContractAssessment);
+    
+    // Generer PDF
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      backgroundColor: '#ffffff',
+      logging: false
+    });
+    
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
+    
+    const imgWidth = 210;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    
+    let heightLeft = imgHeight;
+    let position = 0;
+    
+    // Første side
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+    heightLeft -= 297;
+    
+    // Flere sider hvis nødvendigt
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= 297;
+    }
+    
+    pdf.save(`Udviklingskontrakt_${userMA}_${assessment.project_label}.pdf`);
+    
+  } catch (error) {
+    console.error('PDF generation error:', error);
+    alert('Kunne ikke generere PDF');
+  }
+}
+
+function printContract() {
+  if (!currentContractAssessment) {
+    alert('Ingen kontrakt valgt');
+    return;
+  }
+  
+  const container = document.getElementById('contractPrintable');
+  
+  if (!container) {
+    alert('Kunne ikke finde kontrakt indhold');
+    return;
+  }
+
+  try {
+    // Klon indholdet for at undgå at påvirke den originale HTML
+    const clonedContent = container.cloneNode(true);
+    const safeHtml = clonedContent.innerHTML;
+    
+    // Åbn print dialog
+    const printWindow = window.open('', '', 'height=800,width=800');
+    if (!printWindow) {
+      alert('Kunne ikke åbne print vindue. Tjek om pop-up er blokeret.');
+      return;
+    }
+    
+    printWindow.document.write('<!DOCTYPE html>');
+    printWindow.document.write('<html><head>');
+    printWindow.document.write('<meta charset="utf-8">');
+    printWindow.document.write('<title>Udviklingskontrakt</title>');
+    printWindow.document.write('<style>body{font-family:Arial,sans-serif;padding:20px;line-height:1.6;}</style>');
+    printWindow.document.write('</head><body>');
+    printWindow.document.write(safeHtml);
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+    
+    // Vent på at indholdet er loadet før print
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
+  } catch (error) {
+    console.error('Print fejl:', error);
+    alert('Kunne ikke udskrive kontrakt: ' + error.message);
+  }
+}
+// ============================================================================
+// VIEW FUNKTIONER
+// ============================================================================
+function viewContract(assessmentId) {
+  switchTab('kontrakt');
+  setTimeout(() => {
+    const select = document.getElementById('contractAssessmentSelect');
+    select.value = assessmentId;
+    loadContractForAssessment();
+  }, 100);
+}
+
+function viewCompass(assessmentId) {
+  switchTab('kompas');
+  setTimeout(() => {
+    const select = document.getElementById('compassAssessmentSelect');
+    select.value = assessmentId;
+    loadCompassForAssessment();
+  }, 100);
+}
+
+// ============================================================================
+// START APPLICATION
+// ============================================================================
+// Vent til DOM er klar før init
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+
+// Global error handler for at forhindre crash
+window.addEventListener('error', function(e) {
+  console.error('Global fejl fanget:', e.error);
+});
+
+window.addEventListener('unhandledrejection', function(e) {
+  console.error('Unhandled promise rejection:', e.reason);
+});
+</script>
+
+</body>
+</html>
