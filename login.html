@@ -1009,6 +1009,17 @@ $('register-form').addEventListener('submit', async (e) => {
   $('register-footer').style.display = 'none';
   
   try {
+    // Pre-check: Tjek om email allerede er registreret
+    const { data: existingProfile } = await supabase
+      .from('individual_users')
+      .select('email, ma')
+      .eq('email', email)
+      .maybeSingle();
+    
+    if (existingProfile) {
+      throw new Error('Denne email er allerede registreret som individuel bruger. Log ind i stedet.');
+    }
+    
     // Step 1: Create auth user (eller fortsæt hvis email allerede findes)
     $('register-progress-text').textContent = 'Opretter bruger.';
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
