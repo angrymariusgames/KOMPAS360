@@ -1323,12 +1323,15 @@ window.addEventListener('unhandledrejection', function(e){
 });
 window.addEventListener('error', function(e){
   const msg = (e?.message || '') + '';
+  const src = (e?.filename || '');
   if (
     msg.includes('You do not have a background page') ||
-    msg.includes('A listener indicated an asynchronous response')
+    msg.includes('A listener indicated an asynchronous response') ||
+    msg.includes('chrome-extension://') ||
+    src.startsWith('chrome-extension://')
   ) {
     e.preventDefault();
-    console.warn('[IGNORERET EXTENSION-FEJL]', msg);
+    console.warn('[IGNORERET EXTENSION-FEJL]', msg || src);
   }
 });
 
@@ -7242,7 +7245,7 @@ async function contractSaveSessionState(){
 
   try {
     sessionStorage.setItem(key, JSON.stringify(data));
-    console.log('✅ Kontrakt autosavet →', key);
+    if (window.__DEBUG_CONTRACT__) console.debug('✅ Kontrakt autosavet →', key);
   } catch(e){
     console.warn('Autosave (sessionStorage) fejlede:', e);
   }
@@ -7467,10 +7470,48 @@ async function initContractTabOnce(){
   const incTeam   = $('includeTeamRoles');
   const incColl   = $('includeColleagueSupport');
 
-  emp   && emp.addEventListener('input',  e => { contractState.employee_actions = e.target.value;  contractSetupOverview?.(); contractUpdateProgress?.(); contractSaveSessionState?.(); });
-  wish  && wish.addEventListener('input', e => { contractState.employee_wishes  = e.target.value;  contractSetupOverview?.(); contractUpdateProgress?.(); contractSaveSessionState?.(); });
-  lead  && lead.addEventListener('input', e => { contractState.leader_actions   = e.target.value;  contractSetupOverview?.(); contractUpdateProgress?.(); contractSaveSessionState?.(); });
-  follow&& follow.addEventListener('change', e => { contractState.followup_date = e.target.value || null; contractUpdateSectionStatus?.(); contractSaveSessionState?.(); });
+  /* Debounce helper (én gang i filen er nok) */
+window.__DEBUG_CONTRACT__ = window.__DEBUG_CONTRACT__ ?? false;
+const debounce = (fn, delay=800) => { let t; return (...args)=>{ clearTimeout(t); t = setTimeout(()=>fn(...args), delay); }; };
+
+const debouncedHeavyUpdate = debounce(() => {
+  contractSetupOverview?.();
+  contractUpdateProgress?.();
+  contractSaveSessionState?.();
+}, 800);
+
+if (emp && !emp.hasAttribute('data-listener-added')) {
+  emp.addEventListener('input', e => {
+    contractState.employee_actions = e.target.value;
+    contractUpdateSectionStatusLight?.();     // let opdatering
+    debouncedHeavyUpdate();                   // tungt + autosave (debounced)
+  });
+  emp.setAttribute('data-listener-added','true');
+}
+
+if (wish && !wish.hasAttribute('data-listener-added')) {
+  wish.addEventListener('input', e => {
+    contractState.employee_wishes = e.target.value;
+    contractUpdateSectionStatusLight?.();
+    debouncedHeavyUpdate();
+  });
+  wish.setAttribute('data-listener-added','true');
+}
+
+if (lead && !lead.hasAttribute('data-listener-added')) {
+  lead.addEventListener('input', e => {
+    contractState.leader_actions = e.target.value;
+    contractUpdateSectionStatusLight?.();
+    debouncedHeavyUpdate();
+  });
+  lead.setAttribute('data-listener-added','true');
+}
+
+follow && follow.addEventListener('change', e => {
+  contractState.followup_date = e.target.value || null;
+  contractUpdateSectionStatus?.();
+  contractSaveSessionState?.();               // ændres sjældent → ok uden debounce
+});
 
   inc306090 && inc306090.addEventListener('change', () => contractSaveSessionState?.());
   incTeam   && incTeam.addEventListener('change',   () => contractSaveSessionState?.());
