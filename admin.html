@@ -542,8 +542,11 @@
                       <div id="peopleControls">
                         <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
                           <button id="btnReloadPeople" class="btn small">Genindlæs</button>
-                          <input type="file" id="csvFile" accept=".csv,.txt,.tsv" style="display:none">
-                          <button id="importCsv" class="btn small">Import CSV</button>
+                          <input type="file" id="csvFile" accept=".csv,.tsv,.txt,.xlsx,.xls" style="display:none">
+                          <button id="importCsv" class="btn small" title="Upload Excel fil, med navne i Kolonne A og medarbejdernumre i kolonne B.">
+                            Upload (Excel/CSV)
+                            <span aria-hidden="true" style="margin-left:6px;display:inline-block;width:16px;height:16px;line-height:16px;text-align:center;border-radius:50%;border:1px solid var(--line);font-weight:700;font-size:11px;">i</span>
+                          </button>
                         </div>
 
                         <div style="margin-bottom:12px">
@@ -2415,37 +2418,76 @@ window.showLargeProjectQR = (url, title) => {
   }
 
   $('importCsv').onclick=()=>{ $('csvFile').click(); };
-  $('csvFile').addEventListener('change',(e)=>{
-    const f=e.target.files[0]; 
-    if(!f) return;
-    
-    Papa.parse(f,{
-      header:true,
-      complete:async (res)=>{ 
-        const rows=res.data.filter(r=>r.full_name?.trim()); 
-        if(rows.length === 0) return alert('Ingen gyldige rækker fundet i CSV');
-        
-        if (currentEditProject) {
-          // Existing project - save directly to database
-          const payload=rows.map(r=>({
-            project_id: currentEditProject.id,
-            full_name:r.full_name.trim(),
-            employee_no:r.employee_no?.trim()||null
-          })); 
-          const { error } = await supabase.from('project_people').insert(payload); 
-          if(error) return alert(error.message); 
-          alert(`${payload.length} personer importeret`);
-          loadPeople(); 
-        } else {
-          // New project - add to temporary list
-          processCSVForTemporary(rows);
-        }
+  $('csvFile').addEventListener('change', (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+
+  const name = (f.name || '').toLowerCase();
+  const isExcel = name.endsWith('.xlsx') || name.endsWith('.xls');
+  const finish = async (rows) => {
+    const clean = rows.filter(r => (r.full_name || '').toString().trim());
+    if (clean.length === 0) {
+      alert('Ingen gyldige rækker fundet i filen');
+      return;
+    }
+    if (currentEditProject) {
+      const payload = clean.map(r => ({
+        project_id: currentEditProject.id,
+        full_name: r.full_name.toString().trim(),
+        employee_no: (r.employee_no ?? '').toString().trim() || null
+      }));
+      const { error } = await supabase.from('project_people').insert(payload);
+      if (error) return alert(error.message);
+      alert(`${payload.length} personer importeret`);
+      loadPeople();
+    } else {
+      // Genbrug eksisterende helper (virker også for Excel-rækker)
+      processCSVForTemporary(clean);
+    }
+  };
+
+  if (isExcel) {
+    // Læs Excel: Kolonne A = navn, Kolonne B = medarbejdernummer
+    (async () => {
+      try {
+        const wb = new ExcelJS.Workbook();
+        const ab = await f.arrayBuffer();
+        await wb.xlsx.load(ab);
+        const ws = wb.worksheets[0];
+        const rows = [];
+        ws.eachRow((row /*, rowNumber */) => {
+          const a = row.getCell(1)?.value ?? '';
+          const b = row.getCell(2)?.value ?? '';
+          const full = (typeof a === 'object' && a?.text) ? a.text : String(a ?? '');
+          const emp  = (typeof b === 'object' && b?.text) ? b.text : String(b ?? '');
+          const fullTrim = full.toString().trim();
+          const empTrim  = emp.toString().trim();
+          if (fullTrim && fullTrim.toLowerCase() !== 'navn') {
+            rows.push({ full_name: fullTrim, employee_no: empTrim || null });
+          }
+        });
+        await finish(rows);
+      } catch (err) {
+        alert('Fejl ved læsning af Excel-fil: ' + (err?.message || err));
+      }
+    })();
+  } else {
+    // Fald tilbage til CSV/TSV/TXT (header-baseret)
+    Papa.parse(f, {
+      header: true,
+      complete: async (res) => {
+        const rows = res.data.map(r => ({
+          full_name: r.full_name,
+          employee_no: r.employee_no
+        }));
+        await finish(rows);
       },
       error: (error) => {
-        alert('Fejl ved læsning af CSV: ' + error.message);
+        alert('Fejl ved læsning af fil: ' + error.message);
       }
     });
-  });
+  }
+});
 
   /// Toggle coaching sections
   window.toggleCoachingSection = (sectionId) => {
