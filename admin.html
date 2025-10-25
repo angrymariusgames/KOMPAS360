@@ -7471,52 +7471,52 @@ async function initContractTabOnce(){
   const incColl   = $('includeColleagueSupport');
 
   /* Debounce helper (én gang i filen er nok) */
-window.__DEBUG_CONTRACT__ = window.__DEBUG_CONTRACT__ ?? false;
-const debounce = (fn, delay=800) => { let t; return (...args)=>{ clearTimeout(t); t = setTimeout(()=>fn(...args), delay); }; };
+  window.__DEBUG_CONTRACT__ = window.__DEBUG_CONTRACT__ ?? false;
+  const debounce = (fn, delay=800) => { let t; return (...args)=>{ clearTimeout(t); t = setTimeout(()=>fn(...args), delay); }; };
 
-const debouncedHeavyUpdate = debounce(() => {
-  contractSetupOverview?.();
-  contractUpdateProgress?.();
-  contractSaveSessionState?.();
-}, 800);
+  const debouncedHeavyUpdate = debounce(() => {
+    contractSetupOverview?.();
+    contractUpdateProgress?.();
+    contractSaveSessionState?.();
+  }, 800);
 
-if (emp && !emp.hasAttribute('data-listener-added')) {
-  emp.addEventListener('input', e => {
-    contractState.employee_actions = e.target.value;
-    contractUpdateSectionStatusLight?.();     // let opdatering
-    debouncedHeavyUpdate();                   // tungt + autosave (debounced)
+  if (emp && !emp.hasAttribute('data-listener-added')) {
+    emp.addEventListener('input', e => {
+      contractState.employee_actions = e.target.value;
+      contractUpdateSectionStatusLight?.();     // let opdatering
+      debouncedHeavyUpdate();                   // tungt + autosave (debounced)
+    });
+    emp.setAttribute('data-listener-added','true');
+  }
+
+  if (wish && !wish.hasAttribute('data-listener-added')) {
+    wish.addEventListener('input', e => {
+      contractState.employee_wishes = e.target.value;
+      contractUpdateSectionStatusLight?.();
+      debouncedHeavyUpdate();
+    });
+    wish.setAttribute('data-listener-added','true');
+  }
+
+  if (lead && !lead.hasAttribute('data-listener-added')) {
+    lead.addEventListener('input', e => {
+      contractState.leader_actions = e.target.value;
+      contractUpdateSectionStatusLight?.();
+      debouncedHeavyUpdate();
+    });
+    lead.setAttribute('data-listener-added','true');
+  }
+
+  follow && follow.addEventListener('change', e => {
+    contractState.followup_date = e.target.value || null;
+    contractUpdateSectionStatus?.();
+    contractSaveSessionState?.();               // ændres sjældent → ok uden debounce
   });
-  emp.setAttribute('data-listener-added','true');
-}
 
-if (wish && !wish.hasAttribute('data-listener-added')) {
-  wish.addEventListener('input', e => {
-    contractState.employee_wishes = e.target.value;
-    contractUpdateSectionStatusLight?.();
-    debouncedHeavyUpdate();
-  });
-  wish.setAttribute('data-listener-added','true');
-}
-
-if (lead && !lead.hasAttribute('data-listener-added')) {
-  lead.addEventListener('input', e => {
-    contractState.leader_actions = e.target.value;
-    contractUpdateSectionStatusLight?.();
-    debouncedHeavyUpdate();
-  });
-  lead.setAttribute('data-listener-added','true');
-}
-
-follow && follow.addEventListener('change', e => {
-  contractState.followup_date = e.target.value || null;
-  contractUpdateSectionStatus?.();
-  contractSaveSessionState?.();               // ændres sjældent → ok uden debounce
-});
-
-  inc306090 && inc306090.addEventListener('change', () => contractSaveSessionState?.());
-  incTeam   && incTeam.addEventListener('change',   () => contractSaveSessionState?.());
-  incColl   && incColl.addEventListener('change',   () => contractSaveSessionState?.());
-}
+    inc306090 && inc306090.addEventListener('change', () => contractSaveSessionState?.());
+    incTeam   && incTeam.addEventListener('change',   () => contractSaveSessionState?.());
+    incColl   && incColl.addEventListener('change',   () => contractSaveSessionState?.());
+  }
 
 async function contractLoadProjects() {
   try {
