@@ -9290,7 +9290,18 @@ function contractSetupEventListeners(){
       alert('Vælg projekt og målperson før du gemmer.');
       return;
     }
+  // 🔒 Valider selected_competencies array
+  const competenciesArray = Array.from(contractState.selectedCompetencies ?? new Set());
+  const validCompetencies = competenciesArray.filter(id => {
+    // Tjek at ID er gyldigt UUID format
+    return id && typeof id === 'string' && 
+           /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+  });
 
+  if (validCompetencies.length !== competenciesArray.length) {
+    console.warn('⚠️ Fjernet ugyldige UUID\'er fra selected_competencies:', 
+      competenciesArray.length - validCompetencies.length);
+  }
     // 1) Byg immutable KOMPAS-snapshot fra v_kompas_series
     let compass_snapshot = null;
     try {
@@ -10469,13 +10480,23 @@ async function contractPublish() {
     // === STEP 1: Kald RPC til publicering ===
     progressText.textContent = 'Opretter assessment i databasen...';
     
-    const { data: publishResult, error: publishError } = await supabase
-      .rpc('publish_development_contract', {
-        p_contract_id: contractId,
-        p_ma: ma,
-        p_project_label: projectLabel,
-        p_variant: variant
-      });
+    // 🔒 Log contract data for debugging
+    console.log('📤 Publishing contract:', {
+      contract_id: contractId,
+      ma: ma,
+      project_label: projectLabel,
+      variant: variant,
+      selected_competencies_count: contract.selected_competencies?.length ?? 0
+    });
+
+    // Hent og log den faktiske contract for debugging
+    const { data: contractDebug } = await supabase
+      .from('development_contract')
+      .select('selected_competencies')
+      .eq('id', contractId)
+      .single();
+
+    console.log('🔍 Contract selected_competencies:', contractDebug?.selected_competencies);
 
     if (publishError) {
       throw new Error('RPC fejl: ' + publishError.message);
