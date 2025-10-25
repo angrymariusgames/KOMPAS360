@@ -7164,18 +7164,16 @@ async function contractSaveSessionState(){
   // Byg letvægts-snapshot (best-effort) til session, så vi kan gendanne uden server
   let compass_snapshot = null;
   try {
-    if (contractState.project_id && contractState.target_id) {
+    if (!window.__SKIP_COMPASS_SNAPSHOT__ && contractState.project_id && contractState.target_id) {
       const { data: rows } = await supabase
         .from('v_kompas_series')
         .select('*')
         .eq('project_id', contractState.project_id)
         .eq('target_id',  contractState.target_id);
-
       if (rows?.length) {
         const categories = [];
         const idxByCat = new Map();
         const series = { self: [], peer: [], leader: [], blended: [] };
-
         rows.forEach(r => {
           if (!idxByCat.has(r.category_id)) {
             idxByCat.set(r.category_id, categories.length);
@@ -7189,20 +7187,14 @@ async function contractSaveSessionState(){
           if (r.respondent_type === 'self')   series.self[i]   = r.safe_avg;
           if (r.respondent_type === 'peer')   series.peer[i]   = r.safe_avg;
           if (r.respondent_type === 'leader') series.leader[i] = r.safe_avg;
-
           const vals = [series.self[i], series.peer[i], series.leader[i]].filter(v => typeof v === 'number');
           if (vals.length) series.blended[i] = vals.reduce((a,b)=>a+b,0) / vals.length;
         });
-
-        compass_snapshot = {
-          categories,
-          series,
-          generated_at: new Date().toISOString()
-        };
+        compass_snapshot = { categories, series, generated_at: new Date().toISOString() };
       }
     }
   } catch(e){
-    console.warn('Kunne ikke hente snapshot til session:', e);
+    if (window.__DEBUG_CONTRACT__) console.warn('Kunne ikke hente snapshot til session:', e);
   }
 
   // Teamroller – brug eksisterende helper
@@ -7477,8 +7469,10 @@ async function initContractTabOnce(){
   const debouncedHeavyUpdate = debounce(() => {
     contractSetupOverview?.();
     contractUpdateProgress?.();
-    contractSaveSessionState?.();
-  }, 800);
+    // Skip tunge snapshot-kald mens der tastes
+    window.__SKIP_COMPASS_SNAPSHOT__ = true;
+    try { contractSaveSessionState?.(); } finally { window.__SKIP_COMPASS_SNAPSHOT__ = false; }
+  }, 1200);
 
   if (emp && !emp.hasAttribute('data-listener-added')) {
     emp.addEventListener('input', e => {
@@ -8115,7 +8109,7 @@ async function contractLoadTipsForSelected() {
       // Fallback for kompetencer uden coaching data
       const missingCompetencies = competencyIds.filter(id => !contractAvailableTips.has(id));
       if (missingCompetencies.length > 0) {
-        console.log('Fallback til database for kompetencer uden coaching data:', missingCompetencies);
+        if (window.__DEBUG_CONTRACT__) console.log('Fallback til database for kompetencer uden coaching data:', missingCompetencies);
         await loadFallbackTips(missingCompetencies, dismissedIds);
       }
 
@@ -8135,7 +8129,7 @@ async function contractLoadTipsForSelected() {
       await loadFallbackTips(competencyIds, dismissedIds);
     }
 
-    console.log('Tips loaded for categories:', Array.from(contractAvailableTips.keys()).length);
+    if (window.__DEBUG_CONTRACT__) console.log('Tips loaded for categories:', Array.from(contractAvailableTips.keys()).length);
     contractRenderTips();
     
   } catch (e) {
@@ -11301,9 +11295,9 @@ async function generateAISuggestion() {
       return;
     }
     
-    console.log('=== ⚡ GENERÉR FORSLAG AKTIVERET ===');
-    console.log('Henter data fra Resultater for:', { project: contractState.project_id, target: contractState.target_id });
-    
+    if (window.__DEBUG_CONTRACT__) console.log('=== ⚡ GENERÉR FORSLAG AKTIVERET ===');
+    if (window.__DEBUG_CONTRACT__) console.log('Henter data fra Resultater for:', { project: contractState.project_id, target: contractState.target_id });
+
     const ovl = document.getElementById('loadingOverlay');
     if (ovl) ovl.style.display = 'block';
     
