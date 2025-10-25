@@ -10298,14 +10298,18 @@ async function validateMA(ma) {
   }
 
   try {
-    const { data, error } = await supabase
-      .from('individual_users')
-      .select('email')
-      .eq('ma', ma)
-      .single();
+    // Brug RPC funktion der omgår RLS
+    const { data, error } = await supabase.rpc('validate_ma_for_publish', { p_ma: ma });
 
-    if (error || !data) {
-      errorEl.textContent = '❌ MA nummer ikke fundet i systemet';
+    if (error) {
+      errorEl.textContent = '❌ Fejl ved validering: ' + error.message;
+      errorEl.style.display = 'block';
+      updatePublishConfirmButton();
+      return false;
+    }
+
+    if (!data || !data.valid) {
+      errorEl.textContent = data?.error || '❌ MA nummer ikke fundet i systemet';
       errorEl.style.display = 'block';
       updatePublishConfirmButton();
       return false;
