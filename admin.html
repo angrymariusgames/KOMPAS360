@@ -10498,6 +10498,17 @@ async function contractPublish() {
 
     console.log('🔍 Contract selected_competencies:', contractDebug?.selected_competencies);
 
+    // === STEP 1: Kald server-RPC som opretter assessment og flytter data ===
+    const { data: publishResult, error: publishError } = await supabase.rpc(
+      'publish_development_contract',
+      {
+        p_contract_id: contractId,
+        p_ma: ma,
+        p_project_label: projectLabel,
+        p_variant: variant
+      }
+    );
+
     if (publishError) {
       throw new Error('RPC fejl: ' + publishError.message);
     }
