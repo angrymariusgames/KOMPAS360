@@ -1230,7 +1230,7 @@
             <button id="contractExportPdfBtn" class="btn primary" disabled>Gem PDF</button>
             <button id="contractOpenBtn" class="btn">Åben kontrakt</button>
             <button id="contractPublishBtn" class="btn ghost" disabled title="Udgiv kontrakt til MinUdvikling">📤 Udgiv</button>
-            <input id="contractOpenFileInput" type="file" accept=".udv,.json" style="display:none">
+            <input id="contractOpenFileInput" type="file" accept=".udv,.json,application/json,application/kompas-udv+json" style="display:none">
           </div>
         </div>
       </div>
@@ -1355,21 +1355,67 @@ window.addEventListener('load', function() {
       if (!file) return;
       try {
         const text = await file.text();
-        // Prøv at parse som JSON (UDV er JSON-baseret i appen)
-        let udv;
-        try {
-          udv = JSON.parse(text);
-        } catch {
-          alert('Kunne ikke læse filen som JSON. Sørg for at .udv/.json er gyldig.');
-          return;
+        let data;
+        try { data = JSON.parse(text); } catch { alert('Filen er ikke gyldig JSON'); return; }
+        
+        // Understøt både kontrakt-UDV (generateUDVBlob) og "rå" kontrakt JSON
+        // generateUDVBlob producerer { version, format:'minudvikling_udv', metadata:{...}, contract:{...} }  → brug .contract
+        // ellers antag at selve objektet er kontrakten
+        const c = data.contract ? data.contract : data;
+        
+        if (!c?.project?.id || !c?.target?.id) { 
+          alert('Filen mangler projekt- og/eller målperson-id'); 
+          return; 
         }
-        // Hvis der findes en loader i koden, så brug den – ellers log og informer bruger
-        if (typeof loadContractFromUdv === 'function') {
-          loadContractFromUdv(udv);
-        } else {
-          console.log('[Åben kontrakt] UDV indlæst:', udv);
-          alert('Kontraktfil indlæst. (UI-opdatering implementeres i den eksisterende loader)');
+        
+        // 3) Sørg for at dropdowns matcher projekt/target
+        const projSel = $('contractProjectSelect');
+        if (projSel && String(projSel.value) !== String(c.project.id)) {
+          projSel.value = String(c.project.id);
+          await contractLoadTargets(c.project.id);
         }
+        const targSel = $('contractTargetSelect');
+        if (targSel) targSel.value = String(c.target.id);
+        
+        // 4) Opdater state (inkl. fastholdelse) — genbruger samme struktur som contractLoadFromFile
+        contractState.project_id = String(c.project.id);
+        contractState.target_id  = String(c.target.id);
+        contractState.followup_date    = c.followup_date || null;
+        contractState.employee_actions = c.employee_actions || '';
+        contractState.employee_wishes  = c.employee_wishes  || '';
+        contractState.leader_actions   = c.leader_actions   || '';
+        contractState.include_team_roles        = c.include_team_roles ?? true;
+        contractState.include_colleague_support = c.include_colleague_support ?? true;
+        contractState.include_306090_goals      = c.include_306090_goals ?? true;
+        
+        // Udvikling
+        contractState.selectedCompetencies = new Set((c.competencies||[]).map(x => x.id || x));
+        contractState.selectedTips = new Map(Object.entries(c.tips || {}).map(([cid, arr]) => [cid, new Set(arr || [])]));
+        contractState.roles = new Map(Object.keys(c.roles || {}).map(k => [String(k), c.roles[k]]));
+        
+        // Fastholdelse (egen separat state)
+        if (window.contractKeepState) {
+          window.contractKeepState.selectedCompetencies = new Set((c.keep_competencies||[]).map(x => x.id || x));
+          if (typeof contractApplyKeepTips === 'function') contractApplyKeepTips(c.keep_tips || {});
+        }
+        
+        // Kollega-støtte + teamroller (indlæses hvis valgt)
+        if (contractState.colleaguesSelected?.size > 0) { await contractLoadColleagueSupport?.(); }
+        if (contractState.team_roles_selected?.size > 0) { await contractLoadTeamRoles?.(); }
+        
+        // UI refresh
+        contractSetupRolesStep?.();
+        contractSetupOverview?.();
+        const followup = $('contractFollowupDate'); if (followup) followup.value = contractState.followup_date || '';
+        contractUpdateSectionStatus?.();
+        window.contractUpdateKeepSectionStatus?.();
+        contractUpdateProgress?.();
+        contractUpdateGoalsAndRoles?.();
+        
+        // Tegn KOMPAS-hjul
+        await generateContractRadarChart?.();
+        
+        alert('Kontrakt indlæst fra fil.');
       } catch (err) {
         console.error('[Åben kontrakt] Fejl ved indlæsning:', err);
         alert('Der opstod en fejl ved indlæsning af kontrakten.');
