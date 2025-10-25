@@ -1229,13 +1229,83 @@
             <button id="contractSaveFinalBtn" class="btn success" disabled>Gem kontrakt</button>
             <button id="contractExportPdfBtn" class="btn primary" disabled>Gem PDF</button>
             <button id="contractOpenBtn" class="btn">Åben kontrakt</button>
-            <button id="contractPublishBtn" class="btn ghost" disabled title="Implementeres senere">Udgiv</button>
+            <button id="contractPublishBtn" class="btn ghost" disabled title="Udgiv kontrakt til MinUdvikling">📤 Udgiv</button>
             <input id="contractOpenFileInput" type="file" accept=".udv,.json" style="display:none">
+          </div>
+        </div>
+      </div>
+
+      <!-- 📤 Udgiv Kontrakt Dialog -->
+      <div id="publishContractDialog" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center">
+        <div style="background:white;border-radius:12px;padding:24px;max-width:520px;width:90%;box-shadow:0 20px 40px rgba(0,0,0,0.3)">
+          <h2 style="margin:0 0 8px 0;color:var(--brand);display:flex;align-items:center;gap:8px">
+            <span>📤</span>
+            <span>Udgiv Kontrakt til MinUdvikling</span>
+          </h2>
+          <p style="margin:0 0 20px 0;color:var(--muted);font-size:0.95rem">
+            Udgiv denne kontrakt så medarbejderen kan se den i MinUdvikling portalen
+          </p>
+          
+          <div style="margin-bottom:16px">
+            <label style="display:block;margin-bottom:6px;font-weight:600">Medarbejdernummer (MA) *</label>
+            <input 
+              type="text" 
+              id="publishMA" 
+              class="input" 
+              placeholder="6 cifre (fx 123456)" 
+              maxlength="6" 
+              pattern="[0-9]{6}"
+              style="width:100%;font-family:monospace;font-size:1.1rem">
+            <div id="publishMAError" style="color:var(--error);font-size:0.85rem;margin-top:4px;display:none;padding:6px;background:rgba(245,101,101,0.1);border-radius:4px"></div>
+            <div id="publishMAInfo" style="color:var(--success);font-size:0.85rem;margin-top:4px;display:none;padding:6px;background:rgba(72,187,120,0.1);border-radius:4px"></div>
+          </div>
+
+          <div style="margin-bottom:16px">
+            <label style="display:block;margin-bottom:6px;font-weight:600">Projekt Label *</label>
+            <input 
+              type="text" 
+              id="publishProjectLabel" 
+              class="input" 
+              placeholder="fx: 2025-Q1, 2024-H2" 
+              style="width:100%">
+            <div style="color:var(--muted);font-size:0.85rem;margin-top:4px">
+              Angiv periode/runde for denne assessment (fx "2025-Q1" for Q1 2025)
+            </div>
+          </div>
+
+          <div style="margin-bottom:16px">
+            <label style="display:block;margin-bottom:6px;font-weight:600">Variant</label>
+            <select id="publishVariant" class="select" style="width:100%">
+              <option value="FULL">FULL (alle spørgsmål)</option>
+              <option value="LITE">LITE (16 spørgsmål)</option>
+            </select>
+            <div style="color:var(--muted);font-size:0.85rem;margin-top:4px">
+              Baseret på projektets indstillinger
+            </div>
+          </div>
+
+          <div id="publishProgress" style="display:none;margin-bottom:16px;padding:14px;background:var(--surface);border-radius:8px;border:1px solid var(--line)">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+              <div class="spinner" style="width:20px;height:20px;border:3px solid var(--line);border-top-color:var(--brand);border-radius:50%;animation:spin 1s linear infinite"></div>
+              <div style="font-weight:600;color:var(--brand)">Publicerer kontrakt...</div>
+            </div>
+            <div id="publishProgressText" style="font-size:0.9rem;color:var(--muted);padding-left:30px"></div>
+          </div>
+
+          <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:20px">
+            <button id="publishCancelBtn" class="btn">Annuller</button>
+            <button id="publishConfirmBtn" class="btn success" disabled>📤 Udgiv Kontrakt</button>
           </div>
         </div>
       </div>
     </div>
 </div>
+
+<style>
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+</style>
 
 <script>
 
@@ -9371,11 +9441,61 @@ function contractSetupEventListeners(){
     }
   }
 
-  if (saveDraftBtn) saveDraftBtn.addEventListener('click', ()=> contractDoSave(true));
+ if (saveDraftBtn) saveDraftBtn.addEventListener('click', ()=> contractDoSave(true));
   if (saveFinalBtn) saveFinalBtn.addEventListener('click', ()=> contractDoSave(false));
+
   if (exportPdfBtn) {
   exportPdfBtn.disabled = false; // aktiver direkte – kontrakt-PDF bruger samme motor som Resultater
   exportPdfBtn.addEventListener('click', contractExportPdf);
+  }
+
+  // === Udgiv Kontrakt Funktionalitet ===
+  const publishBtn = $('contractPublishBtn');
+  if (publishBtn) {
+    publishBtn.addEventListener('click', openPublishDialog);
+  }
+
+  const publishCancelBtn = $('publishCancelBtn');
+  if (publishCancelBtn) {
+    publishCancelBtn.addEventListener('click', closePublishDialog);
+  }
+
+  const publishMAInput = $('publishMA');
+  if (publishMAInput) {
+    publishMAInput.addEventListener('input', async (e) => {
+      const val = e.target.value.trim();
+      e.target.value = val.replace(/\D/g, '');
+      
+      if (e.target.value.length === 6) {
+        await validateMA(e.target.value);
+      } else {
+        $('publishConfirmBtn').disabled = true;
+        $('publishMAError').style.display = 'none';
+        $('publishMAInfo').style.display = 'none';
+      }
+    });
+  }
+
+  const publishLabelInput = $('publishProjectLabel');
+  if (publishLabelInput) {
+    publishLabelInput.addEventListener('input', () => {
+      updatePublishConfirmButton();
+    });
+  }
+
+  const publishConfirmBtn = $('publishConfirmBtn');
+  if (publishConfirmBtn) {
+    publishConfirmBtn.addEventListener('click', contractPublish);
+  }
+
+  const contractProjectSelect = $('contractProjectSelect');
+  const contractTargetSelect = $('contractTargetSelect');
+  
+  if (contractProjectSelect) {
+    contractProjectSelect.addEventListener('change', updatePublishButtonState);
+  }
+  if (contractTargetSelect) {
+    contractTargetSelect.addEventListener('change', updatePublishButtonState);
 }
   if (startOverBtn) startOverBtn.addEventListener('click', contractStartOver);
 
@@ -10039,6 +10159,696 @@ async function contractExportPdf(){
     alert('PDF eksport fejlede: ' + (err.message || err));
   }
 }
+// ============================================================================
+// UDGIV KONTRAKT TIL MINUDVIKLING
+// ============================================================================
+
+/**
+ * Åbner dialog for at udgive kontrakt til MinUdvikling
+ */
+function openPublishDialog() {
+  const dialog = $('publishContractDialog');
+  const projectId = $('contractProjectSelect')?.value || contractState.project_id;
+  const targetId = $('contractTargetSelect')?.value || contractState.target_id;
+
+  if (!projectId || !targetId) {
+    alert('Vælg projekt og målperson først.');
+    return;
+  }
+
+  // Reset dialog
+  $('publishMA').value = '';
+  $('publishProjectLabel').value = '';
+  $('publishMAError').style.display = 'none';
+  $('publishMAInfo').style.display = 'none';
+  $('publishProgress').style.display = 'none';
+  $('publishConfirmBtn').disabled = true;
+
+  // Auto-udfyld variant baseret på projekt
+  (async () => {
+    try {
+      const { data: project } = await supabase
+        .from('projects')
+        .select('is_lite')
+        .eq('id', projectId)
+        .single();
+      
+      $('publishVariant').value = project?.is_lite ? 'LITE' : 'FULL';
+    } catch (e) {
+      console.warn('Kunne ikke hente projekt variant:', e);
+    }
+  })();
+
+  // Auto-udfyld MA hvis employee_no findes på målpersonen
+  (async () => {
+    try {
+      const { data: person } = await supabase
+        .from('project_people')
+        .select('employee_no, full_name')
+        .eq('id', targetId)
+        .single();
+      
+      if (person?.employee_no) {
+        const ma = String(person.employee_no).padStart(6, '0');
+        $('publishMA').value = ma;
+        await validateMA(ma);
+      }
+    } catch (e) {
+      console.warn('Kunne ikke hente employee_no:', e);
+    }
+  })();
+
+  // Auto-foreslå project label baseret på nuværende dato
+  const today = new Date();
+  const year = today.getFullYear();
+  const quarter = Math.ceil((today.getMonth() + 1) / 3);
+  $('publishProjectLabel').value = `${year}-Q${quarter}`;
+
+  // Vis dialog
+  dialog.style.display = 'flex';
+}
+
+/**
+ * Lukker publish dialog
+ */
+function closePublishDialog() {
+  const dialog = $('publishContractDialog');
+  dialog.style.display = 'none';
+  
+  // Reset felter
+  $('publishMA').value = '';
+  $('publishProjectLabel').value = '';
+  $('publishMAError').style.display = 'none';
+  $('publishMAInfo').style.display = 'none';
+  $('publishProgress').style.display = 'none';
+  $('publishConfirmBtn').disabled = false;
+  $('publishCancelBtn').disabled = false;
+}
+
+/**
+ * Validerer MA nummer og viser feedback
+ */
+async function validateMA(ma) {
+  const errorEl = $('publishMAError');
+  const infoEl = $('publishMAInfo');
+
+  errorEl.style.display = 'none';
+  infoEl.style.display = 'none';
+
+  if (!ma || ma.length !== 6 || !/^\d{6}$/.test(ma)) {
+    errorEl.textContent = '⚠️ MA skal være præcis 6 cifre';
+    errorEl.style.display = 'block';
+    updatePublishConfirmButton();
+    return false;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('individual_users')
+      .select('email')
+      .eq('ma', ma)
+      .single();
+
+    if (error || !data) {
+      errorEl.textContent = '❌ MA nummer ikke fundet i systemet';
+      errorEl.style.display = 'block';
+      updatePublishConfirmButton();
+      return false;
+    }
+
+    infoEl.textContent = `✓ Fundet: ${data.email}`;
+    infoEl.style.display = 'block';
+    updatePublishConfirmButton();
+    return true;
+
+  } catch (e) {
+    errorEl.textContent = '❌ Fejl ved validering: ' + (e.message || e);
+    errorEl.style.display = 'block';
+    updatePublishConfirmButton();
+    return false;
+  }
+}
+
+/**
+ * Opdaterer confirm button state baseret på validering
+ */
+function updatePublishConfirmButton() {
+  const ma = $('publishMA')?.value || '';
+  const label = $('publishProjectLabel')?.value?.trim() || '';
+  const maInfo = $('publishMAInfo');
+  
+  // Enable hvis MA er valideret (grøn besked vises) og label er udfyldt
+  const maValid = maInfo.style.display !== 'none' && ma.length === 6;
+  const labelValid = label.length > 0;
+  
+  $('publishConfirmBtn').disabled = !(maValid && labelValid);
+}
+
+/**
+ * Opdaterer publish button state i sticky bar
+ */
+async function updatePublishButtonState() {
+  const publishBtn = $('contractPublishBtn');
+  if (!publishBtn) return;
+
+  const projectId = $('contractProjectSelect')?.value || contractState.project_id;
+  const targetId = $('contractTargetSelect')?.value || contractState.target_id;
+
+  if (!projectId || !targetId) {
+    publishBtn.disabled = true;
+    return;
+  }
+
+  // Check om der findes en gemt (ikke-draft) contract
+  try {
+    const { data, error } = await supabase
+      .from('development_contract')
+      .select('id, published')
+      .eq('project_id', projectId)
+      .eq('target_id', targetId)
+      .eq('is_draft', false)
+      .order('updated_at', { ascending: false })
+      .limit(1);
+
+    if (error || !data || data.length === 0) {
+      publishBtn.disabled = true;
+      publishBtn.title = 'Gem kontrakten endeligt før udgivelse';
+      return;
+    }
+
+    // Vis status hvis allerede udgivet
+    if (data[0].published) {
+      publishBtn.textContent = '✓ Udgivet';
+      publishBtn.classList.remove('ghost');
+      publishBtn.classList.add('success');
+      publishBtn.disabled = false;
+      publishBtn.title = 'Kontrakt er allerede udgivet - klik for at udgive igen';
+    } else {
+      publishBtn.textContent = '📤 Udgiv';
+      publishBtn.classList.remove('success');
+      publishBtn.classList.add('ghost');
+      publishBtn.disabled = false;
+      publishBtn.title = 'Udgiv kontrakt til MinUdvikling';
+    }
+
+  } catch (e) {
+    console.warn('Fejl ved tjek af publish status:', e);
+    publishBtn.disabled = true;
+  }
+}
+
+/**
+ * Hovedfunktion: Udgiver kontrakt til MinUdvikling
+ */
+async function contractPublish() {
+  const projectId = $('contractProjectSelect')?.value || contractState.project_id;
+  const targetId = $('contractTargetSelect')?.value || contractState.target_id;
+
+  if (!projectId || !targetId) {
+    alert('Vælg projekt og målperson først.');
+    return;
+  }
+
+  // Find gemt contract
+  const { data: contracts, error: contractError } = await supabase
+    .from('development_contract')
+    .select('id, published, published_at')
+    .eq('project_id', projectId)
+    .eq('target_id', targetId)
+    .eq('is_draft', false)
+    .order('updated_at', { ascending: false })
+    .limit(1);
+
+  if (contractError || !contracts || contracts.length === 0) {
+    alert('❌ Ingen gemt kontrakt fundet.\n\nGem kontrakten endeligt før du udgiver den.');
+    return;
+  }
+
+  const contract = contracts[0];
+  const contractId = contract.id;
+
+  // Hvis allerede udgivet, spørg om genuudgivelse
+  if (contract.published) {
+    const confirm = window.confirm(
+      `⚠️ Denne kontrakt er allerede udgivet ${new Date(contract.published_at).toLocaleString('da-DK')}.\n\n` +
+      'Vil du udgive den igen? Dette vil oprette en ny assessment med samme data.'
+    );
+    if (!confirm) {
+      closePublishDialog();
+      return;
+    }
+  }
+
+  // Hent input
+  const ma = $('publishMA').value.trim();
+  const projectLabel = $('publishProjectLabel').value.trim();
+  const variant = $('publishVariant').value;
+
+  if (!ma || !projectLabel) {
+    alert('Udfyld alle obligatoriske felter.');
+    return;
+  }
+
+  // Valider MA én gang til
+  const maValid = await validateMA(ma);
+  if (!maValid) {
+    alert('MA nummer er ikke gyldigt.');
+    return;
+  }
+
+  // Disable knapper og vis progress
+  const progressEl = $('publishProgress');
+  const progressText = $('publishProgressText');
+  const confirmBtn = $('publishConfirmBtn');
+  const cancelBtn = $('publishCancelBtn');
+
+  confirmBtn.disabled = true;
+  cancelBtn.disabled = true;
+  progressEl.style.display = 'block';
+
+  try {
+    // === STEP 1: Kald RPC til publicering ===
+    progressText.textContent = 'Opretter assessment i databasen...';
+    
+    const { data: publishResult, error: publishError } = await supabase
+      .rpc('publish_development_contract', {
+        p_contract_id: contractId,
+        p_ma: ma,
+        p_project_label: projectLabel,
+        p_variant: variant
+      });
+
+    if (publishError) {
+      throw new Error('RPC fejl: ' + publishError.message);
+    }
+
+    if (!publishResult?.success) {
+      throw new Error(publishResult?.error || 'Publicering fejlede uden fejlbesked');
+    }
+
+    const assessmentId = publishResult.assessment_id;
+    console.log('✓ Assessment oprettet:', assessmentId);
+
+    // === STEP 2: Generer UDV fil ===
+    progressText.textContent = 'Genererer UDV fil...';
+    const udvBlob = await generateUDVBlob(contractId, ma, projectLabel, variant);
+    console.log('✓ UDV blob genereret:', udvBlob.size, 'bytes');
+
+    // === STEP 3: Upload UDV til Storage ===
+    progressText.textContent = 'Uploader UDV fil til storage...';
+    const udvPath = `minudvikling/${ma}/${assessmentId}/contract.udv`;
+    
+    const { error: udvUploadError } = await supabase.storage
+      .from('artifacts')
+      .upload(udvPath, udvBlob, {
+        contentType: 'application/json',
+        upsert: false
+      });
+
+    if (udvUploadError) {
+      throw new Error('UDV upload fejl: ' + udvUploadError.message);
+    }
+    console.log('✓ UDV uploadet:', udvPath);
+
+    // Opret artifact entry for UDV
+    const { error: udvArtifactError } = await supabase
+      .from('individual_artifacts')
+      .insert({
+        ma: ma,
+        assessment_id: assessmentId,
+        type: 'UDV',
+        storage_path: udvPath,
+        file_size: udvBlob.size,
+        filename: 'contract.udv',
+        mime_type: 'application/json'
+      });
+
+    if (udvArtifactError) {
+      console.warn('⚠️ UDV artifact entry fejl:', udvArtifactError);
+    }
+
+    // === STEP 4: Generer PDF ===
+    progressText.textContent = 'Genererer PDF (dette kan tage op til 30 sekunder)...';
+    const pdfBlob = await generateContractPDFBlob(contractId);
+    console.log('✓ PDF blob genereret:', pdfBlob.size, 'bytes');
+
+    // === STEP 5: Upload PDF til Storage ===
+    progressText.textContent = 'Uploader PDF fil...';
+    const pdfPath = `minudvikling/${ma}/${assessmentId}/contract.pdf`;
+    
+    const { error: pdfUploadError } = await supabase.storage
+      .from('artifacts')
+      .upload(pdfPath, pdfBlob, {
+        contentType: 'application/pdf',
+        upsert: false
+      });
+
+    if (pdfUploadError) {
+      throw new Error('PDF upload fejl: ' + pdfUploadError.message);
+    }
+    console.log('✓ PDF uploadet:', pdfPath);
+
+    // Opret artifact entry for PDF
+    const { error: pdfArtifactError } = await supabase
+      .from('individual_artifacts')
+      .insert({
+        ma: ma,
+        assessment_id: assessmentId,
+        type: 'PDF_KONTRAKT',
+        storage_path: pdfPath,
+        file_size: pdfBlob.size,
+        filename: 'contract.pdf',
+        mime_type: 'application/pdf'
+      });
+
+    if (pdfArtifactError) {
+      console.warn('⚠️ PDF artifact entry fejl:', pdfArtifactError);
+    }
+
+    // === STEP 6: Opdater assessment med storage paths ===
+    progressText.textContent = 'Færdiggør publicering...';
+    const { error: updateError } = await supabase
+      .from('individual_assessments')
+      .update({ 
+        udv_json: { 
+          storage_path: udvPath,
+          pdf_path: pdfPath 
+        } 
+      })
+      .eq('id', assessmentId);
+
+    if (updateError) {
+      console.warn('⚠️ Assessment update fejl:', updateError);
+    }
+
+    // === SUCCESS ===
+    progressText.textContent = '✅ Kontrakt udgivet succesfuldt!';
+    progressText.style.color = 'var(--success)';
+    progressText.style.fontWeight = '600';
+
+    console.log('🎉 Publicering komplet:', {
+      assessmentId,
+      ma,
+      projectLabel,
+      variant,
+      udvPath,
+      pdfPath
+    });
+
+    // Opdater publish button state
+    setTimeout(async () => {
+      await updatePublishButtonState();
+      closePublishDialog();
+      
+      alert(
+        `✅ Kontrakt udgivet succesfuldt!\n\n` +
+        `MA: ${ma}\n` +
+        `Projekt: ${projectLabel}\n` +
+        `Variant: ${variant}\n\n` +
+        `Medarbejderen kan nu se kontrakten i MinUdvikling portalen.`
+      );
+    }, 1500);
+
+  } catch (error) {
+    console.error('❌ Publicering fejlede:', error);
+    
+    // Vis fejl
+    progressText.textContent = '❌ Fejl: ' + error.message;
+    progressText.style.color = 'var(--error)';
+    progressText.style.fontWeight = '600';
+    
+    // Re-enable knapper efter 2 sekunder
+    setTimeout(() => {
+      progressEl.style.display = 'none';
+      confirmBtn.disabled = false;
+      cancelBtn.disabled = false;
+    }, 2000);
+    
+    alert('❌ Publicering fejlede:\n\n' + error.message);
+  }
+}
+
+/**
+ * Genererer UDV blob fra contract data
+ */
+async function generateUDVBlob(contractId, ma, projectLabel, variant) {
+  try {
+    // Hent contract data
+    const { data: contract, error: contractErr } = await supabase
+      .from('development_contract')
+      .select('*')
+      .eq('id', contractId)
+      .single();
+
+    if (contractErr || !contract) {
+      throw new Error('Kunne ikke hente contract: ' + (contractErr?.message || 'ikke fundet'));
+    }
+
+    // Hent project data
+    const { data: project, error: projectErr } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', contract.project_id)
+      .single();
+
+    if (projectErr || !project) {
+      throw new Error('Kunne ikke hente projekt: ' + (projectErr?.message || 'ikke fundet'));
+    }
+
+    // Hent person data
+    const { data: person, error: personErr } = await supabase
+      .from('project_people')
+      .select('*')
+      .eq('id', contract.target_id)
+      .single();
+
+    if (personErr || !person) {
+      throw new Error('Kunne ikke hente person: ' + (personErr?.message || 'ikke fundet'));
+    }
+
+    // Byg UDV struktur
+    const udvData = {
+      version: "1.0",
+      format: "minudvikling_udv",
+      metadata: {
+        exported_at: new Date().toISOString(),
+        ma: ma,
+        project_label: projectLabel,
+        variant: variant,
+        project: {
+          id: project.id,
+          title: project.title,
+          is_lite: project.is_lite
+        },
+        person: {
+          id: person.id,
+          full_name: person.full_name,
+          employee_no: person.employee_no
+        }
+      },
+      contract: {
+        id: contract.id,
+        title: contract.title,
+        selected_competencies: contract.selected_competencies || [],
+        selected_tips: contract.selected_tips || {},
+        employee_actions: contract.employee_actions || '',
+        employee_wishes: contract.employee_wishes || '',
+        leader_actions: contract.leader_actions || '',
+        followup_date: contract.followup_date,
+        include_team_roles: contract.include_team_roles,
+        include_colleague_support: contract.include_colleague_support,
+        include_306090_goals: contract.include_306090_goals,
+        roles_assignments: contract.roles_assignments || {},
+        plan: contract.plan || null,
+        compass_snapshot: contract.compass_snapshot || null,
+        team_roles: contract.team_roles || null,
+        version: contract.version,
+        created_at: contract.created_at,
+        updated_at: contract.updated_at
+      }
+    };
+
+    return new Blob([JSON.stringify(udvData, null, 2)], { 
+      type: 'application/json' 
+    });
+
+  } catch (error) {
+    console.error('generateUDVBlob fejl:', error);
+    throw error;
+  }
+}
+
+/**
+ * Genererer PDF blob for contract (genbruger eksisterende PDF generation)
+ */
+async function generateContractPDFBlob(contractId) {
+  try {
+    // Hent contract
+    const { data: contract } = await supabase
+      .from('development_contract')
+      .select('*')
+      .eq('id', contractId)
+      .single();
+
+    if (!contract) throw new Error('Contract ikke fundet');
+
+    // Hent project
+    const { data: project } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', contract.project_id)
+      .single();
+
+    if (!project) throw new Error('Projekt ikke fundet');
+
+    // Hent person
+    const { data: person } = await supabase
+      .from('project_people')
+      .select('*')
+      .eq('id', contract.target_id)
+      .single();
+
+    if (!person) throw new Error('Person ikke fundet');
+
+    // Hent kategorier
+    const { data: cats } = await supabase
+      .from('v_category_path')
+      .select('*')
+      .eq('template_id', project.template_id)
+      .order('category_sort');
+
+    // Hent serier
+    const { data: seriesRows } = await supabase
+      .from('v_kompas_series')
+      .select('*')
+      .eq('project_id', contract.project_id)
+      .eq('target_id', contract.target_id);
+
+    // Byg series objekt
+    const series = { self: [], peer: [], leader: [] };
+    (cats || []).forEach(c => {
+      const s = (seriesRows || []).find(r => r.category_id === c.category_id && r.respondent_type === 'self');
+      const p = (seriesRows || []).find(r => r.category_id === c.category_id && r.respondent_type === 'peer');
+      const l = (seriesRows || []).find(r => r.category_id === c.category_id && r.respondent_type === 'leader');
+      series.self.push(s?.safe_avg ?? null);
+      series.peer.push(p?.safe_avg ?? null);
+      series.leader.push(l?.safe_avg ?? null);
+    });
+
+    // Genbruger eksisterende buildContractPdfHtml funktion fra contractExportPdf
+    // Vi skal sætte contractState midlertidigt for at sikre data er tilgængeligt
+    const originalState = { ...contractState };
+    
+    // Midlertidig state til PDF generation
+    contractState.project_id = contract.project_id;
+    contractState.target_id = contract.target_id;
+    contractState.selectedCompetencies = new Set(contract.selected_competencies || []);
+    contractState.team_roles_selected = new Set();
+    contractState.colleaguesSelected = new Set();
+    
+    // Sæt UI felter midlertidigt
+    if ($('contractEmployeeActions')) $('contractEmployeeActions').value = contract.employee_actions || '';
+    if ($('contractEmployeeWishes')) $('contractEmployeeWishes').value = contract.employee_wishes || '';
+    if ($('contractLeaderActions')) $('contractLeaderActions').value = contract.leader_actions || '';
+    if ($('contractFollowupDate')) $('contractFollowupDate').value = contract.followup_date || '';
+
+    // Generer HTML via eksisterende funktion
+    const buildContractPdfHtml = async (project, person, categories, series) => {
+      // === Hjælpere identiske med Resultater ===
+      const headerHtml = (title, personStr) => `
+        <div style="width:100%;box-sizing:border-box;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;border-bottom:1px solid #e5e7eb;padding-bottom:4px">
+          <div style="font-weight:700;font-size:14px">${title}</div>
+          <div style="font-size:12px;color:#64748b">${personStr}</div>
+        </div>`;
+      
+      const footerHtml = (page, total) => `
+        <div style="margin-top:12px;padding-top:8px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;color:#64748b;font-size:10px">
+          <span>${new Date().toLocaleDateString('da-DK')}</span>
+          <span>Side ${page} af ${total}</span>
+        </div>`;
+      
+      const wrapPage = (inner, pageNo, total) => `
+        <div class="page" style="width:794px; box-sizing:border-box; padding:26px 38px 34px 38px; margin:0 auto">
+          <div style="width:100%">${inner}</div>
+          ${footerHtml(pageNo,total)}
+        </div>`;
+
+      // KOMPAS data
+      const chartData = {
+        categories: categories.map((c, i) => ({
+          name: c.category_name,
+          self: series.self[i],
+          peer: series.peer[i],
+          leader: series.leader[i]
+        }))
+      };
+      
+      const kompasSVG = generateKOMPASSVG(chartData, 500, 500);
+      const personStr = `${project.title || ''} • #${person.employee_no || '—'} • ${person.full_name || ''}`;
+
+      // Kontraktfelter
+      const empDoes = contract.employee_actions || '';
+      const empWants = contract.employee_wishes || '';
+      const leadHelp = contract.leader_actions || '';
+
+      // Page 1
+      const page1 = `
+        ${headerHtml('KOMPAS • Udviklingskontrakt', personStr)}
+        <div style="margin-top:-6px">
+          <div style="text-align:center;background:white;border:1px solid #e2e8f0;border-radius:8px;padding:5px 15px 15px 15px;margin-bottom:12px">
+            <div style="font-size:12px;color:#64748b;margin-bottom:0;font-weight:600">🎯 KOMPAS Kompetencehjul</div>
+            ${kompasSVG}
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
+            <section style="border:1px solid #e2e8f0;border-radius:8px;padding:10px;background:#fff">
+              <div style="font-weight:700;margin-bottom:6px">💤 Medarbejder gør</div>
+              ${empDoes ? `<div style="white-space:pre-wrap;color:#334155;font-size:12px">${empDoes}</div>` : `<div style="color:#94a3b8;font-style:italic;font-size:12px">Ikke udfyldt</div>`}
+            </section>
+            <section style="border:1px solid #e2e8f0;border-radius:8px;padding:10px;background:#fff">
+              <div style="font-weight:700;margin-bottom:6px">💭 Medarbejder ønsker</div>
+              ${empWants ? `<div style="white-space:pre-wrap;color:#334155;font-size:12px">${empWants}</div>` : `<div style="color:#94a3b8;font-style:italic;font-size:12px">Ikke udfyldt</div>`}
+            </section>
+            <section style="border:1px solid #e2e8f0;border-radius:8px;padding:10px;background:#fff">
+              <div style="font-weight:700;margin-bottom:6px">👨‍💼 Leder støtter</div>
+              ${leadHelp ? `<div style="white-space:pre-wrap;color:#334155;font-size:12px">${leadHelp}</div>` : `<div style="color:#94a3b8;font-style:italic;font-size:12px">Ikke udfyldt</div>`}
+            </section>
+          </div>
+        </div>
+      `;
+
+      // Simple page 2 (kan udvides senere)
+      const page2 = `
+        ${headerHtml('📄 Udviklings- og Fastholdelsesplan', personStr)}
+        <div style="padding:20px;text-align:center;color:#64748b">
+          <p>Komplet coaching resumé med udviklingsområder og handlingsplan</p>
+        </div>
+      `;
+
+      const pages = [page1, page2];
+      const total = pages.length;
+      return pages.map((p, idx) => wrapPage(p, idx + 1, total)).join('');
+    };
+
+    const htmlContent = await buildContractPdfHtml(project, person, cats || [], series);
+
+    // Generer PDF blob
+    const pdfBlob = await window.generatePDFBlob(htmlContent);
+
+    // Gendan original state
+    Object.assign(contractState, originalState);
+
+    return pdfBlob;
+
+  } catch (error) {
+    console.error('generateContractPDFBlob fejl:', error);
+    throw error;
+  }
+}
+
+// Initialiser publish button state når kontraktfanen vises
+document.addEventListener('DOMContentLoaded', () => {
+  updatePublishButtonState();
+});
 
 async function contractGeneratePdfHtml(project, person) {
   // 1) Hent skabelonen (ligger ved siden af admin.html)
