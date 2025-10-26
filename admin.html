@@ -10917,7 +10917,6 @@ async function contractPublish() {
       .order('updated_at', { ascending: false })
       .limit(1);
 
-
     if (reErr || !recheck || recheck.length === 0) {
       alert('❌ Ingen gemt kontrakt fundet efter automatisk gemning.');
       return;
@@ -10958,44 +10957,28 @@ async function contractPublish() {
     return;
   }
 
-  // Disable knapper og vis progress
+  // Vis progress og disable knapper
   const progressEl = $('publishProgress');
   const progressText = $('publishProgressText');
   const confirmBtn = $('publishConfirmBtn');
   const cancelBtn = $('publishCancelBtn');
 
+  progressEl.style.display = 'block';
   confirmBtn.disabled = true;
   cancelBtn.disabled = true;
-  progressEl.style.display = 'block';
 
   try {
-    // === STEP 1: Gem kontrakten endeligt i præcis samme format som "Gem kontrakt" ===
-    progressText.textContent = 'Gemmer kontrakt (endelig) i databasen...';
-
-    // Tving endeligt gem (ikke kladde) med samme serializer som "Gem"
-    try {
-      await saveDevelopmentContract(false); // false = ikke draft
-    } catch (e) {
-      console.error('Auto-save før publicering fejlede:', e);
-      alert('Kunne ikke gemme kontrakten endeligt før publicering.');
-      return;
-    }
-
-    // Læs kontrakten tilbage og normalisér JSONB-felter, hvis noget er gemt som tekst
-    progressText.textContent = 'Normaliserer kontraktdata...';
-    const { data: current, error: readErr } = await window.supabaseClient
+    // === STEP 1: Normalisér kontraktfelter så de matcher DB-typer (UUID[], JSONB) ===
+    const { data: current, error: curErr } = await window.supabaseClient
       .from('development_contract')
-      .select('id, selected_competencies, selected_tips, roles_assignments, plan, team_roles, compass_snapshot, employee_actions, employee_wishes, leader_actions, followup_date, include_team_roles, include_colleague_support, include_306090_goals')
+      .select('*')
       .eq('id', contractId)
       .single();
 
-    if (readErr || !current) {
-      console.error('Kunne ikke hente kontrakt til normalisering:', readErr);
-      alert('Kunne ikke læse kontrakten efter gemning.');
-      return;
+    if (curErr || !current) {
+      throw new Error('Kontrakt ikke fundet før publicering.');
     }
 
-    // Helper: parse hvis string, ellers brug som er
     const parseMaybe = (v, fallback = null) => {
       if (v == null) return fallback;
       if (typeof v === 'string') {
@@ -11004,7 +10987,6 @@ async function contractPublish() {
       return v;
     };
 
-    // Sørg for at felterne er valid JSONB-struktur som "Gem" producerer
     const normalized = {
       selected_tips:        parseMaybe(current.selected_tips, {}),
       roles_assignments:    parseMaybe(current.roles_assignments, {}),
@@ -11013,16 +10995,13 @@ async function contractPublish() {
       compass_snapshot:     parseMaybe(current.compass_snapshot, null)
     };
 
-    // Kompetencer: hold det som UUID[] (DB-kolonne er uuid[])
     let comps = current.selected_competencies || [];
     if (Array.isArray(comps)) {
-      // fjern null/dups/trim
       comps = Array.from(new Set(comps.filter(Boolean)));
     } else {
       comps = [];
     }
 
-    // Kun opdater hvis noget ser forkert ud (string/array-type mismatch)
     const needsUpdate =
       typeof current.selected_tips === 'string' ||
       typeof current.roles_assignments === 'string' ||
@@ -11034,12 +11013,12 @@ async function contractPublish() {
       const { error: upErr } = await window.supabaseClient
         .from('development_contract')
         .update({
-          selected_competencies: comps,                // uuid[]
-          selected_tips: normalized.selected_tips,     // jsonb
-          roles_assignments: normalized.roles_assignments, // jsonb
-          plan: normalized.plan,                       // jsonb | null
-          team_roles: normalized.team_roles,           // jsonb | null
-          compass_snapshot: normalized.compass_snapshot // jsonb | null
+          selected_competencies: comps,
+          selected_tips: normalized.selected_tips,
+          roles_assignments: normalized.roles_assignments,
+          plan: normalized.plan,
+          team_roles: normalized.team_roles,
+          compass_snapshot: normalized.compass_snapshot
         })
         .eq('id', contractId);
 
@@ -11050,47 +11029,31 @@ async function contractPublish() {
       }
     }
 
-    // Log til fejlfinding
     console.log('📤 Klar til publicering med normaliserede felter:', {
-      contract_id: contractId,
-      ma,
-      project_label: projectLabel,
-      variant,
-      comps_len: comps.length
+      contract_id: contractId, ma, project_label: projectLabel, variant, comps_len: comps.length
     });
 
-    // Enum-værdi sikres til det forventede format i DB
+    // Enum-værdi i DB-format
     const variantEnum = String(variant || 'FULL').toUpperCase();
 
-    // === STEP 2: Kald server-RPC som opretter assessment og flytter data ===
-    progressText.textContent = 'Opretter assessment i databasen...';
+    // === STEP 2: Opret assessment via RPC ===
+    progressText.textContent = 'Opretter assessment i databasen.';
 
     const { data: publishResult, error: publishError } = await window.supabaseClient.rpc(
       'publish_development_contract',
-      {
-        p_contract_id: contractId,
-        p_ma: ma,
-        p_project_label: projectLabel,
-        p_variant: variantEnum
-      }
+      { p_contract_id: contractId, p_ma: ma, p_project_label: projectLabel, p_variant: variantEnum }
     );
 
-    if (publishError) {
-      throw new Error('RPC fejl: ' + publishError.message);
-    }
-    if (!publishResult?.success) {
-      throw new Error(publishResult?.error || 'Publicering fejlede uden fejlbesked');
-    }
+    if (publishError) throw new Error('RPC fejl: ' + publishError.message);
+    if (!publishResult?.success) throw new Error(publishResult?.error || 'Publicering fejlede uden fejlbesked');
 
     const assessmentId = publishResult.assessment_id;
     console.log('✓ Assessment oprettet:', assessmentId);
 
-    // === STEP 3: Generer UDV fil (samme format som “Gem kontrakt”) ===
+    // === STEP 3: Generér og upload UDV ===
     progressText.textContent = 'Genererer UDV fil.';
     const { json: udvJson, blob: udvBlob } = await generateUDVBlob(contractId, ma, projectLabel, variantEnum);
-    console.log('✓ UDV genereret:', (udvBlob && udvBlob.size) || 0, 'bytes');
 
-    // === STEP 3: Upload UDV til Storage ===
     progressText.textContent = 'Uploader UDV fil til storage.';
     const safe = (s)=> String(s||'').replace(/\s+/g,'_').replace(/[^A-Za-z0-9_\-\.]/g,'');
     const udvFilename = `udviklingskontrakt_${safe(projectLabel)}_${ma}.udv`;
@@ -11098,136 +11061,55 @@ async function contractPublish() {
 
     const { error: udvUploadError } = await window.supabaseClient.storage
       .from('artifacts')
-      .upload(udvPath, udvBlob, {
-        contentType: 'application/kompas-udv+json',
-        upsert: false
-      });
+      .upload(udvPath, udvBlob, { contentType: 'application/kompas-udv+json', upsert: false });
 
-    if (udvUploadError) {
-      throw new Error('UDV upload fejl: ' + udvUploadError.message);
-    }
-    console.log('✓ UDV uploadet:', udvPath);
+    if (udvUploadError) throw new Error('UDV upload fejl: ' + udvUploadError.message);
 
-    // Opret artifact entry for UDV
-    const { error: udvArtifactError } = await window.supabaseClient
-      .from('individual_artifacts')
-      .insert({
-        ma: ma,
-        assessment_id: assessmentId,
-        type: 'UDV',
-        storage_path: udvPath,
-        file_size: udvBlob.size,
-        filename: udvFilename,
-        mime_type: 'application/kompas-udv+json'
-      });
-
-    if (udvArtifactError) {
-      console.warn('⚠️ UDV artifact entry fejl:', udvArtifactError);
-    }
-
-    // === STEP 4: Generer PDF ===
-    progressText.textContent = 'Genererer PDF (dette kan tage op til 30 sekunder)...';
+    // === STEP 4: Generér og upload PDF (valgfrit men implementeret) ===
+    progressText.textContent = 'Genererer PDF af kontrakt.';
     const pdfBlob = await generateContractPDFBlob(contractId);
-    console.log('✓ PDF blob genereret:', pdfBlob.size, 'bytes');
+    const pdfPath = `minudvikling/${ma}/${assessmentId}/kontrakt.pdf`;
 
-    // === STEP 5: Upload PDF til Storage ===
-    progressText.textContent = 'Uploader PDF fil...';
-    const pdfPath = `minudvikling/${ma}/${assessmentId}/contract.pdf`;
-    
-    const { error: pdfUploadError } = await window.supabaseClient.storage
+    await window.supabaseClient.storage
       .from('artifacts')
-      .upload(pdfPath, pdfBlob, {
-        contentType: 'application/pdf',
-        upsert: false
-      });
+      .upload(pdfPath, pdfBlob, { contentType: 'application/pdf', upsert: false })
+      .catch(e => console.warn('⚠️ PDF upload fejl:', e));
 
-    if (pdfUploadError) {
-      throw new Error('PDF upload fejl: ' + pdfUploadError.message);
-    }
-    console.log('✓ PDF uploadet:', pdfPath);
-
-    // Opret artifact entry for PDF
-    const { error: pdfArtifactError } = await window.supabaseClient
-      .from('individual_artifacts')
-      .insert({
-        ma: ma,
-        assessment_id: assessmentId,
-        type: 'PDF_KONTRAKT',
-        storage_path: pdfPath,
-        file_size: pdfBlob.size,
-        filename: 'contract.pdf',
-        mime_type: 'application/pdf'
-      });
-
-    if (pdfArtifactError) {
-      console.warn('⚠️ PDF artifact entry fejl:', pdfArtifactError);
-    }
-
-        // === STEP 6: Opdater assessment med den fulde UDV (samme format som ved .UDV-download) ===
+    // === STEP 5: Persistér UDV (objekt) på assessment for nem visning ===
     progressText.textContent = 'Færdiggør publicering.';
-    // Læs blob -> objekt (identisk struktur som vi lige har gemt som .udv)
-    const udvText = await udvBlob.text();
-    let udvObject;
-    try {
-      udvObject = JSON.parse(udvText);
-    } catch (e) {
-      throw new Error('UDV parse fejl: ' + (e?.message || e));
-    }
-
     const { error: updateError } = await window.supabaseClient
       .from('individual_assessments')
-      .update({ 
-        udv_json: udvObject 
-      })
+      .update({ udv_json: udvJson })
       .eq('id', assessmentId);
 
-    if (updateError) {
-      console.warn('⚠️ Assessment update fejl:', updateError);
-    }
+    if (updateError) console.warn('⚠️ Assessment update fejl:', updateError);
 
-    // === SUCCESS ===
     progressText.textContent = '✅ Kontrakt udgivet succesfuldt!';
     progressText.style.color = 'var(--success)';
     progressText.style.fontWeight = '600';
 
-    console.log('🎉 Publicering komplet:', {
-      assessmentId,
-      ma,
-      projectLabel,
-      variant,
-      udvPath,
-      pdfPath
-    });
-
-    // Opdater publish button state
     setTimeout(async () => {
       await updatePublishButtonState();
       closePublishDialog();
-      
       alert(
         `✅ Kontrakt udgivet succesfuldt!\n\n` +
         `MA: ${ma}\n` +
         `Projekt: ${projectLabel}\n` +
-        `Variant: ${variant}\n\n` +
+        `Variant: ${variantEnum}\n\n` +
         `Medarbejderen kan nu se kontrakten i MinUdvikling portalen.`
       );
     }, 1500);
 
   } catch (error) {
     console.error('❌ Publicering fejlede:', error);
-    
-    // Vis fejl
     progressText.textContent = '❌ Fejl: ' + error.message;
     progressText.style.color = 'var(--error)';
     progressText.style.fontWeight = '600';
-    
-    // Re-enable knapper efter 2 sekunder
     setTimeout(() => {
       progressEl.style.display = 'none';
       confirmBtn.disabled = false;
       cancelBtn.disabled = false;
     }, 2000);
-    
     alert('❌ Publicering fejlede:\n\n' + error.message);
   }
 }
