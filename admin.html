@@ -10969,42 +10969,115 @@ async function contractPublish() {
   progressEl.style.display = 'block';
 
   try {
-    // === STEP 1: Kald RPC til publicering ===
-    progressText.textContent = 'Opretter assessment i databasen...';
-    
-    // 🔒 Log contract data for debugging
-    console.log('📤 Publishing contract:', {
-      contract_id: contractId,
-      ma: ma,
-      project_label: projectLabel,
-      variant: variant,
-      selected_competencies_count: contract.selected_competencies?.length ?? 0
-    });
+    // === STEP 1: Gem kontrakten endeligt i præcis samme format som "Gem kontrakt" ===
+    progressText.textContent = 'Gemmer kontrakt (endelig) i databasen...';
 
-    // Hent og log den faktiske contract for debugging
-    const { data: contractDebug } = await supabase
+    // Tving endeligt gem (ikke kladde) med samme serializer som "Gem"
+    try {
+      await saveDevelopmentContract(false); // false = ikke draft
+    } catch (e) {
+      console.error('Auto-save før publicering fejlede:', e);
+      alert('Kunne ikke gemme kontrakten endeligt før publicering.');
+      return;
+    }
+
+    // Læs kontrakten tilbage og normalisér JSONB-felter, hvis noget er gemt som tekst
+    progressText.textContent = 'Normaliserer kontraktdata...';
+    const { data: current, error: readErr } = await window.supabaseClient
       .from('development_contract')
-      .select('selected_competencies')
+      .select('id, selected_competencies, selected_tips, roles_assignments, plan, team_roles, compass_snapshot, employee_actions, employee_wishes, leader_actions, followup_date, include_team_roles, include_colleague_support, include_306090_goals')
       .eq('id', contractId)
       .single();
 
-    console.log('🔍 Contract selected_competencies:', contractDebug?.selected_competencies);
+    if (readErr || !current) {
+      console.error('Kunne ikke hente kontrakt til normalisering:', readErr);
+      alert('Kunne ikke læse kontrakten efter gemning.');
+      return;
+    }
 
-    // === STEP 1: Kald server-RPC som opretter assessment og flytter data ===
+    // Helper: parse hvis string, ellers brug som er
+    const parseMaybe = (v, fallback = null) => {
+      if (v == null) return fallback;
+      if (typeof v === 'string') {
+        try { return JSON.parse(v); } catch { return fallback; }
+      }
+      return v;
+    };
+
+    // Sørg for at felterne er valid JSONB-struktur som "Gem" producerer
+    const normalized = {
+      selected_tips:        parseMaybe(current.selected_tips, {}),
+      roles_assignments:    parseMaybe(current.roles_assignments, {}),
+      plan:                 parseMaybe(current.plan, null),
+      team_roles:           parseMaybe(current.team_roles, null),
+      compass_snapshot:     parseMaybe(current.compass_snapshot, null)
+    };
+
+    // Kompetencer: hold det som UUID[] (DB-kolonne er uuid[])
+    let comps = current.selected_competencies || [];
+    if (Array.isArray(comps)) {
+      // fjern null/dups/trim
+      comps = Array.from(new Set(comps.filter(Boolean)));
+    } else {
+      comps = [];
+    }
+
+    // Kun opdater hvis noget ser forkert ud (string/array-type mismatch)
+    const needsUpdate =
+      typeof current.selected_tips === 'string' ||
+      typeof current.roles_assignments === 'string' ||
+      (current.plan != null && typeof current.plan === 'string') ||
+      (current.team_roles != null && typeof current.team_roles === 'string') ||
+      (current.compass_snapshot != null && typeof current.compass_snapshot === 'string');
+
+    if (needsUpdate) {
+      const { error: upErr } = await window.supabaseClient
+        .from('development_contract')
+        .update({
+          selected_competencies: comps,                // uuid[]
+          selected_tips: normalized.selected_tips,     // jsonb
+          roles_assignments: normalized.roles_assignments, // jsonb
+          plan: normalized.plan,                       // jsonb | null
+          team_roles: normalized.team_roles,           // jsonb | null
+          compass_snapshot: normalized.compass_snapshot // jsonb | null
+        })
+        .eq('id', contractId);
+
+      if (upErr) {
+        console.error('Normaliserings-update fejlede:', upErr);
+        alert('Kunne ikke normalisere kontraktens JSON-felter.');
+        return;
+      }
+    }
+
+    // Log til fejlfinding
+    console.log('📤 Klar til publicering med normaliserede felter:', {
+      contract_id: contractId,
+      ma,
+      project_label: projectLabel,
+      variant,
+      comps_len: comps.length
+    });
+
+    // Enum-værdi sikres til det forventede format i DB
+    const variantEnum = String(variant || 'FULL').toUpperCase();
+
+    // === STEP 2: Kald server-RPC som opretter assessment og flytter data ===
+    progressText.textContent = 'Opretter assessment i databasen...';
+
     const { data: publishResult, error: publishError } = await window.supabaseClient.rpc(
       'publish_development_contract',
       {
         p_contract_id: contractId,
         p_ma: ma,
         p_project_label: projectLabel,
-        p_variant: variant
+        p_variant: variantEnum
       }
     );
 
     if (publishError) {
       throw new Error('RPC fejl: ' + publishError.message);
     }
-
     if (!publishResult?.success) {
       throw new Error(publishResult?.error || 'Publicering fejlede uden fejlbesked');
     }
@@ -11012,9 +11085,9 @@ async function contractPublish() {
     const assessmentId = publishResult.assessment_id;
     console.log('✓ Assessment oprettet:', assessmentId);
 
-    // === STEP 2: Generer UDV fil (samme format som “Gem kontrakt”) ===
+    // === STEP 3: Generer UDV fil (samme format som “Gem kontrakt”) ===
     progressText.textContent = 'Genererer UDV fil.';
-    const { json: udvJson, blob: udvBlob } = await generateUDVBlob(contractId, ma, projectLabel, variant);
+    const { json: udvJson, blob: udvBlob } = await generateUDVBlob(contractId, ma, projectLabel, variantEnum);
     console.log('✓ UDV genereret:', (udvBlob && udvBlob.size) || 0, 'bytes');
 
     // === STEP 3: Upload UDV til Storage ===
