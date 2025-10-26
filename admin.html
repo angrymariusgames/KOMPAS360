@@ -1425,10 +1425,15 @@ window.addEventListener('load', function() {
           if (keepCard) keepCard.classList.toggle('selected', !!window.contractKeepState?.selectedCompetencies?.has(cId));
         });
 
-        // 7) Hent/tegn tips (Udvikling + Fastholdelse), og markér de valgte
+        // 7) Hent/tegn tips (Udvikling + Fastholdelse)
         await contractLoadTipsForSelected();
         await contractLoadKeepTipsForSelected?.();
 
+        // 7b) Preload meta for alle valgte tip-id'er fra filen,
+        //     så vi undgår "Aktivitet"-fallback overalt
+        await preloadSelectedTipsMeta(c);
+
+        // Markér de valgte kort i UI (efter preload)
         if (c.tips) {
           Object.values(c.tips).flat().forEach(tid => {
             const card = document.querySelector(`#contractTipsContainer .contract-tip-card[data-tip-id="${tid}"]`);
@@ -7249,9 +7254,16 @@ function contractSerializePlan(){
 
 // ✅ Global helper til at hente tip metadata på tværs af både contractAvailableTips og contractKeepAvailableTips
 function getGlobalTipMeta(tipId) {
-  // Søg først i udviklingstips
+  const id = String(tipId);
+
+  // 0) Slå først op i global preload-cache (indsat ved fil-load)
+  if (window.__tipMetaById && window.__tipMetaById.has(id)) {
+    return window.__tipMetaById.get(id);
+  }
+
+  // 1) Udviklingstips (eksisterende cache)
   for (const [catId, tips] of contractAvailableTips.entries()) {
-    const t = (tips || []).find(x => x.id === tipId);
+    const t = (tips || []).find(x => String(x.id) === id);
     if (t) {
       const catName = t.category_name || contractAvailableCompetencies.find(c => c.category_id === catId)?.category_name || '';
       return { 
@@ -7261,11 +7273,11 @@ function getGlobalTipMeta(tipId) {
       };
     }
   }
-  
-  // Søg derefter i fastholdelses-tips
+
+  // 2) Fastholdelses-tips (eksisterende cache)
   if (window.contractKeepAvailableTips) {
     for (const [catId, tips] of window.contractKeepAvailableTips.entries()) {
-      const t = (tips || []).find(x => x.id === tipId);
+      const t = (tips || []).find(x => String(x.id) === id);
       if (t) {
         const catName = t.category_name || contractAvailableCompetencies.find(c => c.category_id === catId)?.category_name || '';
         return { 
@@ -7276,8 +7288,8 @@ function getGlobalTipMeta(tipId) {
       }
     }
   }
-  
-  // Fallback
+
+  // 3) Fallback
   return { title: 'Aktivitet', desc: '', category: '' };
 }
 
@@ -9798,6 +9810,70 @@ async function contractReloadTipsIfNeeded() {
     contractUpdateProgress?.();
   } catch (e) {
     console.warn('contractReloadTipsIfNeeded fejlede:', e);
+  }
+}
+
+/** Preload alle valgte tip-id'er fra .UDV og byg en meta-cache,
+ *  så UI og PDF har rigtige titler/tekster med det samme.
+ */
+async function preloadSelectedTipsMeta(c) {
+  try {
+    const devIds  = Object.values(c.tips || {}).flat().map(String);
+    const keepIds = Object.values(c.keep_tips || {}).flat().map(String);
+    const ids = Array.from(new Set([...devIds, ...keepIds]));
+    if (ids.length === 0) return;
+
+    const { data, error } = await supabase
+      .from('coaching_tip')
+      .select('id,title,description,category_id,method,kind,time_horizon')
+      .in('id', ids);
+
+    if (error) {
+      console.warn('preloadSelectedTipsMeta: DB fejl', error);
+      return;
+    }
+
+    // Global cache for direkte lookups (bruges af getGlobalTipMeta)
+    window.__tipMetaById = window.__tipMetaById || new Map();
+
+    (data || []).forEach(r => {
+      const catName =
+        contractAvailableCompetencies.find(x => x.category_id === r.category_id)?.category_name || '';
+
+      // 1) Fyld meta-cache
+      window.__tipMetaById.set(String(r.id), {
+        title: r.title || 'Aktivitet',
+        desc:  r.description || '',
+        category: catName
+      });
+
+      // 2) Sørg for at tips også ligger i de eksisterende caches,
+      //    så render-funktioner kan finde dem uden ⚡
+      const entry = {
+        id: r.id,
+        title: r.title,
+        description: r.description,
+        method: r.method,
+        category_id: r.category_id,
+        category_name: catName,
+        time_horizon: r.time_horizon,
+        kind: r.kind
+      };
+
+      if (r.kind === 'keep') {
+        window.contractKeepAvailableTips = window.contractKeepAvailableTips || new Map();
+        const arr = window.contractKeepAvailableTips.get(r.category_id) || [];
+        if (!arr.some(t => t.id === r.id)) arr.push(entry);
+        window.contractKeepAvailableTips.set(r.category_id, arr);
+      } else {
+        const arr = contractAvailableTips.get(r.category_id) || [];
+        if (!arr.some(t => t.id === r.id)) arr.push(entry);
+        contractAvailableTips.set(r.category_id, arr);
+      }
+    });
+
+  } catch (e) {
+    console.warn('preloadSelectedTipsMeta fejl:', e);
   }
 }
 
