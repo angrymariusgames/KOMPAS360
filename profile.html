@@ -372,6 +372,7 @@
         <div style="font-weight:600;margin-bottom:8px">Klik for at vælge fil eller træk den hertil</div>
         <div style="color:var(--muted);font-size:.9rem">Understøtter .UDV og .JSON filer</div>
       </div>
+
       
       <div id="uploadStatus" class="alert info" style="display:none"></div>
     </div>
@@ -636,6 +637,17 @@ async function init() {
     if (roleData?.role) {
       // Kortlægning: programmer -> master.html, admin -> admin.html
       const role = roleData.role;
+      // Skjul/neutralisér upload i profil for admins – upload skal ske i Admin
+      try {
+        if (role === 'admin') {
+          const zone = document.getElementById('uploadZone');
+          if (zone) {
+            zone.innerHTML = '<div class="alert info">Som administrator skal du importere .UDV via Admin-dashboardet.</div>';
+            zone.style.pointerEvents = 'none';
+            zone.style.opacity = '0.7';
+          }
+        }
+      } catch {}
       switchBtn.style.display = 'inline-block';
       switchBtn.onclick = () => {
         if (role === 'programmer') {
@@ -760,12 +772,39 @@ function switchTab(tabName) {
 }
 
 // ============================================================================
-// UPLOAD FUNKTIONALITET
+// UPLOAD FUNKTIONALITET (kun Admin .UDV, ingen legacy ZIP)
 // ============================================================================
 // Note: Upload zone event listeners sættes op i setupUploadZone() funktionen senere
+
+// Parser identisk til admin.html
+async function readUdvFileProfile(file) {
+  const text = await file.text();
+  let json = null;
+
+  // 1) Prøv ren JSON
+  try { json = JSON.parse(text); } catch {}
+
+  // 2) Prøv base64-encoded JSON
+  if (!json) {
+    try {
+      const decoded = atob(String(text).trim());
+      json = JSON.parse(decoded);
+    } catch {}
+  }
+
+  if (!json || !json.udv_version) {
+    throw new Error('Filen er ikke en gyldig Admin .UDV (JSON med udv_version).');
+  }
+
+  // Normaliser strukturen som i Admin
+  json.people = Array.isArray(json.people) ? json.people : [];
+  json.scores = Array.isArray(json.scores) ? json.scores : [];
+
+  return json;
+}
+
 async function handleUDVUpload(file) {
   const statusEl = document.getElementById('uploadStatus');
-
   if (!statusEl) {
     console.error('Upload status element ikke fundet');
     return;
@@ -776,50 +815,20 @@ async function handleUDVUpload(file) {
   statusEl.textContent = 'Uploader fil.';
 
   try {
-    // Valider fil
     const lower = file.name.toLowerCase();
     if (!lower.endsWith('.udv') && !lower.endsWith('.json')) {
       throw new Error('Kun .UDV og .JSON filer er tilladt');
     }
-    if (file.size > 10 * 1024 * 1024) {
-      throw new Error('Filen er for stor (maks 10 MB)');
+    if (file.size > 1 * 1024 * 1024) {
+      throw new Error('Filen er for stor (maks 1 MB)');
     }
 
-    // Læs/parse UDV som JSON — tolerant for BOM, UTF-16 og evt. base64-indpakning
-    let udv = null;
 
-    // 1) Prøv ren tekst → fjern BOM og trim
-    let rawText = await file.text();
-    rawText = rawText.replace(/^\uFEFF/, '').trim();
-    try { udv = JSON.parse(rawText); } catch {}
+    // Læs udelukkende som Admin .UDV
+    const udv = await readUdvFileProfile(file);
+    const rawText = await file.text();
 
-    // 2) Hvis ikke JSON, og det ikke ligner et JSON-objekt fra start,
-    //    prøv base64→JSON (samme princip som i admin)
-    if (!udv && rawText[0] !== '{') {
-      try { udv = JSON.parse(atob(rawText.replace(/\s+/g, ''))); } catch {}
-    }
-
-    // 3) Hvis stadig ikke, re-decoder bytes manuelt (UTF-16/UTF-8 autodetektion)
-    if (!udv) {
-      try {
-        const buf = await file.arrayBuffer();
-        const u8  = new Uint8Array(buf);
-        const isLE = (u8[0] === 0xFF && u8[1] === 0xFE);
-        const isBE = (u8[0] === 0xFE && u8[1] === 0xFF);
-
-        let txt;
-        if (isLE) {
-          txt = new TextDecoder('utf-16le').decode(u8.subarray(2));
-        } else if (isBE) {
-          txt = new TextDecoder('utf-16be').decode(u8.subarray(2));
-        } else {
-          // prøv ren UTF-8
-          txt = new TextDecoder('utf-8').decode(u8);
-        }
-        txt = txt.replace(/^\uFEFF/, '').trim();
-        udv = JSON.parse(txt);
-      } catch {}
-    }
+    // (legacy fallback parsing fjernet)
 
     let assessment, categories, responses, contract;
 
@@ -845,11 +854,12 @@ async function handleUDVUpload(file) {
         (rawText.match(/\b\d{6}\b/g) || []).forEach(v => maSet.add(String(v).trim()));
       } catch {}
 
-      const hasMAOverlap = maSet.has(String(userMA).trim());
+      // Midlertidigt: ingen MA-krav. Tillad upload for alle brugere.
+      // const hasMAOverlap = maSet.has(String(userMA).trim());
+      // if (!hasMAOverlap) {
+      //   throw new Error('Denne fil tilhører ikke dig (MA ikke fundet i UDV)');
+      // }
 
-      if (!hasMAOverlap) {
-        throw new Error('Denne fil tilhører ikke dig (MA ikke fundet i UDV)');
-      }
 
       // Byg assessment minimal-objekt til RPC
       const variant =
@@ -905,8 +915,8 @@ async function handleUDVUpload(file) {
 
 } else {
   // -------------------------------------------
-  // Legacy profil-format (ZIP eller ren JSON uden udv_version)
-  // Bevar kompatibilitet – hvis nogen stadig bruger det
+  // Legacy profil-format (REN JSON uden udv_version)
+  // ZIP-understøttelse er fjernet.
   // -------------------------------------------
   let data = null;
 
@@ -943,26 +953,8 @@ async function handleUDVUpload(file) {
       responses = {};
       contract  = contractObj;
     } else {
-      // Sidste mulighed: KUN prøv ZIP hvis det ligner en ZIP (mime/extension)
-      const looksZip = (file.type && file.type.includes('zip')) || lower.endsWith('.zip');
-      if (!looksZip) {
-        throw new Error('UDV-filen kan ikke læses som JSON. Filen er ikke en ZIP – forventer Admin .UDV (JSON med udv_version).');
-      }
-
-      const zip = await JSZip.loadAsync(file);
-      const assessmentJson = await zip.file('assessment.json')?.async('text');
-      const categoriesJson = await zip.file('categories.json')?.async('text');
-      const responsesJson  = await zip.file('responses.json')?.async('text');
-      const contractJson   = await zip.file('development_contract.json')?.async('text');
-
-      if (!assessmentJson || !categoriesJson) {
-        throw new Error('UDV-filen kan ikke læses (hverken UDV JSON eller kendt ZIP-struktur)');
-      }
-
-      assessment = JSON.parse(assessmentJson);
-      categories = JSON.parse(categoriesJson);
-      responses  = responsesJson ? JSON.parse(responsesJson) : {};
-      contract   = contractJson  ? JSON.parse(contractJson)  : {};
+      // ZIP-parse er fjernet – giv en klar fejl
+      throw new Error('UDV-filen kan ikke læses som JSON. ZIP-legacy er fjernet – forvent Admin .UDV (JSON med udv_version).');
     }
   }
 
