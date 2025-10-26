@@ -967,14 +967,21 @@ async function handleUDVUpload(file) {
     statusEl.className = 'alert success';
     statusEl.textContent = '✅ UDV-fil uploadet og læst korrekt.';
 
-    // Opdatér og vis i oversigten
+    // Opdatér data og hop direkte til Kompas
     await loadAssessments();
+    initializeCompassTab();
     setTimeout(() => {
-      switchTab('oversigt');
+      switchTab('kompas');
+      const sel = document.getElementById('compassAssessmentSelect');
+      if (sel && assessments.length) {
+        sel.value = assessments[0].id;
+        loadCompassForAssessment();
+      }
       statusEl.style.display = 'none';
       const inp = document.getElementById('udvFileInput');
       if (inp) inp.value = '';
-    }, 1500);
+    }, 500);
+
 
   } catch (error) {
   console.error('Upload error:', error);
@@ -1007,6 +1014,7 @@ function renderTimeline() {
   const sorted = [...assessments].sort((a, b) => 
     new Date(b.published_at) - new Date(a.published_at)
   );
+
   
   container.innerHTML = `
     <div class="grid grid-2">
@@ -1052,9 +1060,7 @@ function renderTimeline() {
 }
 
 function viewAssessmentDetails(assessmentId) {
-  selectedAssessment = assessmentId;
-  switchTab('kompas');
-  renderCompassForAssessment(assessmentId);
+  viewCompass(assessmentId);
 }
 
 async function deleteAssessment(assessmentId) {
@@ -1151,7 +1157,7 @@ async function renderComparison() {
     });
     
     // Grupper data
-    const categories = [...new Set(scores.map(s => s.category_name))];
+    const categories = Array.from(new Set(scores.map(s => s.category_name)));
     const respondentTypes = ['self', 'peer', 'leader'];
     
     let html = '<div class="compass-container">';
@@ -2442,11 +2448,11 @@ function viewContract(assessmentId) {
 
 function viewCompass(assessmentId) {
   switchTab('kompas');
-  setTimeout(() => {
-    const select = document.getElementById('compassAssessmentSelect');
-    select.value = assessmentId;
+  const select = document.getElementById('compassAssessmentSelect');
+  if (select) {
+    select.value = assessmentId || (assessments[0] && assessments[0].id) || '';
     loadCompassForAssessment();
-  }, 100);
+  }
 }
 
 // ============================================================================
