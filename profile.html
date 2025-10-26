@@ -1647,6 +1647,31 @@ async function loadCompassForAssessment() {
             }
           });
         });
+      } else if (udv && udv.compass_snapshot && Array.isArray(udv.compass_snapshot.categories) && udv.compass_snapshot.series) {
+        // Fallback: brug kompakt kompas-snapshot
+        const snap = udv.compass_snapshot;
+        const catNames = snap.categories.map(c => c.name);
+        const pushSeries = (arr, type) => {
+          if (!Array.isArray(arr)) return;
+          arr.forEach((v, idx) => {
+            const n = catNames[idx];
+            if (n == null || v == null) return;
+            built.push({ category_name: n, respondent_type: type, score_numeric: Number(v) });
+          });
+        };
+        built = [];
+        pushSeries(snap.series.self,   'self');
+        pushSeries(snap.series.peer,   'peer');
+        pushSeries(snap.series.leader, 'leader');
+
+        // Hvis kun blended er udfyldt, vis den som 'peer' (én serie)
+        if (!built.length && Array.isArray(snap.series.blended)) {
+          snap.series.blended.forEach((v, idx) => {
+            const n = catNames[idx];
+            if (n == null || v == null) return;
+            built.push({ category_name: n, respondent_type: 'peer', score_numeric: Number(v) });
+          });
+        }
       }
 
       // 2B) Fallback #2: kompakt kompas-snapshot (udv.compass_snapshot)
@@ -2451,6 +2476,28 @@ function loadContractForAssessment() {
       const scores = Array.isArray(udv?.assessment?.scores) ? udv.assessment.scores
                     : Array.isArray(udv?.scores) ? udv.scores
                     : [];
+
+      // Hvis der ikke er scores, men der er compass_snapshot, så byg direkte herfra
+      if (!scores.length && udv?.compass_snapshot?.categories && udv?.compass_snapshot?.series) {
+        const snap = udv.compass_snapshot;
+        const names = (snap.categories || []).map(c => c.name);
+        const addFrom = (arr, type) => {
+          if (!Array.isArray(arr)) return;
+          arr.forEach((v, i) => {
+            if (names[i] == null || v == null) return;
+            built.push({ category_name: names[i], respondent_type: type, score_numeric: Number(v) });
+          });
+        };
+        addFrom(snap.series.self, 'self');
+        addFrom(snap.series.peer, 'peer');
+        addFrom(snap.series.leader, 'leader');
+        if (!built.length && Array.isArray(snap.series.blended)) {
+          snap.series.blended.forEach((v, i) => {
+            if (names[i] == null || v == null) return;
+            built.push({ category_name: names[i], respondent_type: 'peer', score_numeric: Number(v) });
+          });
+        }
+      }
 
       // Find target id ud fra MA
       const people = Array.isArray(udv?.assessment?.people) ? udv.assessment.people
