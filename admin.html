@@ -11053,7 +11053,7 @@ async function contractPublish() {
         project_label: projectLabel,
         variant: variantEnum,
         published_at: new Date().toISOString(),
-        published_by: (await window.supabaseClient.auth.getUser())?.data?.user?.id ?? null,
+        /* published_by sættes automatisk af triggeren trg_set_published_by */
         development_contract: udvJson?.development_contract ?? null,
         udv_json: udvJson
       }])
