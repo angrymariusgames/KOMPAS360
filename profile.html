@@ -2446,24 +2446,79 @@ function loadContractForAssessment() {
       `;
     }
 
-    // Plan (30-60-90 eller generel)
-    if (c.include_306090_goals || (Array.isArray(c.plan) && c.plan.length > 0)) {
-      html += `
-        <div style="margin-bottom:18px">
-          <h3 style="color:var(--brand);margin-bottom:10px;display:flex;align-items:center;gap:8px"><span>🗓️</span> Plan</h3>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px">
-            ${Array.isArray(c.plan) ? c.plan.map((p, i) => `
-              <div class="card" style="border:1px solid var(--line);border-radius:12px;padding:12px;background:#fff">
-                <div style="display:flex;justify-content:space-between;gap:12px;align-items:start">
-                  <div style="font-weight:700">${i+1}. ${esc(p.title || p.task || 'Punkt')}</div>
-                  <div style="color:#64748b">${esc(p.when || p.due || p.bucket || '')}</div>
+    // Plan (30-60-90 eller generel) — robust mod legacy/formater
+    {
+      // Normaliser alle kendte formater til tre buckets
+      const norm = (() => {
+        const out = { d30: [], d60: [], d90: [] };
+        const p = c?.plan;
+
+        // Case 1: objekt med plan30/plan60/plan90
+        if (p && typeof p === 'object' && !Array.isArray(p)) {
+          if (Array.isArray(p.plan30)) out.d30 = p.plan30;
+          if (Array.isArray(p.plan60)) out.d60 = p.plan60;
+          if (Array.isArray(p.plan90)) out.d90 = p.plan90;
+        }
+
+        // Case 2: liste af punkter med bucket/when der indeholder 30/60/90
+        if (Array.isArray(p)) {
+          p.forEach(item => {
+            const tag = String(item.bucket || item.when || '').toLowerCase();
+            if (tag.includes('30')) out.d30.push(item);
+            else if (tag.includes('60')) out.d60.push(item);
+            else if (tag.includes('90')) out.d90.push(item);
+          });
+        }
+
+        // Case 3: flade nøgler '30' / '60' / '90'
+        if (p && typeof p === 'object' && !Array.isArray(p)) {
+          if (!out.d30.length && Array.isArray(p['30'])) out.d30 = p['30'];
+          if (!out.d60.length && Array.isArray(p['60'])) out.d60 = p['60'];
+          if (!out.d90.length && Array.isArray(p['90'])) out.d90 = p['90'];
+        }
+
+        return out;
+      })();
+
+      const hasBuckets = [norm.d30, norm.d60, norm.d90].some(lst => Array.isArray(lst) && lst.length > 0);
+      const hasFlatList = Array.isArray(c.plan) && c.plan.length > 0;
+
+      // Vis hvis flag ikke er slået fra, eller hvis der faktisk er data i nogen form
+      if ((c.include_306090_goals !== false) || hasBuckets || hasFlatList) {
+        html += `
+          <div style="margin-bottom:18px">
+            <h3 style="color:var(--brand);margin-bottom:10px;display:flex;align-items:center;gap:8px"><span>🗓️</span> Plan</h3>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px">
+              ${hasBuckets ? ([
+                { label: 'De første 30 dage – læring og relationer', list: norm.d30 },
+                { label: 'Dag 31–60 – praksis og feedback',          list: norm.d60 },
+                { label: 'Dag 61–90 – konsolidering og næste mål',   list: norm.d90 },
+              ].map(col => `
+                <div class="card" style="border:1px solid var(--line);border-radius:12px;padding:12px;background:#fff">
+                  <div style="font-weight:700;margin-bottom:6px">${col.label}</div>
+                  ${col.list.length ? col.list.map(item => `
+                    <div style="margin:6px 0;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;background:#fff">
+                      ${item.bucket || item.when ? `<div style="font-size:11px;color:#667eea;margin-bottom:2px">${esc(String(item.bucket || item.when))}</div>` : ''}
+                      <div style="font-weight:600">${esc(item.title || item.task || item.text || 'Aktivitet')}</div>
+                      ${item.description || item.desc ? `<div style="font-style:italic;color:#475569">${esc(item.description || item.desc)}</div>` : ''}
+                    </div>
+                  `).join('') : `<div style="color:#94a3b8;font-style:italic">Ingen mål</div>`}
                 </div>
-                ${p.description ? `<div style="color:#475569;margin-top:6px;line-height:1.6">${esc(p.description)}</div>` : ''}
-              </div>
-            `).join('') : '<div style="color:#666">Planen er aktiveret (30-60-90), men uden specifikke punkter.</div>'}
+              `).join('')) : (
+                Array.isArray(c.plan) ? c.plan.map((p, i) => `
+                  <div class="card" style="border:1px solid var(--line);border-radius:12px;padding:12px;background:#fff">
+                    <div style="display:flex;justify-content:space-between;gap:12px;align-items:start">
+                      <div style="font-weight:700">${i+1}. ${esc(p.title || p.task || 'Punkt')}</div>
+                      <div style="color:#64748b">${esc(p.when || p.due || p.bucket || '')}</div>
+                    </div>
+                    ${p.description ? `<div style="color:#475569;margin-top:6px;line-height:1.6">${esc(p.description)}</div>` : ''}
+                  </div>
+                `).join('') : '<div style="color:#666">Planen er aktiveret (30-60-90), men uden specifikke punkter.</div>'
+              )}
+            </div>
           </div>
-        </div>
-      `;
+        `;
+      }
     }
 
     // Kollegastøtte
