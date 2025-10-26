@@ -1803,7 +1803,7 @@ function renderFilesList() {
   list.innerHTML = assessments.map(a => `
     <li class="file-item">
       <div class="file-info">
-        <div class="file-name">${a.project_label}.udv</div>
+        <div class="file-name">udviklingskontrakt_${(a.project_label || '').replace(/\s+/g,'_')}_${(userMA || '').toString().trim()}.udv</div>
         <div class="file-meta">Udgivet ${new Date(a.published_at).toLocaleDateString('da-DK')}</div>
       </div>
       <div style="display:flex;gap:8px">
@@ -1820,11 +1820,17 @@ async function downloadUDV(assessmentId) {
   try {
     const assessment = assessments.find(a => a.id === assessmentId);
     if (!assessment) return;
-    
+
+    // 1:1 “Gem”-format (ingen omskrivning) + korrekt MIME + MA i filnavn
     const udvData = assessment.udv_json;
-    const filename = `${userMA}.${assessment.project_label}.udv`;
-    
-    const blob = new Blob([JSON.stringify(udvData, null, 2)], { type: 'application/json' });
+    const safe = (s) => String(s || '').replace(/\s+/g, '_').replace(/[^A-Za-z0-9_\-\.]/g, '');
+    const filename = `udviklingskontrakt_${safe(assessment.project_label)}_${safe(userMA)}.udv`;
+
+    const blob = new Blob(
+      [JSON.stringify(udvData, null, 2)],
+      { type: 'application/kompas-udv+json' }
+    );
+
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -1833,7 +1839,7 @@ async function downloadUDV(assessmentId) {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
+
   } catch (error) {
     console.error('Download fejl:', error);
     alert('Kunne ikke downloade fil');
