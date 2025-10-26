@@ -871,28 +871,33 @@ async function handleUDVUpload(file) {
       if (data?.error) throw new Error(data.error);
       if (!data?.success) throw new Error('Import fejlede');
 
-    } else {
-      // -------------------------------------------
-      // Legacy profil-format (ZIP eller ren JSON uden udv_version)
-      // Bevar kompatibilitet – hvis nogen stadig bruger det
-      // -------------------------------------------
-      let data = null;
+} else {
+  // -------------------------------------------
+  // Legacy profil-format (ZIP eller ren JSON uden udv_version)
+  // Bevar kompatibilitet – hvis nogen stadig bruger det
+  // -------------------------------------------
+  let data = null;
 
-      // Prøv ren JSON
-      try { data = JSON.parse(rawText); } catch {}
+  // Prøv ren JSON
+  try { data = JSON.parse(rawText); } catch {}
 
-      if (data && (data.assessment || data.categories)) {
-        assessment = data.assessment || data;
-        categories = data.categories || { categories: [] };
-        responses  = data.responses  || {};
-        contract   = data.contract   || {};
-      } else {
-        // Sidste mulighed: antag ældre ZIP-baseret profil-format
-        const zip = await JSZip.loadAsync(file);
-        const assessmentJson = await zip.file('assessment.json')?.async('text');
-        const categoriesJson = await zip.file('categories.json')?.async('text');
-        const responsesJson  = await zip.file('responses.json')?.async('text');
-        const contractJson   = await zip.file('development_contract.json')?.async('text');
+  if (data && (data.assessment || data.categories)) {
+    assessment = data.assessment || data;
+    categories = data.categories || { categories: [] };
+    responses  = data.responses  || {};
+    contract   = data.contract   || {};
+  } else {
+    // Sidste mulighed: KUN prøv ZIP hvis det ligner en ZIP (mime/extension)
+    const looksZip = (file.type && file.type.includes('zip')) || lower.endsWith('.zip');
+    if (!looksZip) {
+      throw new Error('UDV-filen kan ikke læses som JSON. Filen er ikke en ZIP – forventer Admin .UDV (JSON med udv_version).');
+    }
+
+    const zip = await JSZip.loadAsync(file);
+    const assessmentJson = await zip.file('assessment.json')?.async('text');
+    const categoriesJson = await zip.file('categories.json')?.async('text');
+    const responsesJson  = await zip.file('responses.json')?.async('text');
+    const contractJson   = await zip.file('development_contract.json')?.async('text');
 
         if (!assessmentJson || !categoriesJson) {
           throw new Error('UDV-filen kan ikke læses (hverken UDV JSON eller kendt ZIP-struktur)');
@@ -940,10 +945,15 @@ async function handleUDVUpload(file) {
     }, 1500);
 
   } catch (error) {
-    console.error('Upload error:', error);
-    statusEl.className = 'alert error';
-    statusEl.textContent = `❌ ${error.message || 'Upload fejlede'}`;
-  }
+  console.error('Upload error:', error);
+  statusEl.className = 'alert error';
+  const msg = (error && error.message) ? String(error.message) : 'Upload fejlede';
+  // Ryd op i JSZip’s tekniske fejltekst
+  const pretty = msg.includes('end of central directory')
+    ? 'UDV-filen er ikke en ZIP (og bør være JSON fra Admin).'
+    : msg;
+  statusEl.textContent = `❌ ${pretty}`;
+}
 }
 
 // ============================================================================
@@ -1845,7 +1855,10 @@ function setupUploadZone() {
   const uploadZone = document.querySelector('.upload-zone');
   
   if (!zone || !uploadZone) return;
-  
+
+  // Klik på zonen åbner filvælgeren (manglede)
+  uploadZone.addEventListener('click', () => zone.click());
+
   // File input change
   zone.addEventListener('change', (e) => {
     const file = e.target.files[0];
