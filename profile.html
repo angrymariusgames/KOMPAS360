@@ -2279,7 +2279,9 @@ function loadContractForAssessment() {
       <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;align-items:stretch;margin-bottom:20px">
         <div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px">
           <h3 style="margin:0 0 10px 0;display:flex;align-items:center;gap:8px;color:var(--ink)"><span>🧭</span> Kompas</h3>
-          <canvas id="contractCompass" height="280" style="max-height:320px"></canvas>
+          <div id="contractRadarSection" class="section" style="background:#fff;margin:0">
+            <canvas id="contractRadar" height="280" style="max-height:320px"></canvas>
+          </div>
           <div style="display:flex;gap:8px;justify-content:center;margin-top:10px;font-size:.9rem;color:#64748b">
             <span>👤 Selv</span><span>•</span><span>👥 Kolleger</span><span>•</span><span>👔 Leder</span>
           </div>
@@ -2458,13 +2460,15 @@ function loadContractForAssessment() {
   html += '</div>';
   document.getElementById('contractContent').innerHTML = html;
 
-  // Init "kompas-hjulet" i kontrakten (read-only) – samme datafaldback som Kompas-fanen + fast kategoriorden som i Admin.
+  // Init "kompas-hjulet" i kontrakten – brug præcis samme KOMPAS-logik som Admin (inkl. kvadrant-baggrund)
   try {
-    const canvas = document.getElementById('contractCompass');
+    const radarSection = document.getElementById('contractRadarSection');
+    const canvas = document.getElementById('contractRadar');
     if (!canvas) {
-      // Ingen canvas → intet at gøre (markup fixed separat ovenfor)
+      // Ingen canvas → intet at gøre
     } else {
-      const ordered = [
+      // Fast akseorden (samme som Admin)
+      const orderedCategories = [
         '',
         'Fleksibilitet','Nytænkning','Helhedsorientering','Fremtidsorientering',
         '',
@@ -2474,15 +2478,11 @@ function loadContractForAssessment() {
         '',
         'Samarbejde','Udvikling af andre','Motivere andre','Kommunikation'
       ];
-      const names = ordered.filter(Boolean);
 
+      // Byg data fra UDV (samme læsning som i profilen, men mappet til Admins radar)
       const udv = assessment.udv_json || assessment.udv || null;
       let built = [];
 
-      // === Fallback #1: DB-beregnede scores (samme approach som Kompas-fanen)
-      // (vi bruger allerede prebyggede scores i Kompas-fanen – her bygger vi selv på UDV for at undgå ekstra kald)
-
-      // === Fallback #2: udv.scores (klassisk struktur)
       if (udv && Array.isArray(udv.scores) && udv.scores.length) {
         let taxonomy = Array.isArray(udv.taxonomy)
           ? udv.taxonomy.map(t => ({ category_id: t.category_id, category_name: t.category_name }))
@@ -2511,55 +2511,89 @@ function loadContractForAssessment() {
               (s.respondent_type === type || s.type === type)
             );
             const v = r ? (Number.isFinite(r.value) ? r.value : (Number.isFinite(r.safe_avg) ? r.safe_avg : null)) : null;
-            if (v != null) built.push({ category_name: cat.category_name, respondent_type: type, score_numeric: Number(v) });
+            if (v != null) built.push({ category_name: cat.category_name, respondent_type: type, safe_avg: Number(v) });
           });
         });
       }
 
-      // === Fallback #3: kompakt snapshot (udv.compass_snapshot)
+      // Fallback: kompakt snapshot
       if (!built.length && udv?.compass_snapshot?.categories && udv?.compass_snapshot?.series) {
+        const names = orderedCategories.filter(Boolean);
         const snap = udv.compass_snapshot;
         const idx = new Map((snap.categories||[]).map((c,i)=>[c.name, i]));
         const pull = (arr) => names.map(n => {
           const i = idx.get(n);
           return (i==null || !Array.isArray(arr) || arr[i]==null) ? null : Number(arr[i]);
         });
-        const self   = pull(snap.series.self);
-        const peer   = pull(snap.series.peer);
-        const leader = pull(snap.series.leader);
-
+        const selfArr   = pull(snap.series.self);
+        const peerArr   = pull(snap.series.peer);
+        const leaderArr = pull(snap.series.leader);
         names.forEach((n, i) => {
-          if (self[i]   != null) built.push({ category_name:n, respondent_type:'self',   score_numeric:self[i] });
-          if (peer[i]   != null) built.push({ category_name:n, respondent_type:'peer',   score_numeric:peer[i] });
-          if (leader[i] != null) built.push({ category_name:n, respondent_type:'leader', score_numeric:leader[i] });
+          if (selfArr[i]   != null) built.push({ category_name:n, respondent_type:'self',   safe_avg:selfArr[i] });
+          if (peerArr[i]   != null) built.push({ category_name:n, respondent_type:'peer',   safe_avg:peerArr[i] });
+          if (leaderArr[i] != null) built.push({ category_name:n, respondent_type:'leader', safe_avg:leaderArr[i] });
         });
-
-        if (!built.length && Array.isArray(snap.series.blended)) {
-          const blended = pull(snap.series.blended);
-          names.forEach((n,i)=> {
-            if (blended[i] != null) built.push({ category_name:n, respondent_type:'peer', score_numeric:blended[i] });
-          });
-        }
       }
 
-      // Map til fast kategoriorden og tegn
-      const datasets = [
-        { label:'👤 Selv',    data:names.map(n => (built.find(x=>x.category_name===n && x.respondent_type==='self')?.score_numeric ?? null)),   borderColor:'#667eea', backgroundColor:'rgba(102,126,234,0.18)', borderWidth:2, pointRadius:3, pointHoverRadius:5 },
-        { label:'👥 Kolleger',data:names.map(n => (built.find(x=>x.category_name===n && x.respondent_type==='peer')?.score_numeric ?? null)),   borderColor:'#48bb78', backgroundColor:'rgba(72,187,120,0.18)',  borderWidth:2, pointRadius:3, pointHoverRadius:5 },
-        { label:'👔 Leder',   data:names.map(n => (built.find(x=>x.category_name===n && x.respondent_type==='leader')?.score_numeric ?? null)), borderColor:'#ed8936', backgroundColor:'rgba(237,137,54,0.18)',  borderWidth:2, pointRadius:3, pointHoverRadius:5 },
-      ].filter(ds => ds.data.some(v => v != null));
+      // Map til Admins datasæt
+      const self   = orderedCategories.map(c => c===''?null : built.find(r=>r.category_name===c && r.respondent_type==='self')?.safe_avg ?? null);
+      const peer   = orderedCategories.map(c => c===''?null : built.find(r=>r.category_name===c && r.respondent_type==='peer')?.safe_avg ?? null);
+      const leader = orderedCategories.map(c => c===''?null : built.find(r=>r.category_name===c && r.respondent_type==='leader')?.safe_avg ?? null);
 
-      if (!datasets.length) {
-        canvas.outerHTML = `<div class="alert warning">Ingen kompasdata tilgængelig.</div>`;
+      const hasAny = (arr) => Array.isArray(arr) && arr.some(v => v !== null);
+      if (!(hasAny(self) || hasAny(peer) || hasAny(leader))) {
+        if (radarSection) radarSection.innerHTML = '<div class="alert warning">Ingen kompasdata tilgængelig.</div>';
       } else {
-        new Chart(canvas, {
-          type: 'radar',
-          data: { labels:names, datasets },
-          options: {
-            responsive:true, maintainAspectRatio:true,
-            scales:{ r:{ beginAtZero:true, min:0, max:5, ticks:{ stepSize:1 }, grid:{ color:'rgba(0,0,0,0.08)' }, angleLines:{ color:'rgba(0,0,0,0.08)' } } },
-            plugins:{ legend:{ position:'bottom', labels:{ usePointStyle:true, pointStyle:'circle' } }, title:{ display:false } }
+        if (window._contractRadarChart) window._contractRadarChart.destroy();
+
+        const quadrantBackgroundPlugin = {
+          id: 'quadrantBackground',
+          beforeDatasetsDraw: (chart) => {
+            const {ctx, scales: {r}} = chart;
+            const cx = r.xCenter, cy = r.yCenter, radius = r.drawingArea;
+            const draw = (a,b,col)=>{ ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,radius,a,b); ctx.closePath(); ctx.fillStyle=col; ctx.fill(); };
+            const rad = (deg)=>(deg-90)*Math.PI/180;
+            draw(rad(0),   rad(90),  'rgba(34,139,34,0.08)');
+            draw(rad(90),  rad(180), 'rgba(220,20,60,0.08)');
+            draw(rad(180), rad(270), 'rgba(128,128,128,0.08)');
+            draw(rad(270), rad(360), 'rgba(100,149,237,0.08)');
           }
+        };
+
+        const ctx = canvas.getContext('2d');
+        window._contractRadarChart = new Chart(ctx, {
+          type: 'radar',
+          data: {
+            labels: orderedCategories,
+            datasets: [
+              { label:'Selv',    data:self,   borderColor:'rgba(34, 197, 94, 1)',  backgroundColor:'rgba(34, 197, 94, 0.12)',  pointBackgroundColor:'rgba(34, 197, 94, 1)',  borderWidth:2, spanGaps:true },
+              { label:'Kollega', data:peer,   borderColor:'rgba(59, 130, 246, 1)', backgroundColor:'rgba(59, 130, 246, 0.12)', pointBackgroundColor:'rgba(59, 130, 246, 1)', borderWidth:2, spanGaps:true },
+              { label:'Fører',   data:leader, borderColor:'rgba(249, 115, 22, 1)', backgroundColor:'rgba(249, 115, 22, 0.12)', pointBackgroundColor:'rgba(249, 115, 22, 1)', borderWidth:2, spanGaps:true }
+            ]
+          },
+          options:{
+            responsive:true,
+            maintainAspectRatio:false,
+            layout:{ padding:{ top:20, right:80, bottom:30, left:80 } },
+            scales:{
+              r:{
+                beginAtZero:true,
+                min:0,
+                max:5,
+                grid:{ circular:true },
+                angleLines:{ color:'rgba(0,0,0,0.08)' },
+                ticks:{ stepSize:1, display:false },
+                pointLabels:{
+                  display:(ctx)=>orderedCategories[ctx.index] !== '',
+                  callback:(v)=>v||'',
+                  padding:8,
+                  font:{ size:12, weight:'bold' }
+                }
+              }
+            },
+            plugins:{ legend:{ position:'bottom', align:'center' } }
+          },
+          plugins:[quadrantBackgroundPlugin]
         });
       }
     }
