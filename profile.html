@@ -2310,6 +2310,73 @@ function loadContractForAssessment() {
     };
     const p = c?.plan || {};
     add(p.plan30); add(p.plan60); add(p.plan90);
+
+    // ➕ Nye: Tilføj “placeholder”-poster for alle id’er i c.tips/c.keep_tips,
+    // så de altid bliver vist – også før vi henter metadata
+    const addIds = (obj) => {
+      if (!obj || typeof obj !== 'object') return;
+      Object.values(obj).flat().forEach(id => {
+        const k = String(id);
+        if (!out.has(k)) out.set(k, { title: `Tip ${k}`, desc: '', category: '' });
+      });
+    };
+    addIds(c?.tips);
+    addIds(c?.keep_tips);
+
+    // ➕ Nye: Asynkron hydrering – hent manglende metadata via Supabase og opdater DOM
+    (async () => {
+      try {
+        const missing = [];
+        const seen = new Set();
+        const pushIds = (obj) => {
+          if (!obj || typeof obj !== 'object') return;
+          Object.values(obj).flat().forEach(id => {
+            const k = String(id);
+            if (!seen.has(k)) { seen.add(k); if (!(p.plan30||[]).some(t=>String(t?.id)===k) &&
+                                               !(p.plan60||[]).some(t=>String(t?.id)===k) &&
+                                               !(p.plan90||[]).some(t=>String(t?.id)===k)) {
+              missing.push(k);
+            }}
+          });
+        };
+        pushIds(c?.tips);
+        pushIds(c?.keep_tips);
+        if (missing.length === 0) return;
+
+        const { data, error } = await supabase
+          .from('coaching_tip')
+          .select('id,title,description,category_id')
+          .in('id', missing);
+        if (error) return;
+
+        // Kategorinavne fra kompas-snapshot
+        const catById = new Map(
+          Array.isArray(c?.compass_snapshot?.categories)
+            ? c.compass_snapshot.categories.map(x => [String(x.id), x.name])
+            : []
+        );
+
+        (data||[]).forEach(r => {
+          out.set(String(r.id), {
+            title: r.title || `Tip ${r.id}`,
+            desc:  r.description || '',
+            category: catById.get(String(r.category_id)) || ''
+          });
+        });
+
+        // Hydrér DOM’en for allerede renderede tip-linjer
+        document.querySelectorAll('[data-tip-id]').forEach(li=>{
+          const id = li.getAttribute('data-tip-id');
+          if (!id || !out.has(id)) return;
+          const t = out.get(id);
+          const titleEl = li.querySelector('[data-tip-title]');
+          const descEl  = li.querySelector('[data-tip-desc]');
+          if (titleEl) titleEl.textContent = t.title;
+          if (descEl)  descEl.innerHTML = t.desc ? `<div style="font-style:italic;color:#475569">${esc(t.desc)}</div>` : '';
+        });
+      } catch {}
+    })();
+
     return out;
   })();
 
@@ -2326,11 +2393,13 @@ function loadContractForAssessment() {
     const blocks = Object.entries(mapObj).map(([cid, tipIds]) => {
       const compName = compLabel({ id: cid });
       const lis = (Array.isArray(tipIds) ? tipIds : []).map(tid => {
-        const tip = tipLookup.get(String(tid)) || {};
-        const title = esc(tip.title || `Tip ${tid}`);
-        const desc  = tip.desc ? `<div style="font-style:italic;color:#475569">${esc(tip.desc)}</div>` : '';
-        return `<li style="margin:6px 0"><div style="font-weight:600">${title}</div>${desc}</li>`;
-      }).join('');
+      const tip = tipLookup.get(String(tid)) || {};
+      const title = esc(tip.title || `Tip ${tid}`);
+      const desc  = tip.desc ? `<div style="font-style:italic;color:#475569" data-tip-desc>${esc(tip.desc)}</div>` : '<div data-tip-desc></div>';
+      return `<li style="margin:6px 0" data-tip-id="${esc(String(tid))}">
+                <div style="font-weight:600" data-tip-title>${title}</div>${desc}
+              </li>`;
+    }).join('');
       return `
         <div style="border:1px solid #e2e8f0;border-radius:10px;padding:12px;background:#fff">
           <div style="font-weight:700">${esc(compName)}</div>
