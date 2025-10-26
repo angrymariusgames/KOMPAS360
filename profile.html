@@ -2286,96 +2286,89 @@ function loadContractForAssessment() {
       </div>
     `;
 
-    // Kompetencer som chips (robust mod objekter)
-if (Array.isArray(c.competencies) && c.competencies.length > 0) {
+    // Kompetencer som chips (robust) + Tips (Fastholde/Udvikle) grupperet pr. kompetence – READ-ONLY
+{
+  // === Opslagstabeller ===
+  const catById = new Map(
+    Array.isArray(c?.compass_snapshot?.categories)
+      ? c.compass_snapshot.categories.map(x => [String(x.id), x.name])
+      : []
+  );
+
+  // Map af tipId -> {title, desc, category}
+  const tipLookup = (() => {
+    const out = new Map();
+    const add = (arr) => {
+      (Array.isArray(arr) ? arr : []).forEach(t => {
+        if (!t || !t.id) return;
+        out.set(String(t.id), {
+          title: t.title || t.text || 'Tip',
+          desc:  t.description || t.desc || t.text || '',
+          category: t.category || ''
+        });
+      });
+    };
+    const p = c?.plan || {};
+    add(p.plan30); add(p.plan60); add(p.plan90);
+    return out;
+  })();
+
+  // Hjælpere
   const compLabel = (k) => {
-    if (k == null) return '—';
-    if (typeof k === 'string') return k;
-    // typiske felter fra UDV/admin
-    return k.category_name || k.name || k.title || k.label || k.text || String(k);
+    if (!k) return '—';
+    const id = typeof k === 'object' ? (k.id || k.category_id) : k;
+    return catById.get(String(id)) || k.name || k.title || k.label || String(id);
   };
-  html += `
-    <div style="margin-bottom:18px">
-      <h3 style="color:var(--brand);margin-bottom:10px;display:flex;align-items:center;gap:8px"><span>🧩</span> Kompetencer</h3>
-      <div style="display:flex;flex-wrap:wrap;gap:8px">
-        ${c.competencies.map(k => `<span style="background:var(--surface);padding:6px 10px;border-radius:10px;border:1px solid var(--line)">${esc(compLabel(k))}</span>`).join('')}
-      </div>
-    </div>
-  `;
-}
 
-// Tips – vis Fastholde & Udvikle separat hvis muligt, ellers gruppert
-(() => {
-  const raw = Array.isArray(c.tips) ? c.tips : [];
-  if (!raw.length) return;
-
-  // Normaliser: find kind + kategoridata + tekst
-  const norm = raw.map(t => ({
-    kind: (t.kind || t.type || '').toString().toLowerCase(),   // 'keep' | 'develop' | ''
-    catId: t.category_id ?? t.category ?? t.categoryId ?? null,
-    catName: t.category_name || t.categoryLabel || t.category || '',
-    synopsis: t.category_synopsis || t.synopsis || '',
-    title: t.title || t.text || 'Tip',
-    desc: t.description || t.text || t.desc || ''
-  }));
-
-  const keep = norm.filter(x => x.kind === 'keep');
-  const develop = norm.filter(x => x.kind === 'develop');
-
-  // Helper: render grupperet efter kategori
-  const renderGrouped = (arr, heading) => {
-    if (!arr.length) return '';
-    const byCat = new Map();
-    arr.forEach(x => {
-      const key = x.catId ?? x.catName ?? 'ukendt';
-      if (!byCat.has(key)) byCat.set(key, { name: x.catName || 'Kompetence', synopsis: x.synopsis || '', tips: [] });
-      byCat.get(key).tips.push({ title: x.title, desc: x.desc });
-    });
-    const blocks = Array.from(byCat.values()).map(cat => {
-      const tipsHtml = cat.tips.map(t => `
-        <li style="margin:6px 0">
-          <div style="font-weight:600">${esc(t.title)}</div>
-          ${t.desc ? `<div style="font-style:italic;color:#475569">${esc(t.desc)}</div>` : ''}
-        </li>
-      `).join('');
+  const renderGrouped = (mapObj, headingHtml) => {
+    if (!mapObj || typeof mapObj !== 'object') return '';
+    // mapObj: { [competenceId]: [tipIds...] }
+    const blocks = Object.entries(mapObj).map(([cid, tipIds]) => {
+      const compName = compLabel({ id: cid });
+      const lis = (Array.isArray(tipIds) ? tipIds : []).map(tid => {
+        const tip = tipLookup.get(String(tid)) || {};
+        const title = esc(tip.title || `Tip ${tid}`);
+        const desc  = tip.desc ? `<div style="font-style:italic;color:#475569">${esc(tip.desc)}</div>` : '';
+        return `<li style="margin:6px 0"><div style="font-weight:600">${title}</div>${desc}</li>`;
+      }).join('');
       return `
         <div style="border:1px solid #e2e8f0;border-radius:10px;padding:12px;background:#fff">
-          <div style="font-weight:700">${esc(cat.name)}</div>
-          ${cat.synopsis ? `<div style="font-size:.9rem;color:#64748b">${esc(cat.synopsis)}</div>` : ''}
-          <ul style="margin:8px 0 0 16px;padding:0;list-style:disc">${tipsHtml}</ul>
+          <div style="font-weight:700">${esc(compName)}</div>
+          <ul style="margin:8px 0 0 16px;padding:0;list-style:disc">${lis}</ul>
         </div>
       `;
     }).join('');
 
+    if (!blocks) return '';
     return `
       <div style="margin-bottom:18px">
-        <h3 style="color:var(--brand);margin-bottom:10px;display:flex;align-items:center;gap:8px">${heading}</h3>
+        <h3 style="color:var(--brand);margin-bottom:10px;display:flex;align-items:center;gap:8px">${headingHtml}</h3>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px">${blocks}</div>
       </div>
     `;
   };
 
-  if (keep.length || develop.length) {
-    // To sektioner: Fastholde + Udvikle (samme udtryk som i admin-grupperingen) :contentReference[oaicite:2]{index=2}
-    if (keep.length) html += renderGrouped(keep, `<span>✅</span> Fastholde`);
-    if (develop.length) html += renderGrouped(develop, `<span>📈</span> Udvikle`);
-  } else {
-    // Ingen 'kind' → vis som simple kort (fallback)
+  // === Kompetencer chips ===
+  if (Array.isArray(c.competencies) && c.competencies.length > 0) {
     html += `
       <div style="margin-bottom:18px">
-        <h3 style="color:var(--brand);margin-bottom:10px;display:flex;align-items:center;gap:8px"><span>💡</span> Tips</h3>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px">
-          ${norm.map(t => `
-            <div class="card" style="border:1px solid var(--line);border-radius:12px;padding:12px;background:#fff">
-              <div style="font-weight:700;margin-bottom:6px">${esc(t.title)}</div>
-              ${t.desc ? `<div style="color:#475569;line-height:1.6">${esc(t.desc)}</div>` : ''}
-            </div>
-          `).join('')}
+        <h3 style="color:var(--brand);margin-bottom:10px;display:flex;align-items:center;gap:8px"><span>🧩</span> Kompetencer</h3>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          ${c.competencies.map(k => `<span style="background:var(--surface);padding:6px 10px;border-radius:10px;border:1px solid var(--line)">${esc(compLabel(k))}</span>`).join('')}
         </div>
       </div>
     `;
   }
-})();
+
+  // === Tips: Fastholde (keep_tips) + Udvikle (tips) ===
+  const keep = c.keep_tips || null;   // { [compId]: [tipId...] }
+  const dev  = c.tips || null;        // { [compId]: [tipId...] }
+
+  const keepHtml = renderGrouped(keep, `<span>✅</span> Fastholde`);
+  const devHtml  = renderGrouped(dev,  `<span>📈</span> Udvikle`);
+
+  html += keepHtml + devHtml;
+}
 
     // Teamroller
     if (c.include_team_roles && (Array.isArray(c.roles) && c.roles.length > 0)) {
