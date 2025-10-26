@@ -2417,18 +2417,8 @@ function loadContractForAssessment() {
     `;
   };
 
-  // === Kompetencer chips ===
-  if (Array.isArray(c.competencies) && c.competencies.length > 0) {
-    html += `
-      <div style="margin-bottom:18px">
-        <h3 style="color:var(--brand);margin-bottom:10px;display:flex;align-items:center;gap:8px"><span>🧩</span> Kompetencer</h3>
-        <div style="display:flex;flex-wrap:wrap;gap:8px">
-          ${c.competencies.map(k => `<span style="background:var(--surface);padding:6px 10px;border-radius:10px;border:1px solid var(--line)">${esc(compLabel(k))}</span>`).join('')}
-        </div>
-      </div>
-    `;
-  }
-
+  // === Kompetencer chips (fjernet – kompetencer fremgår allerede under Udvikle/Fastholde) ===
+  // (intenderet tomt)
   // === Tips: Fastholde (keep_tips) + Udvikle (tips) ===
   const keep = c.keep_tips || null;   // { [compId]: [tipId...] }
   const dev  = c.tips || null;        // { [compId]: [tipId...] }
