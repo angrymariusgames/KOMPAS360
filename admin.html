@@ -10745,7 +10745,7 @@ async function contractPublish() {
     const { error: udvUploadError } = await supabase.storage
       .from('artifacts')
       .upload(udvPath, udvBlob, {
-        contentType: 'application/json',
+        contentType: 'application/kompas-udv+json',
         upsert: false
       });
 
@@ -10764,7 +10764,7 @@ async function contractPublish() {
         storage_path: udvPath,
         file_size: udvBlob.size,
         filename: udvFilename,
-        mime_type: 'application/json'
+        mime_type: 'application/kompas-udv+json'
       });
 
     if (udvArtifactError) {
@@ -10809,12 +10809,21 @@ async function contractPublish() {
       console.warn('⚠️ PDF artifact entry fejl:', pdfArtifactError);
     }
 
-    // === STEP 6: Gem SELVE .UDV JSON i assessment (så individet kan gendanne/videresende året efter) ===
+        // === STEP 6: Opdater assessment med den fulde UDV (samme format som ved .UDV-download) ===
     progressText.textContent = 'Færdiggør publicering.';
+    // Læs blob -> objekt (identisk struktur som vi lige har gemt som .udv)
+    const udvText = await udvBlob.text();
+    let udvObject;
+    try {
+      udvObject = JSON.parse(udvText);
+    } catch (e) {
+      throw new Error('UDV parse fejl: ' + (e?.message || e));
+    }
+
     const { error: updateError } = await supabase
       .from('individual_assessments')
       .update({ 
-        udv_json: udvJson  // gem hele {contract:{...}} objektet i samme format som “Gem kontrakt”
+        udv_json: udvObject 
       })
       .eq('id', assessmentId);
 
