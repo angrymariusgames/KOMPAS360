@@ -809,15 +809,11 @@ async function handleUDVUpload(file) {
   statusEl.textContent = 'Uploader fil.';
 
   try {
-    // Tillad alle filtyper og størrelser – ingen klientvalidering
-    const rawText = await file.text();
+    // Forsøg at parse .UDV med fælles parser (understøtter JSON + base64-JSON)
+    let udv = await readUdvFileProfile(file);
 
-    // Forsøg at parse som JSON; ellers pak som RAW-wrapper
-    let udv = null;
-    try { udv = JSON.parse(rawText); } catch {}
-
-    if (!udv) {
-      // Gem ikke-JSON filer som base64 i et wrapper-objekt
+    // Hvis ikke parsebart som JSON, gem rå fil som base64-wrapper (bevar adfærd)
+    if (!udv || Object.keys(udv).length === 0) {
       const buf = await file.arrayBuffer();
       const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
       udv = {
