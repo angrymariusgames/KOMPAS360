@@ -10668,8 +10668,13 @@ async function updatePublishButtonState() {
       .limit(1);
 
     if (error || !data || data.length === 0) {
-      publishBtn.disabled = true;
-      publishBtn.title = 'Gem kontrakten endeligt før udgivelse';
+      // Ingen endeligt gemt kontrakt i DB – tillad udgivelse direkte fra fil/state.
+      // Vi gemmer kontrakten endeligt automatisk som første step i contractPublish().
+      publishBtn.disabled = false;
+      publishBtn.textContent = '📤 Udgiv';
+      publishBtn.classList.remove('success');
+      publishBtn.classList.add('ghost');
+      publishBtn.title = 'Ingen endelig gemning fundet – der gemmes automatisk ved udgivelse';
       return;
     }
 
@@ -10717,8 +10722,29 @@ async function contractPublish() {
     .limit(1);
 
   if (contractError || !contracts || contracts.length === 0) {
-    alert('❌ Ingen gemt kontrakt fundet.\n\nGem kontrakten endeligt før du udgiver den.');
-    return;
+    // Ingen endeligt gemt kontrakt – gem endeligt nu og fortsæt
+    try {
+      await contractDoSave(false); // endelig gem
+    } catch (e) {
+      alert('❌ Kunne ikke gemme kontrakten endeligt før udgivelse.');
+      return;
+    }
+    // Forsøg at hente igen efter gemning
+    const { data: recheck, error: reErr } = await supabase
+      .from('development_contract')
+      .select('id, published, published_at')
+      .eq('project_id', projectId)
+      .eq('target_id', targetId)
+      .eq('is_draft', false)
+      .order('updated_at', { ascending: false })
+      .limit(1);
+
+    if (reErr || !recheck || recheck.length === 0) {
+      alert('❌ Ingen gemt kontrakt fundet efter automatisk gemning.');
+      return;
+    }
+
+    contracts = recheck;
   }
 
   const contract = contracts[0];
