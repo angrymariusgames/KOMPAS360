@@ -1538,63 +1538,129 @@ function renderDashboard() {
 // KOMPAS VISUALIZATION
 // ============================================================================
 function initializeCompassTab() {
-  // Populate assessment dropdown
   const select = document.getElementById('compassAssessmentSelect');
-  
-  if (assessments.length === 0) {
-    document.getElementById('compassEmptyState').style.display = 'block';
-    document.getElementById('compassRespondentControls').style.display = 'none';
-    document.getElementById('compassChartContainer').style.display = 'none';
-    document.getElementById('compassActions').style.display = 'none';
-    return;
-  }
-  
-  document.getElementById('compassEmptyState').style.display = 'none';
-  
-  select.innerHTML = '<option value="">-- Vælg en assessment --</option>' +
-    assessments.map(a => `<option value="${a.id}">${a.project_label} (${a.variant})</option>`).join('');
-  
-  // Auto-select første
-  if (assessments.length > 0) {
-    select.value = assessments[0].id;
+
+  // Reset UI
+  document.getElementById('compassRespondentControls').style.display = 'none';
+  document.getElementById('compassChartContainer').style.display = 'none';
+  document.getElementById('compassActions').style.display = 'none';
+
+  // Byg dropdown KUN fra profilens assessments (inkl. uploadede .UDV)
+  const opts = [
+    '<option value="">-- Vælg en assessment --</option>',
+    (assessments || []).map(a => `<option value="${a.id}">${a.project_label} (${a.variant})</option>`).join('')
+  ].join('');
+  select.innerHTML = opts;
+
+  if ((assessments || []).length > 0) {
+    document.getElementById('compassEmptyState').style.display = 'none';
+    // Bevar evt. tidligere valg – ellers vælg første
+    if (!select.value) select.value = assessments[0].id;
     loadCompassForAssessment();
+  } else {
+    document.getElementById('compassEmptyState').style.display = 'block';
   }
 }
 
 async function loadCompassForAssessment() {
   const select = document.getElementById('compassAssessmentSelect');
   const assessmentId = select.value;
-  
+
   if (!assessmentId) {
     document.getElementById('compassRespondentControls').style.display = 'none';
     document.getElementById('compassChartContainer').style.display = 'none';
     document.getElementById('compassActions').style.display = 'none';
     return;
   }
-  
+
   currentCompassAssessment = assessmentId;
-  
+
   try {
-    // Hent scores for valgt assessment
-    const { data: scores, error } = await supabase
+    // 1) Prøv DB-beregnede scores
+    const { data: dbScores, error } = await supabase
       .from('individual_compass_scores')
       .select('*')
       .eq('assessment_id', assessmentId);
-    
+
     if (error) throw error;
-    
-    currentCompassScores = scores || [];
-    
-    // Vis controls og chart
+
+    let built = Array.isArray(dbScores) ? dbScores : [];
+
+    // 2) Fallback: byg fra UDV’en gemt i profilens dataset
+    if (!built.length) {
+      const a = (assessments || []).find(x => x.id === assessmentId);
+      const udv = a && a.udv_json ? a.udv_json : null;
+
+      if (udv && Array.isArray(udv.scores)) {
+        // Taxonomi-navne: 1) udv.taxonomy, 2) a.categories, 3) afled fra scores
+        let taxonomy = Array.isArray(udv.taxonomy)
+          ? udv.taxonomy.map(t => ({ category_id: t.category_id, category_name: t.category_name }))
+          : [];
+
+        if (!taxonomy.length && Array.isArray(a?.categories)) {
+          taxonomy = a.categories.map(c => ({ category_id: c.category_id, category_name: c.category_name }));
+        }
+
+        if (!taxonomy.length) {
+          const ids = Array.from(new Set(udv.scores.map(s => s.category_id)));
+          taxonomy = ids.map((id, i) => ({ category_id: id, category_name: `Kategori ${i+1}` }));
+        }
+
+        // Find målperson i UDV
+        const people = Array.isArray(udv.people) ? udv.people : [];
+        let targetId = null;
+        const match = people.find(p => String(p.employee_no ?? p.ma ?? p.meta?.employee_no ?? '').trim() === String(userMA).trim());
+        if (match) targetId = match.id;
+        else if (people.length === 1) targetId = people[0].id;
+        else targetId = people[0]?.id ?? null;
+
+        const getVal = (catId, type) => {
+          const r = udv.scores.find(s =>
+            String(s.target_id) === String(targetId) &&
+            s.category_id === catId &&
+            s.respondent_type === type
+          );
+          if (!r) return null;
+          const v = Number.isFinite(r.value) ? r.value : (Number.isFinite(r.safe_avg) ? r.safe_avg : null);
+          return v;
+        };
+
+        built = [];
+        ['self','peer','leader'].forEach(type => {
+          taxonomy.forEach(cat => {
+            const v = getVal(cat.category_id, type);
+            if (v !== null) {
+              built.push({
+                category_name: cat.category_name,
+                respondent_type: type,
+                score_numeric: v
+              });
+            }
+          });
+        });
+      }
+    }
+
+    currentCompassScores = built || [];
+
+    // UI on/off
+    if (!currentCompassScores.length) {
+      document.getElementById('compassRespondentControls').style.display = 'none';
+      document.getElementById('compassChartContainer').style.display = 'none';
+      document.getElementById('compassActions').style.display = 'none';
+      alert('Ingen KOMPAS-data fundet for denne assessment.');
+      return;
+    }
+
+    document.getElementById('compassEmptyState').style.display = 'none';
     document.getElementById('compassRespondentControls').style.display = 'flex';
     document.getElementById('compassChartContainer').style.display = 'block';
     document.getElementById('compassActions').style.display = 'flex';
-    
-    // Render chart
+
     updateCompassChart();
-    
-  } catch (error) {
-    console.error('Fejl ved indlæsning af kompas data:', error);
+
+  } catch (err) {
+    console.error('Fejl ved indlæsning af kompas data:', err);
     alert('Kunne ikke indlæse kompas data');
   }
 }
