@@ -634,19 +634,20 @@ async function init() {
     const switchBtn = document.getElementById('switchToAdminBtn');
     if (!switchBtn) { /* ingen knap i DOM */ }
     if (roleData?.role) {
-      // Kortlægning: programmer -> master.html, admin/evaluator -> admin.html
+      // Kortlægning: programmer -> master.html, admin -> admin.html
       const role = roleData.role;
       switchBtn.style.display = 'inline-block';
       switchBtn.onclick = () => {
         if (role === 'programmer') {
           window.location.href = 'master.html';
-        } else if (role === 'admin' || role === 'evaluator') {
+        } else if (role === 'admin') {
           window.location.href = 'admin.html';
         } else {
           // Ukendt/anden rolle: vis intet
           switchBtn.style.display = 'none';
         }
       };
+
     } else if (switchBtn) {
       switchBtn.style.display = 'none';
     }
