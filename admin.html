@@ -10979,8 +10979,8 @@ async function contractPublish() {
       throw new Error('Kontrakt ikke fundet før publicering.');
     }
 
-        const parseMaybe = (v, fallback) => {
-      // Tillad allerede-JSON og arrays/objects; afvis ugyldig tekst
+    // Strammere normalisering: tom/”null”/”undefined” → fallback
+    const parseMaybe = (v, fallback) => {
       if (v === null || v === undefined) return fallback;
       if (typeof v === 'object') return v;
       if (typeof v === 'string') {
