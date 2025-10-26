@@ -807,15 +807,24 @@ async function handleUDVUpload(file) {
 
       // Find den aktuelle person i UDV via MA/employee_no
       const people = Array.isArray(udv.people) ? udv.people : [];
-      const me = people.find(p => {
-        const cand = [
+
+      // 1) Kandidater fra people[]
+      const maSet = new Set(
+        people.flatMap(p => [
           p.employee_no, p.employeeNo, p.ma, p.ma_no, p.maNo,
           p.employee?.number, p.employee?.id, p.meta?.employee_no, p.meta?.ma_no
-        ].find(v => v !== undefined && v !== null && String(v).trim() !== '');
-        return String(cand || '').trim() === String(userMA).trim();
-      });
+        ].filter(v => v !== undefined && v !== null && String(v).trim() !== ''))
+        .map(v => String(v).trim())
+      );
 
-      if (!me) {
+      // 2) Fald tilbage: scan rå filtekst for 6-cifrede tal (MA-format)
+      try {
+        (rawText.match(/\b\d{6}\b/g) || []).forEach(v => maSet.add(String(v).trim()));
+      } catch {}
+
+      const hasMAOverlap = maSet.has(String(userMA).trim());
+
+      if (!hasMAOverlap) {
         throw new Error('Denne fil tilhører ikke dig (MA ikke fundet i UDV)');
       }
 
@@ -882,54 +891,92 @@ async function handleUDVUpload(file) {
   try { data = JSON.parse(rawText); } catch {}
 
   if (data && (data.assessment || data.categories)) {
+    // Klassisk legacy JSON (assessment/categories/responses/contract)
     assessment = data.assessment || data;
     categories = data.categories || { categories: [] };
     responses  = data.responses  || {};
     contract   = data.contract   || {};
   } else {
-    // Sidste mulighed: KUN prøv ZIP hvis det ligner en ZIP (mime/extension)
-    const looksZip = (file.type && file.type.includes('zip')) || lower.endsWith('.zip');
-    if (!looksZip) {
-      throw new Error('UDV-filen kan ikke læses som JSON. Filen er ikke en ZIP – forventer Admin .UDV (JSON med udv_version).');
-    }
+    // Forsøg: kontrakt-kun JSON + MA-overlap → importer minimalt
+    const rawMACands = (rawText.match(/\b\d{6}\b/g) || []).map(x => String(x).trim());
+    const hasOverlapInRaw = rawMACands.includes(String(userMA).trim());
 
-    const zip = await JSZip.loadAsync(file);
-    const assessmentJson = await zip.file('assessment.json')?.async('text');
-    const categoriesJson = await zip.file('categories.json')?.async('text');
-    const responsesJson  = await zip.file('responses.json')?.async('text');
-    const contractJson   = await zip.file('development_contract.json')?.async('text');
+    if (data && data.contract && hasOverlapInRaw) {
+      // Minimal assessment baseret på kontrakten
+      const contractObj = data.contract;
+      assessment = {
+        ma: String(userMA).trim(),
+        project_label: (contractObj.project && (contractObj.project.id || contractObj.project.name)) || 'CONTRACT',
+        variant: 'CONTRACT_ONLY',
+        completed_at: contractObj.saved_at || new Date().toISOString()
+      };
 
-        if (!assessmentJson || !categoriesJson) {
-          throw new Error('UDV-filen kan ikke læses (hverken UDV JSON eller kendt ZIP-struktur)');
-        }
+      // Kategorier fra kontraktens snapshot hvis muligt
+      const catArr = (contractObj.compass_snapshot && Array.isArray(contractObj.compass_snapshot.categories))
+        ? contractObj.compass_snapshot.categories
+        : [];
+      categories = { categories: catArr.map(c => ({ category_id: c.id, category_name: c.name })) };
 
-        assessment = JSON.parse(assessmentJson);
-        categories = JSON.parse(categoriesJson);
-        responses  = responsesJson ? JSON.parse(responsesJson) : {};
-        contract   = contractJson  ? JSON.parse(contractJson)  : {};
+      responses = {};
+      contract  = contractObj;
+    } else {
+      // Sidste mulighed: KUN prøv ZIP hvis det ligner en ZIP (mime/extension)
+      const looksZip = (file.type && file.type.includes('zip')) || lower.endsWith('.zip');
+      if (!looksZip) {
+        throw new Error('UDV-filen kan ikke læses som JSON. Filen er ikke en ZIP – forventer Admin .UDV (JSON med udv_version).');
       }
 
-      // Valider MA for legacy-struktur
-      if (!assessment || assessment.ma !== userMA) {
-        throw new Error('Denne fil tilhører ikke dig (MA mismatch)');
+      const zip = await JSZip.loadAsync(file);
+      const assessmentJson = await zip.file('assessment.json')?.async('text');
+      const categoriesJson = await zip.file('categories.json')?.async('text');
+      const responsesJson  = await zip.file('responses.json')?.async('text');
+      const contractJson   = await zip.file('development_contract.json')?.async('text');
+
+      if (!assessmentJson || !categoriesJson) {
+        throw new Error('UDV-filen kan ikke læses (hverken UDV JSON eller kendt ZIP-struktur)');
       }
 
-      statusEl.textContent = 'Importerer til database.';
-
-      const { data: res, error: err } = await supabase.rpc('import_individual_assessment', {
-        p_ma: assessment.ma,
-        p_project_label: assessment.project_label,
-        p_variant: assessment.variant,
-        p_completed_at: assessment.completed_at,
-        p_udv_json: { assessment, responses, categories, contract },
-        p_categories: categories.categories || [],
-        p_development_contract: contract
-      });
-
-      if (err) throw err;
-      if (res?.error) throw new Error(res.error);
-      if (!res?.success) throw new Error('Import fejlede');
+      assessment = JSON.parse(assessmentJson);
+      categories = JSON.parse(categoriesJson);
+      responses  = responsesJson ? JSON.parse(responsesJson) : {};
+      contract   = contractJson  ? JSON.parse(contractJson)  : {};
     }
+  }
+
+  // Valider MA ud fra "sammenfald med MA numre" (overlap-reglen)
+  {
+    const maSet = new Set();
+    if (assessment && assessment.ma) maSet.add(String(assessment.ma).trim());
+    try { (rawText.match(/\b\d{6}\b/g) || []).forEach(v => maSet.add(String(v).trim())); } catch {}
+
+    if (!maSet.has(String(userMA).trim())) {
+      throw new Error('Denne fil tilhører ikke dig (MA overlap mangler)');
+    }
+
+    // Sørg for at assessment.ma udfyldes, så RPC’en får korrekt p_ma
+    if (!assessment) assessment = {};
+    if (!assessment.ma) assessment.ma = String(userMA).trim();
+    if (!assessment.project_label) assessment.project_label = 'IMPORT';
+    if (!assessment.variant) assessment.variant = 'LEGACY';
+    if (!assessment.completed_at) assessment.completed_at = new Date().toISOString();
+  }
+
+  statusEl.textContent = 'Importerer til database.';
+
+  const { data: res, error: err } = await supabase.rpc('import_individual_assessment', {
+    p_ma: assessment.ma,
+    p_project_label: assessment.project_label,
+    p_variant: assessment.variant,
+    p_completed_at: assessment.completed_at,
+    p_udv_json: { assessment, responses, categories, contract },
+    p_categories: categories.categories || [],
+    p_development_contract: contract
+  });
+
+  if (err) throw err;
+  if (res?.error) throw new Error(res.error);
+  if (!res?.success) throw new Error('Import fejlede');
+}
 
     // Success
     statusEl.className = 'alert success';
