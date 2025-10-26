@@ -2458,126 +2458,95 @@ function loadContractForAssessment() {
   html += '</div>';
   document.getElementById('contractContent').innerHTML = html;
 
-  // Init "kompas-hjulet" i kontrakten (read-only). Ingen kontroller, kun visning.
+    // Init "kompas-hjulet" i kontrakten (read-only) — ens logik som Udviklingskontrakt
+  // (fast kategoriorden + self/peer/leader), og læsning direkte fra .UDV som i Admin.
   try {
     const canvas = document.getElementById('contractCompass');
-    if (canvas) {
-      // Byg simple dataserier fra UDV for denne assessment (samme princip som i Kompas fanen)
+    if (!canvas) { /* intet at tegne */ }
+    else {
+      // 1) Fast ordnet kategoriliste (samme rækkefølge som i Udviklingskontrakt)
+      const orderedCategories = [
+        '',
+        'Fleksibilitet','Nytænkning','Helhedsorientering','Fremtidsorientering',
+        '',
+        'Håndtering af pres','Beslutningstagning','Styring','Initiativ',
+        '',
+        'Analytisk tænkning','Faglighed','Planlægning','Ressourcebevidsthed',
+        '',
+        'Samarbejde','Udvikling af andre','Motivere andre','Kommunikation'
+      ];
+      const names = orderedCategories.filter(c => c !== '');
+
+      // 2) Hent datagrundlag fra den gemte UDV på assessment (svarer til Admins UDV-læsning)
       const udv = assessment.udv_json || assessment.udv || null;
-      let taxonomy = [];
-      let built = [];
 
-      // Udtræk kategorier
-      if (Array.isArray(udv?.categories?.categories)) {
-        taxonomy = udv.categories.categories.map(c => ({ category_id: c.category_id ?? c.id ?? c.category, category_name: c.category_name ?? c.name ?? `Kategori` }));
-      }
-
-      // Scores fra udv_json.assessment/udv.scores (falback til eksisterende struktur)
-      const scores = Array.isArray(udv?.assessment?.scores) ? udv.assessment.scores
-                    : Array.isArray(udv?.scores) ? udv.scores
-                    : [];
-
-      // Hvis der ikke er scores, men der er compass_snapshot, så byg direkte herfra
-      if (!scores.length && udv?.compass_snapshot?.categories && udv?.compass_snapshot?.series) {
-        const snap = udv.compass_snapshot;
-        const names = (snap.categories || []).map(c => c.name);
-        const addFrom = (arr, type) => {
-          if (!Array.isArray(arr)) return;
-          arr.forEach((v, i) => {
-            if (names[i] == null || v == null) return;
-            built.push({ category_name: names[i], respondent_type: type, score_numeric: Number(v) });
-          });
-        };
-        addFrom(snap.series.self, 'self');
-        addFrom(snap.series.peer, 'peer');
-        addFrom(snap.series.leader, 'leader');
-        if (!built.length && Array.isArray(snap.series.blended)) {
-          snap.series.blended.forEach((v, i) => {
-            if (names[i] == null || v == null) return;
-            built.push({ category_name: names[i], respondent_type: 'peer', score_numeric: Number(v) });
-          });
-        }
-      }
-
-      // Find target id ud fra MA
+      // Helper: find target-id/ma (samme princip som andre UDV-udtræk)
       const people = Array.isArray(udv?.assessment?.people) ? udv.assessment.people
-                    : Array.isArray(udv?.people) ? udv.people
-                    : [];
+                    : Array.isArray(udv?.people) ? udv.people : [];
       let targetId = null;
       const match = people.find(p => String(p.employee_no ?? p.ma ?? p.meta?.employee_no ?? '').trim() === String(userMA).trim());
       if (match) targetId = match.id;
       else if (people.length === 1) targetId = people[0].id;
       else targetId = people[0]?.id ?? null;
 
-      // Hvis taxonomy ikke er udfyldt, forsøg aflede fra scores
-      if (!taxonomy.length && scores.length) {
-        const ids = Array.from(new Set(scores.map(s => s.category_id)));
-        taxonomy = ids.map((id, i) => ({ category_id: id, category_name: `Kategori ${i+1}` }));
+      // 3) Læs scores fra UDV; fallback til snapshot hvis nødvendigt (Admin-stil)
+      const scores = Array.isArray(udv?.assessment?.scores) ? udv.assessment.scores
+                    : Array.isArray(udv?.scores) ? udv.scores : [];
+      const byKey = (rt, cat) => {
+        // find score for specific respondent_type og kategori
+        const hit = scores.find(s =>
+          (String(s.target_id) === String(targetId) || targetId == null) &&
+          (s.category_name === cat || s.category === cat || s.category_id === s.category_id) &&
+          (s.respondent_type === rt || s.type === rt)
+        );
+        if (!hit) return null;
+        const v = Number.isFinite(hit.value) ? hit.value : (Number.isFinite(hit.safe_avg) ? hit.safe_avg : null);
+        return v == null ? null : Number(v);
+      };
+
+      let self = names.map(c => byKey('self', c));
+      let peer = names.map(c => byKey('peer', c));
+      let leader = names.map(c => byKey('leader', c));
+
+      // Hvis der ingen ‘scores’ er, prøv snapshot (kompatibel med Admins fallback)
+      if ((!self.some(v=>v!=null) && !peer.some(v=>v!=null) && !leader.some(v=>v!=null)) &&
+          udv?.compass_snapshot?.categories && udv?.compass_snapshot?.series) {
+        const snap = udv.compass_snapshot;
+        const idxByName = new Map((snap.categories||[]).map((c,i)=>[c.name, i]));
+        const pull = (arr) => names.map(n => {
+          const i = idxByName.get(n);
+          return (i==null || !Array.isArray(arr) || arr[i]==null) ? null : Number(arr[i]);
+        });
+        self   = pull(snap.series.self);
+        peer   = pull(snap.series.peer);
+        leader = pull(snap.series.leader);
       }
 
-      if (scores.length && taxonomy.length && targetId != null) {
-        const getVal = (catId, type) => {
-          const r = scores.find(s =>
-            String(s.target_id) === String(targetId) &&
-            (s.category_id === catId || s.category === catId) &&
-            (s.respondent_type === type || s.type === type)
-          );
-          if (!r) return null;
-          const v = Number.isFinite(r.value) ? r.value : (Number.isFinite(r.safe_avg) ? r.safe_avg : null);
-          return v;
-        };
+      // 4) Tegn radar – identisk opsætning (ens skala/legend)
+      const datasets = [
+        { label:'👤 Selv',    data:self,   borderColor:'#667eea', backgroundColor:'rgba(102,126,234,0.18)', borderWidth:2, pointRadius:3, pointHoverRadius:5 },
+        { label:'👥 Kolleger',data:peer,   borderColor:'#48bb78', backgroundColor:'rgba(72,187,120,0.18)',  borderWidth:2, pointRadius:3, pointHoverRadius:5 },
+        { label:'👔 Leder',   data:leader, borderColor:'#ed8936', backgroundColor:'rgba(237,137,54,0.18)',  borderWidth:2, pointRadius:3, pointHoverRadius:5 },
+      ].filter(ds => Array.isArray(ds.data) && ds.data.some(v => v != null));
 
-        ['self','peer','leader'].forEach(type => {
-          taxonomy.forEach(cat => {
-            const v = getVal(cat.category_id, type);
-            if (v !== null) {
-              built.push({ category_name: cat.category_name, respondent_type: type, score_numeric: v });
-            }
-          });
-        });
-      }
-
-      const categories = Array.from(new Set(built.map(s => s.category_name)));
-      if (categories.length) {
-        const mkSeries = (type, label, border, bg) => ({
-          label, 
-          data: categories.map(cat => {
-            const s = built.find(x => x.category_name === cat && x.respondent_type === type);
-            return s ? parseFloat(s.score_numeric) : null;
-          }),
-          borderColor: border, backgroundColor: bg, borderWidth: 2, pointRadius: 3, pointHoverRadius: 5
-        });
-
-        const datasets = [];
-        // Farver matcher profilens kompas
-        datasets.push(mkSeries('self', '👤 Selv',   '#667eea', 'rgba(102,126,234,0.18)'));
-        datasets.push(mkSeries('peer', '👥 Kolleger', '#48bb78', 'rgba(72,187,120,0.18)'));
-        datasets.push(mkSeries('leader','👔 Leder', '#ed8936', 'rgba(237,137,54,0.18)'));
-
-        // Fjern fuldt tomme dataserier
-        const pruned = datasets.filter(ds => ds.data.some(v => v !== null));
-
-        if (pruned.length) {
-          new Chart(canvas, {
-            type: 'radar',
-            data: { labels: categories, datasets: pruned },
-            options: {
-              responsive: true,
-              maintainAspectRatio: true,
-              scales: {
-                r: { beginAtZero:true, min:0, max:5, ticks:{ stepSize:1 }, grid:{ color:'rgba(0,0,0,0.08)' }, angleLines:{ color:'rgba(0,0,0,0.08)' } }
-              },
-              plugins: {
-                legend: { position:'bottom', labels:{ usePointStyle:true, pointStyle:'circle' } },
-                title: { display:false }
-              }
-            }
-          });
-        } else {
-          canvas.outerHTML = `<div class="alert warning">Ingen kompasdata tilgængelig.</div>`;
-        }
-      } else {
+      if (!datasets.length) {
         canvas.outerHTML = `<div class="alert warning">Ingen kompasdata tilgængelig.</div>`;
+      } else {
+        new Chart(canvas, {
+          type: 'radar',
+          data: { labels: names, datasets },
+          options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            scales: {
+              r: { beginAtZero:true, min:0, max:5, ticks:{ stepSize:1 }, grid:{ color:'rgba(0,0,0,0.08)' }, angleLines:{ color:'rgba(0,0,0,0.08)' } }
+            },
+            plugins: {
+              legend: { position:'bottom', labels:{ usePointStyle:true, pointStyle:'circle' } },
+              title: { display:false }
+            }
+          }
+        });
       }
     }
   } catch (e) {
