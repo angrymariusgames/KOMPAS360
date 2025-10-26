@@ -2276,23 +2276,14 @@ function loadContractForAssessment() {
         <h2 style="margin:0 0 6px 0">📋 Udviklingskontrakt</h2>
         ${c.title ? `<p style="margin:0;opacity:0.9">${esc(c.title)}</p>` : ''}
       </div>
-      <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;align-items:stretch;margin-bottom:20px">
+      <div style="display:grid;grid-template-columns:1fr;gap:16px;align-items:stretch;margin-bottom:20px">
         <div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px">
           <h3 style="margin:0 0 10px 0;display:flex;align-items:center;gap:8px;color:var(--ink)"><span>🧭</span> Kompas</h3>
           <div id="contractRadarSection" class="section" style="background:#fff;margin:0">
-            <canvas id="contractRadar" height="280" style="max-height:320px"></canvas>
+            <canvas id="contractRadar" height="420" style="max-height:600px;width:100%"></canvas>
           </div>
           <div style="display:flex;gap:8px;justify-content:center;margin-top:10px;font-size:.9rem;color:#64748b">
             <span>👤 Selv</span><span>•</span><span>👥 Kolleger</span><span>•</span><span>👔 Leder</span>
-          </div>
-        </div>
-        <div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px">
-          <h3 style="margin:0 0 10px 0;color:var(--ink)">🗂️ Info</h3>
-          <div style="line-height:1.9;color:#334155">
-            <div><strong>Projekt:</strong> ${escOrDash(assessment.project_label)} (${escOrDash(assessment.variant)})</div>
-            <div><strong>MA:</strong> ${escOrDash(userMA)}</div>
-            <div><strong>Udgivet:</strong> ${escOrDash(new Date(assessment.published_at).toLocaleDateString('da-DK'))}</div>
-            ${c.followup_date ? `<div><strong>Opfølgning:</strong> ${escOrDash(new Date(c.followup_date).toLocaleDateString('da-DK'))}</div>` : ''}
           </div>
         </div>
       </div>
