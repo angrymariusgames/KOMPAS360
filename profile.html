@@ -785,17 +785,40 @@ async function handleUDVUpload(file) {
       throw new Error('Filen er for stor (maks 10 MB)');
     }
 
-    // Læs filens tekstindhold
-    const rawText = await file.text();
-
-    // ---------------------------------------------
-    // 1) Robust parser: JSON → eller base64-wrapped JSON
-    //    (samme princip som admin anvender; vi ændrer ikke filen)
-    // ---------------------------------------------
+    // Læs/parse UDV som JSON — tolerant for BOM, UTF-16 og evt. base64-indpakning
     let udv = null;
+
+    // 1) Prøv ren tekst → fjern BOM og trim
+    let rawText = await file.text();
+    rawText = rawText.replace(/^\uFEFF/, '').trim();
     try { udv = JSON.parse(rawText); } catch {}
+
+    // 2) Hvis ikke JSON, og det ikke ligner et JSON-objekt fra start,
+    //    prøv base64→JSON (samme princip som i admin)
+    if (!udv && rawText[0] !== '{') {
+      try { udv = JSON.parse(atob(rawText.replace(/\s+/g, ''))); } catch {}
+    }
+
+    // 3) Hvis stadig ikke, re-decoder bytes manuelt (UTF-16/UTF-8 autodetektion)
     if (!udv) {
-      try { udv = JSON.parse(atob(rawText.trim())); } catch {}
+      try {
+        const buf = await file.arrayBuffer();
+        const u8  = new Uint8Array(buf);
+        const isLE = (u8[0] === 0xFF && u8[1] === 0xFE);
+        const isBE = (u8[0] === 0xFE && u8[1] === 0xFF);
+
+        let txt;
+        if (isLE) {
+          txt = new TextDecoder('utf-16le').decode(u8.subarray(2));
+        } else if (isBE) {
+          txt = new TextDecoder('utf-16be').decode(u8.subarray(2));
+        } else {
+          // prøv ren UTF-8
+          txt = new TextDecoder('utf-8').decode(u8);
+        }
+        txt = txt.replace(/^\uFEFF/, '').trim();
+        udv = JSON.parse(txt);
+      } catch {}
     }
 
     let assessment, categories, responses, contract;
