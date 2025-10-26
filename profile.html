@@ -1599,6 +1599,7 @@ async function loadCompassForAssessment() {
       const a = (assessments || []).find(x => x.id === assessmentId);
       const udv = a && a.udv_json ? a.udv_json : null;
 
+      // 2A) Fallback #1: klassiske per-score målinger (udv.scores)
       if (udv && Array.isArray(udv.scores)) {
         // Taxonomi-navne: 1) udv.taxonomy, 2) a.categories, 3) afled fra scores
         let taxonomy = Array.isArray(udv.taxonomy)
@@ -1647,6 +1648,43 @@ async function loadCompassForAssessment() {
           });
         });
       }
+
+      // 2B) Fallback #2: kompakt kompas-snapshot (udv.compass_snapshot)
+      else if (udv && udv.compass_snapshot && Array.isArray(udv.compass_snapshot.categories) && udv.compass_snapshot.series) {
+        const snap = udv.compass_snapshot;
+        const catNames = snap.categories.map(c => c.name);
+        const pushSeries = (arr, type) => {
+          if (!Array.isArray(arr)) return;
+          arr.forEach((v, idx) => {
+            const n = catNames[idx];
+            if (n == null) return;
+            if (v == null) return;
+            built.push({
+              category_name: n,
+              respondent_type: type,
+              score_numeric: Number(v)
+            });
+          });
+        };
+
+        built = [];
+        pushSeries(snap.series.self,   'self');
+        pushSeries(snap.series.peer,   'peer');
+        pushSeries(snap.series.leader, 'leader');
+
+        // Hvis alt var tomt (kun blended udfyldt), så brug blended som “peer” (vises stadig korrekt i én farve)
+        if (!built.length && Array.isArray(snap.series.blended)) {
+          snap.series.blended.forEach((v, idx) => {
+            const n = catNames[idx];
+            if (n == null || v == null) return;
+            built.push({
+              category_name: n,
+              respondent_type: 'peer',
+              score_numeric: Number(v)
+            });
+          });
+        }
+      }
     }
 
     currentCompassScores = built || [];
@@ -1683,8 +1721,9 @@ function updateCompassChart() {
   const showPeer = document.getElementById('cbPeer').checked;
   const showLeader = document.getElementById('cbLeader').checked;
   
-  // Find unikke kategorier
-  const categories = [...new Set(currentCompassScores.map(s => s.category_name))];
+  // Find unikke kategorier (i stabil rækkefølge)
+  const categories = Array.from(new Set(currentCompassScores.map(s => s.category_name)));
+
   
   // Opbyg datasets
   const datasets = [];
@@ -1725,103 +1764,54 @@ function updateCompassChart() {
   
   // Opdater eller opret chart
   const ctx = document.getElementById('compassChart');
-  
-  if (compassChart) {
-    compassChart.destroy();
-  }
-  
+  if (compassChart) compassChart.destroy();
+
   if (datasets.length === 0) {
     ctx.parentElement.innerHTML = '<div class="alert warning">Vælg mindst én respondent type</div><canvas id="compassChart" style="max-height:500px"></canvas>';
     return;
   }
-  
+
+  // Kvadrant-baggrund som i Admin (Resultater)
+  const quadrantBackgroundPlugin = {
+    id: 'quadrantBackground',
+    beforeDatasetsDraw: (chart) => {
+      const { ctx, scales: { r } } = chart;
+      const cx = r.xCenter, cy = r.yCenter, radius = r.drawingArea;
+      const draw = (a,b,col) => { ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,radius,a,b); ctx.closePath(); ctx.fillStyle = col; ctx.fill(); };
+      const rad = (deg) => (deg - 90) * Math.PI / 180;
+      draw(rad(0),   rad(90),  'rgba(34,139,34,0.08)');   // Fornyelse
+      draw(rad(90),  rad(180), 'rgba(220,20,60,0.08)');   // Resultater
+      draw(rad(180), rad(270), 'rgba(128,128,128,0.08)'); // Stabilitet
+      draw(rad(270), rad(360), 'rgba(100,149,237,0.08)'); // Relationer
+    }
+  };
+
   compassChart = new Chart(ctx, {
     type: 'radar',
-    data: {
-      labels: categories,
-      datasets: datasets
-    },
+    data: { labels: categories, datasets },
     options: {
       responsive: true,
       maintainAspectRatio: true,
+      elements: { line: { tension: 0.2 }, point: { radius: 3, hitRadius: 6 } },
       scales: {
         r: {
-          beginAtZero: true,
-          min: 0,
-          max: 5,
-          ticks: {
-            stepSize: 1,
-            font: { 
-              size: 11 
-            },
-            color: '#4a5568',
-            callback: function(value) {
-              return value.toFixed(0);
-            }
-          },
-          pointLabels: {
-            font: {
-              size: 12,
-              weight: '600'
-            },
-            color: '#2d3748'
-          },
-          grid: {
-            color: 'rgba(0, 0, 0, 0.1)',
-            lineWidth: 1
-          },
-          angleLines: {
-            color: 'rgba(0, 0, 0, 0.1)'
-          }
+          beginAtZero: true, min: 0, max: 5,
+          grid: { circular: true },
+          angleLines: { color: 'rgba(0,0,0,0.08)' },
+          ticks: { stepSize: 1, display: false },
+          pointLabels: { font: { size: 12, weight: 'bold' } }
         }
       },
       plugins: {
-        legend: {
-          position: 'bottom',
-          labels: {
-            padding: 15,
-            font: {
-              size: 13,
-              weight: '600'
-            },
-            usePointStyle: true,
-            pointStyle: 'circle'
-          }
-        },
-        tooltip: {
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
-          padding: 12,
-          titleFont: {
-            size: 13,
-            weight: '600'
-          },
-          bodyFont: {
-            size: 12
-          },
-          callbacks: {
-            label: function(context) {
-              return `${context.dataset.label}: ${context.parsed.r.toFixed(2)}`;
-            }
-          }
-        },
-        title: {
-          display: true,
-          text: `Kompas - ${assessments.find(a => a.id === currentCompassAssessment)?.project_label || ''}`,
-          font: {
-            size: 18,
-            weight: 'bold'
-          },
-          padding: 20
-        },
+        legend: { position: 'bottom', align: 'center' },
         tooltip: {
           callbacks: {
-            label: function(context) {
-              return `${context.dataset.label}: ${context.parsed.r.toFixed(2)}`;
-            }
+            label: (ctx) => `${ctx.dataset.label}: ${Number(ctx.parsed.r ?? 0).toFixed(2)}`
           }
         }
       }
-    }
+    },
+    plugins: [quadrantBackgroundPlugin]
   });
 }
 
