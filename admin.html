@@ -10731,15 +10731,17 @@ async function contractPublish() {
     const assessmentId = publishResult.assessment_id;
     console.log('✓ Assessment oprettet:', assessmentId);
 
-    // === STEP 2: Generer UDV fil ===
-    progressText.textContent = 'Genererer UDV fil...';
-    const udvBlob = await generateUDVBlob(contractId, ma, projectLabel, variant);
-    console.log('✓ UDV blob genereret:', udvBlob.size, 'bytes');
+    // === STEP 2: Generer UDV fil (samme format som “Gem kontrakt”) ===
+    progressText.textContent = 'Genererer UDV fil.';
+    const { json: udvJson, blob: udvBlob } = await generateUDVBlob(contractId, ma, projectLabel, variant);
+    console.log('✓ UDV genereret:', (udvBlob && udvBlob.size) || 0, 'bytes');
 
     // === STEP 3: Upload UDV til Storage ===
-    progressText.textContent = 'Uploader UDV fil til storage...';
-    const udvPath = `minudvikling/${ma}/${assessmentId}/contract.udv`;
-    
+    progressText.textContent = 'Uploader UDV fil til storage.';
+    const safe = (s)=> String(s||'').replace(/\s+/g,'_').replace(/[^A-Za-z0-9_\-\.]/g,'');
+    const udvFilename = `udviklingskontrakt_${safe(projectLabel)}_${ma}.udv`;
+    const udvPath = `minudvikling/${ma}/${assessmentId}/${udvFilename}`;
+
     const { error: udvUploadError } = await supabase.storage
       .from('artifacts')
       .upload(udvPath, udvBlob, {
@@ -10761,7 +10763,7 @@ async function contractPublish() {
         type: 'UDV',
         storage_path: udvPath,
         file_size: udvBlob.size,
-        filename: 'contract.udv',
+        filename: udvFilename,
         mime_type: 'application/json'
       });
 
@@ -10807,15 +10809,12 @@ async function contractPublish() {
       console.warn('⚠️ PDF artifact entry fejl:', pdfArtifactError);
     }
 
-    // === STEP 6: Opdater assessment med storage paths ===
-    progressText.textContent = 'Færdiggør publicering...';
+    // === STEP 6: Gem SELVE .UDV JSON i assessment (så individet kan gendanne/videresende året efter) ===
+    progressText.textContent = 'Færdiggør publicering.';
     const { error: updateError } = await supabase
       .from('individual_assessments')
       .update({ 
-        udv_json: { 
-          storage_path: udvPath,
-          pdf_path: pdfPath 
-        } 
+        udv_json: udvJson  // gem hele {contract:{...}} objektet i samme format som “Gem kontrakt”
       })
       .eq('id', assessmentId);
 
@@ -10871,100 +10870,79 @@ async function contractPublish() {
 }
 
 /**
- * Genererer UDV blob fra contract data
+ * Genererer UDV i PRÆCIS samme format som den gemte udviklingskontrakt (.UDV),
+ * altså { contract: { project:{id}, target:{id}, ... } } – ingen specialformat.
+ * Returnerer både json (objekt) og blob (til upload).
  */
 async function generateUDVBlob(contractId, ma, projectLabel, variant) {
   try {
-    // Hent contract data
+    // Hent kontrakt + relateret
     const { data: contract, error: contractErr } = await supabase
       .from('development_contract')
       .select('*')
       .eq('id', contractId)
       .single();
+    if (contractErr || !contract) throw new Error('Kunne ikke hente contract: ' + (contractErr?.message || 'ikke fundet'));
 
-    if (contractErr || !contract) {
-      throw new Error('Kunne ikke hente contract: ' + (contractErr?.message || 'ikke fundet'));
-    }
-
-    // Hent project data
     const { data: project, error: projectErr } = await supabase
       .from('projects')
-      .select('*')
+      .select('id, template_id, title')
       .eq('id', contract.project_id)
       .single();
+    if (projectErr || !project) throw new Error('Kunne ikke hente projekt: ' + (projectErr?.message || 'ikke fundet'));
 
-    if (projectErr || !project) {
-      throw new Error('Kunne ikke hente projekt: ' + (projectErr?.message || 'ikke fundet'));
-    }
-
-    // Hent person data
     const { data: person, error: personErr } = await supabase
       .from('project_people')
-      .select('*')
+      .select('id')
       .eq('id', contract.target_id)
       .single();
+    if (personErr || !person) throw new Error('Kunne ikke hente person: ' + (personErr?.message || 'ikke fundet'));
 
-    if (personErr || !person) {
-      throw new Error('Kunne ikke hente person: ' + (personErr?.message || 'ikke fundet'));
-    }
-
-    // Byg UDV struktur (inkludér ALT der kræves for 1:1 gendannelse)
-    const udvData = {
-      version: "1.0",
-      format: "minudvikling_udv",
-      metadata: {
-        exported_at: new Date().toISOString(),
-        ma: ma,
-        project_label: projectLabel,
-        variant: variant,
-        project: {
-          id: project.id,
-          title: project.title,
-          is_lite: project.is_lite
-        },
-        person: {
-          id: person.id,
-          full_name: person.full_name,
-          employee_no: person.employee_no
-        }
-      },
+    // Samme format som efter “Gem kontrakt” download (1:1 gendannelse)
+    const exportPayload = {
       contract: {
-        id: contract.id,
-        title: contract.title,
-        // Udvikling
-        selected_competencies: contract.selected_competencies || [],
-        selected_tips:        contract.selected_tips        || {},
-        roles_assignments:    contract.roles_assignments    || {},
-        // Fastholdelse
-        keep_competencies:    contract.keep_competencies    || [],
-        keep_tips:            contract.keep_tips            || {},
-        // Kollegastøtte + Teamroller-valg
-        colleagues_selected:  contract.colleagues_selected  || [],
-        team_roles_selection: contract.team_roles_selection || [],
-        // 30/60/90
-        plan:                 contract.plan                 || null,
-        // Fritekster + toggles
-        employee_actions:     contract.employee_actions     || '',
-        employee_wishes:      contract.employee_wishes      || '',
-        leader_actions:       contract.leader_actions       || '',
-        followup_date:        contract.followup_date        || null,
+        project: { id: project.id },
+        target:  { id: person.id },
+        followup_date: contract.followup_date || null,
+
+        // fritekster + toggles
+        employee_actions: contract.employee_actions || '',
+        employee_wishes:  contract.employee_wishes  || '',
+        leader_actions:   contract.leader_actions   || '',
         include_team_roles:        !!contract.include_team_roles,
         include_colleague_support: !!contract.include_colleague_support,
         include_306090_goals:      !!contract.include_306090_goals,
-        // Snapshots
-        compass_snapshot:     contract.compass_snapshot     || null,
-        team_roles:           contract.team_roles           || null,
-        // Meta
-        version:     contract.version,
-        created_at:  contract.created_at,
-        updated_at:  contract.updated_at
+
+        // snapshots
+        compass_snapshot: contract.compass_snapshot || null,
+        team_roles:       contract.team_roles       || null,
+
+        // Udvikling
+        competencies: (contract.selected_competencies || []).map(id => ({ id })),
+        tips:  contract.selected_tips || {},
+        roles: contract.roles_assignments || {},
+
+        // Fastholdelse
+        keep_competencies: (contract.keep_competencies || []).map(id => ({ id })),
+        keep_tips: contract.keep_tips || {},
+
+        // Kollegastøtte + Teamroller (valg)
+        colleagues_selected:  contract.colleagues_selected  || [],
+        team_roles_selection: contract.team_roles_selection || [],
+
+        // 30/60/90
+        plan: contract.plan || null,
+
+        // meta - match “Gem kontrakt”
+        saved_contract_id: contract.id || null,
+        saved_at: new Date().toISOString(),
+
+        // (valgfrit) label/variant/MA gemmes IKKE i selve JSON-formatet — de bruges i filnavn/DB.
       }
     };
 
-    return new Blob([JSON.stringify(udvData, null, 2)], { 
-      type: 'application/json' 
-    });
-
+    const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: 'application/json' });
+    return { json: exportPayload, blob };
   } catch (error) {
     console.error('generateUDVBlob fejl:', error);
     throw error;
