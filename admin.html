@@ -10054,6 +10054,8 @@ async function contractLoadFromFile() {
     await generateContractRadarChart?.();
 
     alert('Kontrakt indlæst fra fil.');
+    // Sørg for at sticky-knapper (inkl. Udgiv) opdateres efter filindlæsning
+    try { await updatePublishButtonState(); } catch(_) {}
   } catch (e) {
     console.error('Indlæs fra fil fejlede:', e);
     alert('Kunne ikke indlæse kontrakten: ' + (e?.message || e));
@@ -10668,8 +10670,8 @@ async function updatePublishButtonState() {
       .limit(1);
 
     if (error || !data || data.length === 0) {
-      // Ingen endeligt gemt kontrakt i DB – tillad udgivelse direkte fra fil/state.
-      // Vi gemmer kontrakten endeligt automatisk som første step i contractPublish().
+      // Ingen endeligt gemt kontrakt i DB → tillad udgivelse direkte fra fil/state.
+      // Vi gemmer automatisk endeligt som første step i contractPublish().
       publishBtn.disabled = false;
       publishBtn.textContent = '📤 Udgiv';
       publishBtn.classList.remove('success');
@@ -10722,14 +10724,14 @@ async function contractPublish() {
     .limit(1);
 
   if (contractError || !contracts || contracts.length === 0) {
-    // Ingen endeligt gemt kontrakt – gem endeligt nu og fortsæt
+    // Ingen endeligt gemt kontrakt – gem endeligt nu og forsøg igen
     try {
       await contractDoSave(false); // endelig gem
     } catch (e) {
       alert('❌ Kunne ikke gemme kontrakten endeligt før udgivelse.');
       return;
     }
-    // Forsøg at hente igen efter gemning
+    // Re-check efter automatisk gemning
     const { data: recheck, error: reErr } = await supabase
       .from('development_contract')
       .select('id, published, published_at')
