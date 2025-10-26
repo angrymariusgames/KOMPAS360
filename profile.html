@@ -2429,24 +2429,9 @@ function loadContractForAssessment() {
   html += keepHtml + devHtml;
 }
 
-    // Teamroller
-    if (c.include_team_roles && (Array.isArray(c.roles) && c.roles.length > 0)) {
-      html += `
-        <div style="margin-bottom:18px">
-          <h3 style="color:var(--brand);margin-bottom:10px;display:flex;align-items:center;gap:8px"><span>👥</span> Teamroller</h3>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">
-            ${c.roles.map(r => `
-              <div style="border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px">
-                <div style="font-weight:700;margin-bottom:4px">${esc(r.name || r.title || 'Rolle')}</div>
-                ${r.description ? `<div style="font-size:.9rem;color:#64748b">${esc(r.description)}</div>` : ''}
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      `;
-    }
+    // Teamroller – flyttet under Plan (se udvidet Plan-blok nedenfor)
 
-    // Plan (30-60-90 eller generel) — robust mod legacy/formater
+    // Plan (30-60-90 eller generel) — robust mod legacy/formater + Teamroller under Plan
     {
       // Normaliser alle kendte formater til tre buckets
       const norm = (() => {
@@ -2515,6 +2500,37 @@ function loadContractForAssessment() {
                   </div>
                 `).join('') : '<div style="color:#666">Planen er aktiveret (30-60-90), men uden specifikke punkter.</div>'
               )}
+            </div>
+          </div>
+        `;
+      }
+
+      // === Teamroller under Plan (max 4) ===
+      // Kilder: contract.roles | contract.team_roles | udv_json.contract.roles | udv_json.team_roles
+      const rolesRaw = (() => {
+        if (Array.isArray(c?.roles) && c.roles.length) return c.roles;
+        if (Array.isArray(c?.team_roles) && c.team_roles.length) return c.team_roles;
+        const udvObj = (typeof assessment?.udv_json === 'string'
+          ? (()=>{ try { return JSON.parse(assessment.udv_json); } catch { return null; } })()
+          : (assessment?.udv_json || null));
+        if (udvObj && udvObj.contract && Array.isArray(udvObj.contract.roles) && udvObj.contract.roles.length) return udvObj.contract.roles;
+        if (udvObj && Array.isArray(udvObj.team_roles) && udvObj.team_roles.length) return udvObj.team_roles;
+        return [];
+      })();
+
+      const roles = rolesRaw.slice(0, 4);
+
+      if ((c.include_team_roles !== false) && roles.length > 0) {
+        html += `
+          <div style="margin-bottom:18px">
+            <h3 style="color:var(--brand);margin-bottom:10px;display:flex;align-items:center;gap:8px"><span>👥</span> Teamroller</h3>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">
+              ${roles.map(r => `
+                <div style="border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px">
+                  <div style="font-weight:700;margin-bottom:4px">${esc(r.name || r.title || r.role || 'Rolle')}</div>
+                  ${r.description || r.desc ? `<div style="font-size:.9rem;color:#64748b">${esc(r.description || r.desc)}</div>` : ''}
+                </div>
+              `).join('')}
             </div>
           </div>
         `;
