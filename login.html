@@ -693,32 +693,28 @@ $('login-form').addEventListener('submit', async (e) => {
       throw new Error('Din email er ikke bekræftet endnu. Tjek din indbakke for bekræftelses-emailen.');
     }
     
-    // Check user role (evaluator/programmer)
+    // Ensartet role-routing (programmer → master, admin → admin, ellers individ → profile)
     const { data: roleData } = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', data.user.id)
       .single();
-    
-    // Hvis bruger har en rolle -> Admin/Evaluator
-    if (roleData?.role) {
-      if (roleData.role === 'programmer') {
-        window.location.href = 'master.html';
-      } else {
-        window.location.href = 'admin.html';
-      }
+
+    const role = roleData?.role || null;
+
+    if (role === 'programmer') {
+      window.location.href = 'master.html';
+    } else if (role === 'admin') {
+      window.location.href = 'admin.html';
+    } else if (role === 'profile') {
+      window.location.href = 'profile.html';
     } else {
-      // Ellers tjek om individual_user
-      const { data: individualData } = await supabase
-        .from('individual_users')
-        .select('ma')
-        .eq('email', data.user.email)
-        .single();
-      
-      if (individualData) {
+      // Fallback: prøv at afgøre via MA (sikrer profil-univers selv uden rolle)
+      const { data: ma } = await supabase.rpc('get_ma_from_auth');
+      if (ma) {
         window.location.href = 'profile.html';
       } else {
-        throw new Error('Ingen profil fundet. Kontakt support.');
+        throw new Error('Ingen profil eller rolle fundet. Kontakt support.');
       }
     }
   } catch (error) {
@@ -898,10 +894,20 @@ $('activate-form-step2').addEventListener('submit', async (e) => {
     // Show success step
     $('step2').style.display = 'none';
     $('step3').style.display = 'block';
-    
-    // Redirect efter 2 sekunder
-    setTimeout(() => {
-      window.location.href = roleData?.role === 'programmer' ? 'master.html' : 'admin.html';
+
+    // Redirect efter 2 sekunder – fuld role-routing inkl. profile
+    setTimeout(async () => {
+      const role = roleData?.role || null;
+      if (role === 'programmer') {
+        window.location.href = 'master.html';
+      } else if (role === 'admin') {
+        window.location.href = 'admin.html';
+      } else if (role === 'profile') {
+        window.location.href = 'profile.html';
+      } else {
+        const { data: ma } = await supabase.rpc('get_ma_from_auth');
+        window.location.href = ma ? 'profile.html' : 'login.html';
+      }
     }, 2000);
 
   } catch (error) {
@@ -1105,37 +1111,41 @@ $('register-form').addEventListener('submit', async (e) => {
 
 // Check if already logged in - Håndterer dual profiler (admin + individ)
 supabase.auth.getUser().then(async ({ data }) => {
-  if (data.user) {
-    // Tjek om email er bekræftet
-    if (!data.user.email_confirmed_at && !data.user.confirmed_at) {
-      // Email ikke bekræftet - log ud og vis besked
-      await supabase.auth.signOut();
-      showMessage('login-message', 'Din email er ikke bekræftet. Tjek din indbakke for bekræftelses-emailen.', 'error');
-      return;
-    }
-    
-    // Tjek først om bruger har admin rolle
-    const { data: roleData } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', data.user.id)
-      .single();
-    
-    // Tjek også om bruger har individ profil (sikker RPC pga. RLS)
-    const { data: ma, error: maErr } = await supabase.rpc('get_ma_from_auth');
+  if (!data.user) return;
 
-    // Prioritér admin hvis begge profiler eksisterer
-    if (roleData?.role) {
-      if (roleData.role === 'programmer') {
-        window.location.href = 'master.html';
-      } else {
-        window.location.href = 'admin.html';
-      }
-    } else if (ma) {
-      // Har kun individ profil
-      window.location.href = 'profile.html';
-    }
+  // Tjek om email er bekræftet
+  if (!data.user.email_confirmed_at && !data.user.confirmed_at) {
+    await supabase.auth.signOut();
+    showMessage('login-message', 'Din email er ikke bekræftet. Tjek din indbakke for bekræftelses-emailen.', 'error');
+    return;
+  }
 
+  const { data: roleData } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', data.user.id)
+    .single();
+
+  const role = roleData?.role || null;
+
+  if (role === 'programmer') {
+    window.location.href = 'master.html';
+    return;
+  }
+  if (role === 'admin') {
+    window.location.href = 'admin.html';
+    return;
+  }
+  if (role === 'profile') {
+    window.location.href = 'profile.html';
+    return;
+  }
+
+  // Fallback via MA
+  const { data: ma } = await supabase.rpc('get_ma_from_auth');
+  if (ma) {
+    window.location.href = 'profile.html';
+    return;
   }
 });
 </script>
