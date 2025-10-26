@@ -5219,7 +5219,7 @@ async function downloadCurrentUdv({ sameName = true } = {}) {
   }));
 
   const json = JSON.stringify(udvOut, null, 2);
-  const blob = new Blob([json], { type: 'application/json' });
+  const blob = new Blob([json], { type: 'application/kompas-udv+json' });
 
   const base = sameName && adminState.loadedFileBase
     ? adminState.loadedFileBase
@@ -9678,7 +9678,7 @@ function contractSetupEventListeners(){
         const ymd = new Date().toISOString().slice(0,10).replace(/-/g,'');
         const filename = `udviklingskontrakt_${contractState.project_id}_${contractState.target_id}_${ymd}.udv`;
 
-        const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: 'application/json' });
+        const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: 'application/kompas-udv+json' });
         const url  = URL.createObjectURL(blob);
         const a    = document.createElement('a');
         a.href = url;
@@ -11040,25 +11040,32 @@ async function contractPublish() {
     // Enum-værdi i DB-format
     const variantEnum = String(variant || 'FULL').toUpperCase();
 
-    // === STEP 2: Opret assessment via RPC ===
+    // === STEP 2: Opret assessment direkte (simpelt INSERT) ===
     progressText.textContent = 'Opretter assessment i databasen.';
 
-    const { data: publishResult, error: publishError } = await window.supabaseClient.rpc(
-      'publish_development_contract',
-      { p_contract_id: contractId, p_ma: ma, p_project_label: projectLabel, p_variant: variantEnum }
-    );
-
-    if (publishError) throw new Error('RPC fejl: ' + publishError.message);
-    if (!publishResult?.success) throw new Error(publishResult?.error || 'Publicering fejlede uden fejlbesked');
-
-    const assessmentId = publishResult.assessment_id;
-    console.log('✓ Assessment oprettet:', assessmentId);
-
-    // === STEP 3: Generér og upload UDV ===
-    progressText.textContent = 'Genererer UDV fil.';
+    // Generér UDV nu, så vi kan gemme både snapshot og fuld UDV i INSERT
     const { json: udvJson, blob: udvBlob } = await generateUDVBlob(contractId, ma, projectLabel, variantEnum);
 
-    progressText.textContent = 'Uploader UDV fil til storage.';
+    const { data: inserted, error: insertError } = await window.supabaseClient
+      .from('individual_assessments')
+      .insert([{
+        ma: ma,
+        project_label: projectLabel,
+        variant: variantEnum,
+        published_at: new Date().toISOString(),
+        published_by: (await window.supabaseClient.auth.getUser())?.data?.user?.id ?? null,
+        development_contract: udvJson?.development_contract ?? null,
+        udv_json: udvJson
+      }])
+      .select('id')
+      .single();
+
+    if (insertError) throw new Error('INSERT fejl: ' + insertError.message);
+    const assessmentId = inserted.id;
+    console.log('✓ Assessment oprettet:', assessmentId);
+
+    // === STEP 3: Upload UDV til storage ===
+    progressText.textContent = 'Uploader UDV fil til storage.'; // UDV blev allerede genereret ovenfor
     const safe = (s)=> String(s||'').replace(/\s+/g,'_').replace(/[^A-Za-z0-9_\-\.]/g,'');
     const udvFilename = `udviklingskontrakt_${safe(projectLabel)}_${ma}.udv`;
     const udvPath = `minudvikling/${ma}/${assessmentId}/${udvFilename}`;
@@ -11079,14 +11086,28 @@ async function contractPublish() {
       .upload(pdfPath, pdfBlob, { contentType: 'application/pdf', upsert: false })
       .catch(e => console.warn('⚠️ PDF upload fejl:', e));
 
-    // === STEP 5: Persistér UDV (objekt) på assessment for nem visning ===
+    // === STEP 5: Færdiggør publicering ===
     progressText.textContent = 'Færdiggør publicering.';
-    const { error: updateError } = await window.supabaseClient
+
+    // (A) Opdatér kontraktstatus på selve development_contract
+    const { error: dcErr } = await window.supabaseClient
+      .from('development_contract')
+      .update({
+        published: true,
+        published_at: new Date().toISOString(),
+        published_assessment_id: assessmentId
+      })
+      .eq('id', contractId);
+
+    if (dcErr) console.warn('⚠️ Opdatering af kontraktstatus fejlede:', dcErr);
+
+    // (B) (Valgfrit) Hvis du lod INSERT sætte udv_json allerede, kan dette springes over.
+    // Hvis du vil sikre idempotens, kan du køre en defensiv update igen:
+    const { error: updErr } = await window.supabaseClient
       .from('individual_assessments')
       .update({ udv_json: udvJson })
       .eq('id', assessmentId);
-
-    if (updateError) console.warn('⚠️ Assessment update fejl:', updateError);
+    if (updErr) console.warn('⚠️ Assessment update fejl:', updErr);
 
     progressText.textContent = '✅ Kontrakt udgivet succesfuldt!';
     progressText.style.color = 'var(--success)';
@@ -11190,8 +11211,10 @@ async function generateUDVBlob(contractId, ma, projectLabel, variant) {
       }
     };
 
-    const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: 'application/kompas-udv+json' });
     return { json: exportPayload, blob };
+
+
   } catch (error) {
     console.error('generateUDVBlob fejl:', error);
     throw error;
