@@ -2217,126 +2217,212 @@ function initializeContractTab() {
 function loadContractForAssessment() {
   const select = document.getElementById('contractAssessmentSelect');
   const assessmentId = select.value;
-  
+
   if (!assessmentId) {
     document.getElementById('contractContent').innerHTML = '';
     document.getElementById('contractActions').style.display = 'none';
     return;
   }
-  
+
   currentContractAssessment = assessmentId;
   const assessment = assessments.find(a => a.id === assessmentId);
-  
+
   if (!assessment || !assessment.development_contract) {
     document.getElementById('contractContent').innerHTML = '<div class="alert warning">Ingen udviklingskontrakt for denne assessment</div>';
     document.getElementById('contractActions').style.display = 'none';
     return;
   }
-  
-  const contract = assessment.development_contract;
-  
+
+  const c = assessment.development_contract || {};
+  const escOrDash = v => (v === null || v === undefined || v === '' ? '—' : esc(v));
+
   let html = `
-    <div id="contractPrintable" style="background:#fff;padding:30px;border-radius:12px;border:1px solid var(--line);pointer-events:none">
+    <div id="contractPrintable" style="background:#fff;padding:30px;border-radius:12px;border:1px solid var(--line)">
       <div style="text-align:center;margin-bottom:30px;padding-bottom:20px;border-bottom:2px solid var(--brand)">
         <h2 style="color:var(--brand);margin-bottom:10px">📋 UDVIKLINGSKONTRAKT</h2>
-        <div style="font-size:1.1em;color:#666">${esc(assessment.project_label)}</div>
-        <div style="margin-top:10px;color:#888">Medarbejdernummer: ${esc(userMA)}</div>
-        <div style="margin-top:5px;color:#888">Udgivet: ${esc(new Date(assessment.published_at).toLocaleDateString('da-DK'))}</div>
+        <div style="font-size:1.1em;color:#666">${escOrDash(assessment.project_label)}</div>
+        <div style="margin-top:10px;color:#888">Medarbejdernummer: ${escOrDash(userMA)}</div>
+        <div style="margin-top:5px;color:#888">Udgivet: ${escOrDash(new Date(assessment.published_at).toLocaleDateString('da-DK'))}</div>
       </div>
-`;
-  
-  // Mål
-  if (contract.goals && contract.goals.length > 0) {
-    html += '<div style="margin-bottom:30px">';
-    html += '<h3 style="color:var(--brand);margin-bottom:15px;display:flex;align-items:center;gap:8px"><span>🎯</span> Udviklingsmål</h3>';
-    
-    contract.goals.forEach((goal, idx) => {
-      const statusColor = goal.status === 'completed' ? 'var(--success)' : 
-                         goal.status === 'in_progress' ? 'var(--info)' : 
-                         'var(--muted)';
-      const statusLabel = goal.status === 'completed' ? '✓ Afsluttet' : 
-                         goal.status === 'in_progress' ? '⟳ I gang' : 
-                         '○ Ikke startet';
-      
+  `;
+
+  // === 1) Admin-format (kompetencer/tips/plan/fritekster/flags) ===
+  const looksLikeAdmin =
+    (Array.isArray(c.competencies) && c.competencies.length) ||
+    (Array.isArray(c.tips) && c.tips.length) ||
+    (Array.isArray(c.plan) && c.plan.length) ||
+    c.employee_actions || c.leader_actions || c.employee_wishes || c.followup_date ||
+    c.include_team_roles || c.include_colleague_support || c.include_306090_goals;
+
+  if (looksLikeAdmin) {
+    // Titel (hvis sat i admin)
+    if (c.title) {
+      html += `<h3 style="color:var(--brand);margin:0 0 20px 0;text-align:center">${esc(c.title)}</h3>`;
+    }
+
+    // Kompetencer
+    if (Array.isArray(c.competencies) && c.competencies.length > 0) {
       html += `
-        <div class="card" style="margin-bottom:15px">
-          <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px">
-            <div style="font-weight:700;font-size:1.05em">${idx + 1}. ${esc(goal.title)}</div>
-            <div style="color:${statusColor};font-size:0.85em;font-weight:600;padding:4px 10px;background:var(--surface);border-radius:6px">${statusLabel}</div>
+        <div style="margin-bottom:24px">
+          <h3 style="color:var(--brand);margin-bottom:10px;display:flex;align-items:center;gap:8px"><span>🧩</span> Kompetencer</h3>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            ${c.competencies.map(k => `<span style="background:var(--surface);padding:6px 10px;border-radius:8px">${esc(k.name || k.title || k)}</span>`).join('')}
           </div>
-          <div style="color:#666;margin-bottom:12px;line-height:1.6">${esc(goal.description || '')}</div>
-          ${goal.focus_areas && goal.focus_areas.length > 0 ? `
-            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
-              ${goal.focus_areas.map(area => `<span style="background:var(--surface);padding:4px 10px;border-radius:6px;font-size:0.85em">${esc(area)}</span>`).join('')}
-            </div>
-          ` : ''}
-          ${goal.deadline ? `
-            <div style="color:#888;font-size:0.9em">📅 Deadline: ${new Date(goal.deadline).toLocaleDateString('da-DK')}</div>
-          ` : ''}
         </div>
       `;
-    });
-    
-    html += '</div>';
-  }
-  
-  // Handlingsplan
-  if (contract.action_items && contract.action_items.length > 0) {
-    html += '<div style="margin-bottom:30px">';
-    html += '<h3 style="color:var(--brand);margin-bottom:15px;display:flex;align-items:center;gap:8px"><span>✓</span> Handlingsplan</h3>';
-    
-    // Grupper efter mål
-    const itemsByGoal = {};
-    contract.action_items.forEach(item => {
-      const goalId = item.goal_id || 'other';
-      if (!itemsByGoal[goalId]) itemsByGoal[goalId] = [];
-      itemsByGoal[goalId].push(item);
-    });
-    
-    Object.entries(itemsByGoal).forEach(([goalId, items]) => {
-      const goal = contract.goals?.find(g => g.id === goalId);
-      
-      if (goal) {
-        html += `<div style="margin-bottom:20px">`;
-        html += `<div style="font-weight:600;margin-bottom:10px;color:#555">Handlinger for: ${goal.title}</div>`;
-      }
-      
-      html += '<div style="background:var(--surface);padding:15px;border-radius:10px">';
-      items.forEach(item => {
-        const completed = item.completed ? 'checked' : '';
-        const textStyle = item.completed ? 'text-decoration:line-through;color:#888' : '';
-        
-        html += `
-          <div style="display:flex;align-items:start;gap:10px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #e2e8f0">
-            <input type="checkbox" ${completed} disabled style="margin-top:4px">
-            <div style="flex:1">
-              <div style="${textStyle}">${esc(item.action)}</div>
-              ${item.deadline ? `<div style="color:#888;font-size:0.85em;margin-top:4px">⏰ ${esc(new Date(item.deadline).toLocaleDateString('da-DK'))}</div>` : ''}
-            </div>
+    }
+
+    // Tips
+    if (Array.isArray(c.tips) && c.tips.length > 0) {
+      html += `
+        <div style="margin-bottom:24px">
+          <h3 style="color:var(--brand);margin-bottom:10px;display:flex;align-items:center;gap:8px"><span>💡</span> Tips</h3>
+          <ul style="padding-left:18px;line-height:1.8">
+            ${c.tips.map(t => `<li>${esc(t.text || t.title || t)}</li>`).join('')}
+          </ul>
+        </div>
+      `;
+    }
+
+    // Teamroller (hvis inkluderet)
+    if (c.include_team_roles && (Array.isArray(c.roles) && c.roles.length > 0)) {
+      html += `
+        <div style="margin-bottom:24px">
+          <h3 style="color:var(--brand);margin-bottom:10px;display:flex;align-items:center;gap:8px"><span>👥</span> Teamroller</h3>
+          <ul style="padding-left:18px;line-height:1.8">
+            ${c.roles.map(r => `<li>${esc(r.name || r.title || r)}</li>`).join('')}
+          </ul>
+        </div>
+      `;
+    }
+
+    // 30-60-90 eller plan
+    if (c.include_306090_goals || (Array.isArray(c.plan) && c.plan.length > 0)) {
+      html += `
+        <div style="margin-bottom:24px">
+          <h3 style="color:var(--brand);margin-bottom:10px;display:flex;align-items:center;gap:8px"><span>🗓️</span> Plan</h3>
+          <div>
+            ${Array.isArray(c.plan) ? c.plan.map((p, i) => `
+              <div class="card" style="margin-bottom:10px">
+                <div style="display:flex;justify-content:space-between;gap:12px">
+                  <div style="font-weight:600">${i+1}. ${esc(p.title || p.task || 'Punkt')}</div>
+                  <div style="color:#666">${esc(p.when || p.due || p.bucket || '')}</div>
+                </div>
+                ${p.description ? `<div style="color:#555;margin-top:6px;line-height:1.6">${esc(p.description)}</div>` : ''}
+              </div>
+            `).join('') : '<div style="color:#666">Planen er aktiveret (30-60-90), men uden specifikke punkter.</div>'}
           </div>
-        `;
+        </div>
+      `;
+    }
+
+    // Kollegastøtte flag
+    if (c.include_colleague_support) {
+      html += `
+        <div style="margin-bottom:24px">
+          <h3 style="color:var(--brand);margin-bottom:10px;display:flex;align-items:center;gap:8px"><span>🤝</span> Kollegastøtte</h3>
+          <div style="color:#555">Kollegastøtte er markeret som en del af planen.</div>
+        </div>
+      `;
+    }
+
+    // Fritekster
+    if (c.employee_actions || c.employee_wishes || c.leader_actions) {
+      html += `<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-bottom:24px">`;
+
+      if (c.employee_actions) {
+        html += `
+          <div class="card">
+            <div style="font-weight:700;margin-bottom:6px">Medarbejder – handlinger</div>
+            <div style="white-space:pre-wrap;line-height:1.6;color:#444">${esc(c.employee_actions)}</div>
+          </div>`;
+      }
+      if (c.employee_wishes) {
+        html += `
+          <div class="card">
+            <div style="font-weight:700;margin-bottom:6px">Medarbejder – ønsker</div>
+            <div style="white-space:pre-wrap;line-height:1.6;color:#444">${esc(c.employee_wishes)}</div>
+          </div>`;
+      }
+      if (c.leader_actions) {
+        html += `
+          <div class="card">
+            <div style="font-weight:700;margin-bottom:6px">Leder – handlinger</div>
+            <div style="white-space:pre-wrap;line-height:1.6;color:#444">${esc(c.leader_actions)}</div>
+          </div>`;
+      }
+      html += `</div>`;
+    }
+
+    // Opfølgningsdato
+    if (c.followup_date) {
+      const d = new Date(c.followup_date);
+      html += `
+        <div style="margin-bottom:24px">
+          <h3 style="color:var(--brand);margin-bottom:6px;display:flex;align-items:center;gap:8px"><span>📅</span> Opfølgning</h3>
+          <div style="color:#444">${isNaN(d.getTime()) ? esc(c.followup_date) : d.toLocaleDateString('da-DK')}</div>
+        </div>
+      `;
+    }
+
+    // Noter
+    if (c.notes) {
+      html += `
+        <div style="background:#fffbeb;border-left:4px solid #f59e0b;padding:20px;border-radius:8px;margin-bottom:20px">
+          <h4 style="color:#92400e;margin-bottom:10px">📝 Noter</h4>
+          <div style="color:#78350f;line-height:1.6;white-space:pre-wrap">${esc(c.notes)}</div>
+        </div>
+      `;
+    }
+
+    // Sikkerhedsnet: vis alt ukendt som “Andre felter”
+    const known = new Set(['title','competencies','tips','roles','plan','employee_actions','employee_wishes','leader_actions','include_team_roles','include_colleague_support','include_306090_goals','followup_date','notes']);
+    const rest = Object.keys(c).filter(k => !known.has(k));
+    if (rest.length) {
+      html += `
+        <div class="card" style="margin-bottom:10px">
+          <div style="font-weight:700;margin-bottom:6px">Andre felter</div>
+          <pre style="white-space:pre-wrap;overflow:auto;margin:0;color:#444">${esc(JSON.stringify(Object.fromEntries(rest.map(k => [k, c[k]])), null, 2))}</pre>
+        </div>
+      `;
+    }
+
+  } else {
+    // === 2) Legacy-format (goals/actions/timeline/notes) ===
+    if (Array.isArray(c.goals) && c.goals.length > 0) {
+      html += '<div style="margin-bottom:30px">';
+      html += '<h3 style="color:var(--brand);margin-bottom:15px;display:flex;align-items:center;gap:8px"><span>🎯</span> Udviklingsmål</h3>';
+      c.goals.forEach((goal, idx) => {
+        const statusColor = goal.status === 'completed' ? 'var(--success)' : goal.status === 'in_progress' ? 'var(--info)' : 'var(--muted)';
+        const statusLabel = goal.status === 'completed' ? '✓ Afsluttet' : goal.status === 'in_progress' ? '⟳ I gang' : '○ Ikke startet';
+        html += `
+          <div class="card" style="margin-bottom:15px">
+            <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px">
+              <div style="font-weight:700;font-size:1.05em">${idx + 1}. ${esc(goal.title || 'Mål')}</div>
+              <div style="color:${statusColor};font-size:0.85em;font-weight:600;padding:4px 8px;background:var(--surface);border-radius:6px">${statusLabel}</div>
+            </div>
+            <div style="color:#666;margin-bottom:12px;line-height:1.6">${esc(goal.description || '')}</div>
+            ${goal.focus_areas && goal.focus_areas.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">${goal.focus_areas.map(a => `<span style="background:var(--surface);padding:4px 8px;border-radius:6px;font-size:0.85em">${esc(a)}</span>`).join('')}</div>` : ''}
+            ${goal.actions && goal.actions.length ? `<div><div style="font-weight:600;margin-bottom:6px">Handlinger</div><ul style="padding-left:18px;color:#444;line-height:1.8">${goal.actions.map(a => `<li>${esc(a)}</li>`).join('')}</ul></div>` : ''}
+          </div>`;
       });
       html += '</div>';
-      
-      if (goal) html += '</div>';
-    });
-    
-    html += '</div>';
-  }
-  
-  // Noter
-  if (contract.notes) {
-    html += `
-      <div style="background:#fffbeb;border-left:4px solid #f59e0b;padding:20px;border-radius:8px;margin-bottom:20px">
-        <h4 style="color:#92400e;margin-bottom:10px">📝 Noter</h4>
-        <div style="color:#78350f;line-height:1.6">${esc(contract.notes)}</div>
-      </div>
-    `;
+    }
+
+    if (Array.isArray(c.actions) && c.actions.length > 0) {
+      html += `<div style="margin-bottom:30px"><h3 style="color:var(--brand);margin-bottom:10px;display:flex;align-items:center;gap:8px"><span>🛠️</span> Handlinger</h3><ul style="padding-left:18px;color:#444;line-height:1.8">${c.actions.map(a => `<li>${esc(a)}</li>`).join('')}</ul></div>`;
+    }
+
+    if (Array.isArray(c.timeline) && c.timeline.length > 0) {
+      html += `<div style="margin-bottom:30px"><h3 style="color:var(--brand);margin-bottom:10px;display:flex;align-items:center;gap:8px"><span>🗓️</span> Tidslinje</h3>${c.timeline.map(item => `<div style="display:flex;gap:12px;margin-bottom:8px"><div style="min-width:110px;color:#666">${esc(item.date || '')}</div><div>${esc(item.text || '')}</div></div>`).join('')}</div>`;
+    }
+
+    if (c.notes) {
+      html += `<div style="background:#fffbeb;border-left:4px solid #f59e0b;padding:20px;border-radius:8px;margin-bottom:20px"><h4 style="color:#92400e;margin-bottom:10px">📝 Noter</h4><div style="color:#78350f;line-height:1.6">${esc(c.notes)}</div></div>`;
+    }
   }
 
-  
   html += '</div>';
-  
   document.getElementById('contractContent').innerHTML = html;
   document.getElementById('contractActions').style.display = 'flex';
 }
