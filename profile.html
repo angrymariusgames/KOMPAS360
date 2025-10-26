@@ -2546,6 +2546,36 @@ function loadContractForAssessment() {
       html += '</div>';
     }
 
+    // 📅 30/60/90 — vis KUN visuelt (ingen drag/drop, ingen interaktion)
+    {
+      const p = c && c.plan ? c.plan : {};
+      const cols = [
+        { label: 'Første 30 dage', list: Array.isArray(p.plan30) ? p.plan30 : [] },
+        { label: 'Dag 31–60',      list: Array.isArray(p.plan60) ? p.plan60 : [] },
+        { label: 'Dag 61–90',      list: Array.isArray(p.plan90) ? p.plan90 : [] },
+      ];
+      const hasAny = cols.some(col => col.list.length > 0);
+      if ((c.include_306090_goals === true || c.include_306090_goals === undefined) && hasAny) {
+        const planColsHtml = cols.map(col => {
+          const chips = col.list.map(item => `
+            <div style="margin:6px 0;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;background:#fff">
+              ${item.category ? `<div style="font-size:11px;color:#667eea;margin-bottom:2px">${esc(item.category)}</div>` : ''}
+              <div style="font-weight:600">${esc(item.title || 'Aktivitet')}</div>
+              ${item.description ? `<div style="font-style:italic;color:#475569">${esc(item.description)}</div>` : ''}
+            </div>
+          `).join('');
+          return `<div><div style="font-weight:700;margin-bottom:6px">${col.label}</div>${chips || `<div style="color:#94a3b8;font-style:italic">Ingen mål</div>`}</div>`;
+        }).join('');
+
+        html += `
+          <div style="margin-bottom:20px">
+            <h3 style="color:var(--brand);margin-bottom:10px;display:flex;align-items:center;gap:8px"><span>📅</span> 30/60/90</h3>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">${planColsHtml}</div>
+          </div>
+        `;
+      }
+    }
+
     if (Array.isArray(c.actions) && c.actions.length > 0) {
       html += `<div style="margin-bottom:20px"><h3 style="color:var(--brand);margin-bottom:10px;display:flex;align-items:center;gap:8px"><span>🛠️</span> Handlinger</h3><ul style="padding-left:18px;color:#334155;line-height:1.8">${c.actions.map(a => `<li>${esc(a)}</li>`).join('')}</ul></div>`;
     }
