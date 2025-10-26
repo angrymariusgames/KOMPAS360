@@ -367,7 +367,7 @@
       <p class="section-subtitle">Upload din egen evaluerings-fil (self-import)</p>
       
       <div class="upload-zone" id="uploadZone">
-        <input type="file" id="udvFileInput" accept=".udv,.json" style="display:none">
+        <input type="file" id="udvFileInput" accept=".udv,.json,application/kompas-udv+json,application/json" style="display:none">
         <div style="font-size:3rem;margin-bottom:12px">📤</div>
         <div style="font-weight:600;margin-bottom:8px">Klik for at vælge fil eller træk den hertil</div>
         <div style="color:var(--muted);font-size:.9rem">Understøtter .UDV og .JSON filer</div>
@@ -765,91 +765,180 @@ function switchTab(tabName) {
 // Note: Upload zone event listeners sættes op i setupUploadZone() funktionen senere
 async function handleUDVUpload(file) {
   const statusEl = document.getElementById('uploadStatus');
-  
+
   if (!statusEl) {
     console.error('Upload status element ikke fundet');
     return;
   }
-  
+
   statusEl.style.display = 'block';
   statusEl.className = 'alert info';
-  statusEl.textContent = 'Uploader fil...';
-  
+  statusEl.textContent = 'Uploader fil.';
+
   try {
     // Valider fil
-    if (!file.name.endsWith('.udv') && !file.name.endsWith('.json')) {
+    const lower = file.name.toLowerCase();
+    if (!lower.endsWith('.udv') && !lower.endsWith('.json')) {
       throw new Error('Kun .UDV og .JSON filer er tilladt');
     }
-    
     if (file.size > 10 * 1024 * 1024) {
       throw new Error('Filen er for stor (maks 10 MB)');
     }
-    
-    // Læs fil
-    const text = await file.text();
+
+    // Læs filens tekstindhold
+    const rawText = await file.text();
+
+    // ---------------------------------------------
+    // 1) Robust parser: JSON → eller base64-wrapped JSON
+    //    (samme princip som admin anvender; vi ændrer ikke filen)
+    // ---------------------------------------------
+    let udv = null;
+    try { udv = JSON.parse(rawText); } catch {}
+    if (!udv) {
+      try { udv = JSON.parse(atob(rawText.trim())); } catch {}
+    }
+
     let assessment, categories, responses, contract;
-    
-    // Parse baseret på filtype
-    if (file.name.endsWith('.json')) {
-      // Direkte JSON import
-      const data = JSON.parse(text);
-      assessment = data.assessment || data;
-      categories = data.categories || { categories: [] };
-      responses = data.responses || {};
-      contract = data.contract || {};
-    } else {
-      // .UDV fil (ZIP format)
-      const zip = await JSZip.loadAsync(file);
-      
-      const assessmentJson = await zip.file('assessment.json')?.async('text');
-      const categoriesJson = await zip.file('categories.json')?.async('text');
-      const responsesJson = await zip.file('responses.json')?.async('text');
-      const contractJson = await zip.file('development_contract.json')?.async('text');
-      
-      if (!assessmentJson || !categoriesJson) {
-        throw new Error('UDV filen mangler nødvendige filer');
+
+    if (udv && udv.udv_version) {
+      // -------------------------------------------
+      // Admin-format (.UDV som JSON) — udviklingskontrakt
+      // -------------------------------------------
+
+      // Find den aktuelle person i UDV via MA/employee_no
+      const people = Array.isArray(udv.people) ? udv.people : [];
+      const me = people.find(p => {
+        const cand = [
+          p.employee_no, p.employeeNo, p.ma, p.ma_no, p.maNo,
+          p.employee?.number, p.employee?.id, p.meta?.employee_no, p.meta?.ma_no
+        ].find(v => v !== undefined && v !== null && String(v).trim() !== '');
+        return String(cand || '').trim() === String(userMA).trim();
+      });
+
+      if (!me) {
+        throw new Error('Denne fil tilhører ikke dig (MA ikke fundet i UDV)');
       }
-      
-      assessment = JSON.parse(assessmentJson);
-      categories = JSON.parse(categoriesJson);
-      responses = responsesJson ? JSON.parse(responsesJson) : {};
-      contract = contractJson ? JSON.parse(contractJson) : {};
+
+      // Byg assessment minimal-objekt til RPC
+      const variant =
+        udv.variant ||
+        (udv.project && (udv.project.is_lite ? 'LITE' : 'FULL')) ||
+        'FULL';
+
+      const projectLabel =
+        (udv.project && (udv.project.label || udv.project.title)) ||
+        'UKENDT';
+
+      assessment = {
+        ma: String(userMA).trim(),
+        project_label: projectLabel,
+        variant: variant,
+        completed_at: udv.exported_at || new Date().toISOString()
+      };
+
+      // Kategorier fra taxonomy hvis tilgængeligt (ellers tom liste)
+      const cats =
+        (udv.taxonomy && (udv.taxonomy.categories || udv.taxonomy)) ||
+        [];
+      categories = { categories: Array.isArray(cats) ? cats : [] };
+
+      // Responses ikke nødvendige til kontrakt-visning; efterlad tom
+      responses = {};
+
+      // Kontrakt-objekt hvis til stede
+      contract = udv.contract || {};
+
+      // -------------------------------------------
+      // Importer hele UDV som p_udv_json for at kunne vise det efterfølgende
+      // -------------------------------------------
+
+      statusEl.textContent = 'Importerer udviklingskontrakt til database.';
+
+      const { data, error } = await supabase.rpc('import_individual_assessment', {
+        p_ma: assessment.ma,
+        p_project_label: assessment.project_label,
+        p_variant: assessment.variant,
+        p_completed_at: assessment.completed_at,
+        // Gem hele UDV’en, så den kan vises 1:1 i profil
+        p_udv_json: udv,
+        // Kategorier bruges i portalens grafer – tag fra taxonomy hvis muligt
+        p_categories: categories.categories || [],
+        // Gem kontrakten hvis den findes
+        p_development_contract: contract
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (!data?.success) throw new Error('Import fejlede');
+
+    } else {
+      // -------------------------------------------
+      // Legacy profil-format (ZIP eller ren JSON uden udv_version)
+      // Bevar kompatibilitet – hvis nogen stadig bruger det
+      // -------------------------------------------
+      let data = null;
+
+      // Prøv ren JSON
+      try { data = JSON.parse(rawText); } catch {}
+
+      if (data && (data.assessment || data.categories)) {
+        assessment = data.assessment || data;
+        categories = data.categories || { categories: [] };
+        responses  = data.responses  || {};
+        contract   = data.contract   || {};
+      } else {
+        // Sidste mulighed: antag ældre ZIP-baseret profil-format
+        const zip = await JSZip.loadAsync(file);
+        const assessmentJson = await zip.file('assessment.json')?.async('text');
+        const categoriesJson = await zip.file('categories.json')?.async('text');
+        const responsesJson  = await zip.file('responses.json')?.async('text');
+        const contractJson   = await zip.file('development_contract.json')?.async('text');
+
+        if (!assessmentJson || !categoriesJson) {
+          throw new Error('UDV-filen kan ikke læses (hverken UDV JSON eller kendt ZIP-struktur)');
+        }
+
+        assessment = JSON.parse(assessmentJson);
+        categories = JSON.parse(categoriesJson);
+        responses  = responsesJson ? JSON.parse(responsesJson) : {};
+        contract   = contractJson  ? JSON.parse(contractJson)  : {};
+      }
+
+      // Valider MA for legacy-struktur
+      if (!assessment || assessment.ma !== userMA) {
+        throw new Error('Denne fil tilhører ikke dig (MA mismatch)');
+      }
+
+      statusEl.textContent = 'Importerer til database.';
+
+      const { data: res, error: err } = await supabase.rpc('import_individual_assessment', {
+        p_ma: assessment.ma,
+        p_project_label: assessment.project_label,
+        p_variant: assessment.variant,
+        p_completed_at: assessment.completed_at,
+        p_udv_json: { assessment, responses, categories, contract },
+        p_categories: categories.categories || [],
+        p_development_contract: contract
+      });
+
+      if (err) throw err;
+      if (res?.error) throw new Error(res.error);
+      if (!res?.success) throw new Error('Import fejlede');
     }
-    
-    // Valider MA
-    if (assessment.ma !== userMA) {
-      throw new Error('Denne fil tilhører ikke dig (MA mismatch)');
-    }
-    
-    statusEl.textContent = 'Importerer til database...';
-    
-    // Import til database
-    const { data, error } = await supabase.rpc('import_individual_assessment', {
-      p_ma: assessment.ma,
-      p_project_label: assessment.project_label,
-      p_variant: assessment.variant,
-      p_completed_at: assessment.completed_at,
-      p_udv_json: { assessment, responses, categories, contract },
-      p_categories: categories.categories || [],
-      p_development_contract: contract
-    });
-    
-    if (error) throw error;
-    if (data?.error) throw new Error(data.error);
-    if (!data?.success) throw new Error('Import fejlede');
-    
-    // Success!
+
+    // Success
     statusEl.className = 'alert success';
-    statusEl.textContent = '✅ Fil uploadet succesfuldt!';
-    
-    // Reload assessments og skift til oversigt
+    statusEl.textContent = '✅ UDV-fil uploadet og læst korrekt.';
+
+    // Opdatér og vis i oversigten
     await loadAssessments();
     setTimeout(() => {
       switchTab('oversigt');
       statusEl.style.display = 'none';
-      document.getElementById('udvFileInput').value = '';
-    }, 2000);
-    
+      const inp = document.getElementById('udvFileInput');
+      if (inp) inp.value = '';
+    }, 1500);
+
   } catch (error) {
     console.error('Upload error:', error);
     statusEl.className = 'alert error';
