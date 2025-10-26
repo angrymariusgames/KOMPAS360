@@ -963,15 +963,21 @@ async function handleUDVUpload(file) {
     statusEl.className = 'alert success';
     statusEl.textContent = '✅ UDV-fil uploadet og læst korrekt.';
 
-    // Opdatér data og hop direkte til Kompas
+    // Opdatér data og hop direkte til Udviklingskontrakt
     await loadAssessments();
-    initializeCompassTab();
+    initializeContractTab();
     setTimeout(() => {
-      switchTab('kompas');
-      const sel = document.getElementById('compassAssessmentSelect');
+      switchTab('kontrakt');
+      const sel = document.getElementById('contractAssessmentSelect');
       if (sel && assessments.length) {
-        sel.value = assessments[0].id;
-        loadCompassForAssessment();
+        // vælg den nyeste assessment som har en kontrakt
+        const withContract = assessments.filter(a => a.development_contract);
+        if (withContract.length) {
+          sel.value = withContract[0].id;
+        } else {
+          sel.value = assessments[0].id;
+        }
+        loadContractForAssessment();
       }
       statusEl.style.display = 'none';
       const inp = document.getElementById('udvFileInput');
@@ -2010,6 +2016,7 @@ function renderFilesList() {
         <div class="file-meta">Udgivet ${new Date(a.published_at).toLocaleDateString('da-DK')}</div>
       </div>
       <div style="display:flex;gap:8px">
+        <button class="btn small" onclick="viewContract('${a.id}')">Åbn i Kontrakt</button>
         <button class="btn small" onclick="downloadUDV('${a.id}')">Download</button>
       </div>
     </li>
@@ -2229,7 +2236,7 @@ function loadContractForAssessment() {
   const contract = assessment.development_contract;
   
   let html = `
-    <div id="contractPrintable" style="background:#fff;padding:30px;border-radius:12px;border:1px solid var(--line)">
+    <div id="contractPrintable" style="background:#fff;padding:30px;border-radius:12px;border:1px solid var(--line);pointer-events:none">
       <div style="text-align:center;margin-bottom:30px;padding-bottom:20px;border-bottom:2px solid var(--brand)">
         <h2 style="color:var(--brand);margin-bottom:10px">📋 UDVIKLINGSKONTRAKT</h2>
         <div style="font-size:1.1em;color:#666">${esc(assessment.project_label)}</div>
