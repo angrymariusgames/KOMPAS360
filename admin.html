@@ -1498,6 +1498,25 @@ window.addEventListener('load', function() {
         contractUpdateGoalsAndRoles?.();
         await generateContractRadarChart?.();
 
+        // 11) KRITISK: Opdater Udgiv-knap state efter fil-indlæsning
+        console.log('🔄 Opdaterer Udgiv-knap state efter fil-indlæsning...');
+        try {
+          await updatePublishButtonState();
+          console.log('✅ Udgiv-knap aktiveret succesfuldt');
+        } catch (updateError) {
+          console.error('❌ Fejl i updatePublishButtonState():', updateError);
+          // Fallback: Aktiver knappen manuelt hvis updatePublishButtonState fejler
+          const publishBtn = $('contractPublishBtn');
+          if (publishBtn) {
+            publishBtn.disabled = false;
+            publishBtn.textContent = '🔤 Udgiv';
+            publishBtn.classList.remove('success', 'ghost');
+            publishBtn.classList.add('primary');
+            publishBtn.title = 'Udgiv kontrakt til MinUdvikling';
+            console.log('✅ Udgiv-knap aktiveret manuelt (fallback)');
+          }
+        }
+
         alert('Kontrakt indlæst fra fil. Alle valg og rubrikker er gendannet.');
       } catch (err) {
         console.error('Kunne ikke indlæse kontrakt:', err);
@@ -7583,6 +7602,8 @@ async function initContractTabOnce(){
   await contractLoadProjects();
   contractSetupEventListeners();
   contractUpdateSectionStatus();
+  // Sørg for at sticky actions (inkl. Udgiv) er korrekte fra start
+  try { await updatePublishButtonState(); } catch (_) {}
 
   // Bind AI-knap (findes først efter ensureContractUiExtras) — idempotent
   const aiBtn = document.getElementById('aiSuggestBtn');
@@ -9879,6 +9900,8 @@ async function preloadSelectedTipsMeta(c) {
 
 async function contractLoadFromFile() {
   try {
+    console.log('🔵 contractLoadFromFile() startet');
+    
     // 1) Filvælger
     const input = document.createElement('input');
     input.type = 'file';
@@ -9890,31 +9913,92 @@ async function contractLoadFromFile() {
       input.click();
     });
     document.body.removeChild(input);
-    if (!file) return;
+    if (!file) {
+      console.log('❌ Ingen fil valgt');
+      return;
+    }
 
     // 2) Parse indhold
     let data;
     try { data = JSON.parse(await file.text()); }
-    catch(e) { alert('Filen er ikke gyldig JSON'); return; }
+    catch(e) { 
+      console.error('❌ JSON parse fejl:', e);
+      alert('Filen er ikke gyldig JSON'); 
+      return; 
+    }
 
     // Understøt både kontrakt-UDV ({contract:{...}}) og "rå" kontrakt JSON
     const c = data.contract ? data.contract : data;
 
     if (!c?.project?.id || !c?.target?.id) {
+      console.error('❌ Mangler projekt/målperson-id', { project: c?.project, target: c?.target });
       alert('Filen mangler projekt- og/eller målperson-id');
       return;
     }
 
-    // 3) Sørg for at dropdowns matcher projekt/target
+    console.log('📋 Indlæser kontrakt:', {
+      project_id: c.project.id,
+      target_id: c.target.id,
+      project_title: c.project.title
+    });
+
+    // 3) Sørg for at dropdowns matcher projekt/target OG vent på de er klar
     const projSel = $('contractProjectSelect');
-    if (projSel && String(projSel.value) !== String(c.project.id)) {
-      projSel.value = String(c.project.id);
-      await contractLoadTargets(c.project.id);
-    }
     const targSel = $('contractTargetSelect');
-    if (targSel) targSel.value = String(c.target.id);
+    
+    if (!projSel || !targSel) {
+      console.error('❌ Dropdowns ikke fundet i DOM');
+      alert('UI-fejl: Projekt eller målperson dropdown ikke fundet');
+      return;
+    }
+
+    // Sæt projekt-dropdown
+    if (String(projSel.value) !== String(c.project.id)) {
+      console.log('🔄 Opdaterer projekt dropdown til:', c.project.id);
+      projSel.value = String(c.project.id);
+      
+      // Indlæs targets for dette projekt
+      console.log('🔄 Indlæser targets for projekt...');
+      await contractLoadTargets(c.project.id);
+      console.log('✅ Targets indlæst');
+    }
+
+    // Vent et øjeblik så dropdown DOM er opdateret
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    // Sæt målperson-dropdown
+    console.log('🔄 Opdaterer målperson dropdown til:', c.target.id);
+    targSel.value = String(c.target.id);
+
+    // KRITISK: Verificer at dropdown-værdier faktisk blev sat
+    const actualProjValue = projSel.value;
+    const actualTargValue = targSel.value;
+    
+    console.log('✅ Dropdown værdier efter opdatering:', {
+      projektDropdown: actualProjValue,
+      forventetProjekt: String(c.project.id),
+      målpersonDropdown: actualTargValue,
+      forventetMålperson: String(c.target.id),
+      projektMatch: actualProjValue === String(c.project.id),
+      målpersonMatch: actualTargValue === String(c.target.id)
+    });
+
+    if (!actualTargValue || actualTargValue !== String(c.target.id)) {
+      console.warn('⚠️ Målperson dropdown kunne ikke sættes - option findes muligvis ikke');
+      // Prøv at indlæse targets igen
+      await contractLoadTargets(c.project.id);
+      await new Promise(resolve => setTimeout(resolve, 50));
+      targSel.value = String(c.target.id);
+      
+      if (targSel.value !== String(c.target.id)) {
+        console.error('❌ Målperson kunne ikke findes i dropdown');
+        alert(`Målperson (ID: ${c.target.id}) findes ikke i projekt. Kontrakten kan ikke indlæses korrekt.`);
+        // Fortsæt alligevel - brugeren kan manuelt vælge målperson
+      }
+    }
 
     // 4) Opdater state (inkl. fastholdelse)
+    console.log('🔄 Opdaterer contractState...');
     contractState.project_id = String(c.project.id);
     contractState.target_id  = String(c.target.id);
     contractState.followup_date    = c.followup_date || null;
@@ -9950,6 +10034,12 @@ async function contractLoadFromFile() {
     contractState.colleaguesSelected  = new Set(Array.isArray(c.colleagues_selected)  ? c.colleagues_selected  : []);
     contractState.team_roles_selected = new Set(Array.isArray(c.team_roles_selection) ? c.team_roles_selection : []);
 
+    console.log('✅ contractState opdateret:', {
+      project_id: contractState.project_id,
+      target_id: contractState.target_id,
+      selectedCompetencies: contractState.selectedCompetencies.size
+    });
+
     // 5) Sync UI (checkboxes/textarea/dato)
     $('include306090Goals')      && ( $('include306090Goals').checked      = !!contractState.include_306090_goals );
     $('includeTeamRoles')        && ( $('includeTeamRoles').checked        = !!contractState.include_team_roles );
@@ -9964,7 +10054,10 @@ async function contractLoadFromFile() {
       projSel?.selectedOptions?.[0]?.dataset?.templateId ||
       projSel?.selectedOptions?.[0]?.dataset?.template_id ||
       null;
-    if (templateId) await contractLoadCompetencies(templateId); // kalder render internt
+    if (templateId) {
+      console.log('🔄 Indlæser kompetencer for template:', templateId);
+      await contractLoadCompetencies(templateId); // kalder render internt
+    }
 
     // 7) Markér valgte kompetencer i begge grids
     contractAvailableCompetencies.forEach(cmp => {
@@ -10023,7 +10116,7 @@ async function contractLoadFromFile() {
                 return d;
               })();
 
-          // læg chip i pool, så DOM’en kender den
+          // læg chip i pool, så DOM'en kender den
           document.getElementById('contract-plan-pool')?.appendChild(chip);
         }
         return chip;
@@ -10035,7 +10128,7 @@ async function contractLoadFromFile() {
 
       // hvis din app gemmer plan-state løbende
       if (typeof contractSave306090PlanState === 'function') contractSave306090PlanState();
-      // Efter vi har gendannet plan-chips fra filen: genbyg pool’en korrekt
+      // Efter vi har gendannet plan-chips fra filen: genbyg pool'en korrekt
       if (typeof contractInit306090PlanUI === 'function') contractInit306090PlanUI();
 
     }
@@ -10053,11 +10146,47 @@ async function contractLoadFromFile() {
     // 12) Tegn KOMPAS-hjul til sidst
     await generateContractRadarChart?.();
 
-    alert('Kontrakt indlæst fra fil.');
-    // Sørg for at sticky-knapper (inkl. Udgiv) opdateres efter filindlæsning
-    try { await updatePublishButtonState(); } catch(_) {}
+    // 13) KRITISK: Trigger change events på dropdowns for at sikre alle event listeners kører
+    console.log('🔄 Trigger change events på dropdowns...');
+    const changeEvent = new Event('change', { bubbles: true });
+    if (projSel) projSel.dispatchEvent(changeEvent);
+    if (targSel) targSel.dispatchEvent(changeEvent);
+
+    // 14) Opdater Udgiv-knap state EKSPLICIT
+    console.log('🔄 Opdaterer Udgiv-knap state...');
+    try {
+      await updatePublishButtonState();
+      console.log('✅ updatePublishButtonState() kørt succesfuldt');
+    } catch (updateError) {
+      console.error('❌ Fejl i updatePublishButtonState():', updateError);
+      // Prøv at aktivere knappen manuelt som fallback
+      const publishBtn = $('contractPublishBtn');
+      if (publishBtn) {
+        publishBtn.disabled = false;
+        publishBtn.textContent = '📤 Udgiv';
+        publishBtn.classList.remove('success', 'ghost');
+        publishBtn.classList.add('primary');
+        publishBtn.title = 'Udgiv kontrakt til MinUdvikling';
+        console.log('✅ Udgiv-knap aktiveret manuelt (fallback)');
+      }
+    }
+
+    // 15) Log final state
+    const finalPublishBtn = $('contractPublishBtn');
+    console.log('✅ Fil indlæst. Final state:', {
+      contractState_project_id: contractState.project_id,
+      contractState_target_id: contractState.target_id,
+      dropdown_project_value: projSel?.value,
+      dropdown_target_value: targSel?.value,
+      publishBtn_disabled: finalPublishBtn?.disabled,
+      publishBtn_text: finalPublishBtn?.textContent,
+      publishBtn_classes: finalPublishBtn?.className
+    });
+
+    alert('✅ Kontrakt indlæst fra fil.\n\nUdgiv-knappen skulle nu være aktiv.');
+    
   } catch (e) {
-    console.error('Indlæs fra fil fejlede:', e);
+    console.error('❌ Indlæs fra fil fejlede:', e);
     alert('Kunne ikke indlæse kontrakten: ' + (e?.message || e));
   }
 }
@@ -10599,7 +10728,7 @@ async function validateMA(ma) {
 
   try {
     // Brug RPC funktion der omgår RLS
-    const { data, error } = await supabase.rpc('validate_ma_for_publish', { p_ma: ma });
+    const { data, error } = await window.supabaseClient.rpc('validate_ma_for_publish', { p_ma: ma });
 
     if (error) {
       errorEl.textContent = '❌ Fejl ved validering: ' + error.message;
@@ -10647,20 +10776,53 @@ function updatePublishConfirmButton() {
  * Opdaterer publish button state i sticky bar
  */
 async function updatePublishButtonState() {
+  console.log('🔵 updatePublishButtonState() kaldt');
+  
   const publishBtn = $('contractPublishBtn');
-  if (!publishBtn) return;
-
-  const projectId = $('contractProjectSelect')?.value || contractState.project_id;
-  const targetId = $('contractTargetSelect')?.value || contractState.target_id;
-
-  if (!projectId || !targetId) {
-    publishBtn.disabled = true;
+  if (!publishBtn) {
+    console.warn('⚠️ Udgiv-knap ikke fundet i DOM');
     return;
   }
 
-  // Check om der findes en gemt (ikke-draft) contract
+  // 🔥 KRITISK FIX: Prioriter contractState (source of truth) OVER dropdowns (kun UI)
+  // Dette forhindrer race conditions ved fil-indlæsning hvor dropdowns ikke er færdige
+  const getValidValue = (stateVal, domVal) => {
+    // Hvis state er sat og ikke tom, brug den
+    if (stateVal && String(stateVal).trim() !== '') return String(stateVal);
+    // Ellers brug DOM hvis sat og ikke tom
+    if (domVal && String(domVal).trim() !== '') return String(domVal);
+    return null;
+  };
+
+  const projectId = getValidValue(contractState.project_id, $('contractProjectSelect')?.value);
+  const targetId  = getValidValue(contractState.target_id, $('contractTargetSelect')?.value);
+
+  console.log('📊 State check:', {
+    stateProjectId: contractState.project_id,
+    stateTargetId: contractState.target_id,
+    dropdownProjectId: $('contractProjectSelect')?.value,
+    dropdownTargetId: $('contractTargetSelect')?.value,
+    finalProjectId: projectId,
+    finalTargetId: targetId
+  });
+
+  if (!projectId || !targetId) {
+    console.log('⛔ Mangler projekt eller målperson - deaktiverer knap');
+    publishBtn.disabled = true;
+    publishBtn.title = 'Vælg projekt og målperson først';
+    publishBtn.classList.remove('primary', 'success');
+    publishBtn.classList.add('ghost');
+    return;
+  }
+
+  // Brug robust klient (scope-safe)
+  const db = (window.supabaseClient || window.supabaseClient === null) ? window.supabaseClient : (typeof supabase !== 'undefined' ? supabase : null);
+
   try {
-    const { data, error } = await supabase
+    if (!db || typeof db.from !== 'function') throw new Error('Supabase client ikke initialiseret');
+
+    console.log('🔍 Søger efter gemt kontrakt i DB...');
+    const { data, error } = await db
       .from('development_contract')
       .select('id, published')
       .eq('project_id', projectId)
@@ -10669,38 +10831,50 @@ async function updatePublishButtonState() {
       .order('updated_at', { ascending: false })
       .limit(1);
 
+    console.log('📦 DB resultat:', { data, error });
+
     if (error || !data || data.length === 0) {
-      // Ingen endeligt gemt kontrakt i DB → tillad udgivelse direkte fra fil/state.
-      // Vi gemmer automatisk endeligt som første step i contractPublish().
+      // Ingen endelig gemning → vi tillader udgivelse direkte (gem sker i contractPublish())
+      console.log('✅ Ingen gemt kontrakt - aktiverer Udgiv-knap (fil-flow)');
       publishBtn.disabled = false;
       publishBtn.textContent = '📤 Udgiv';
-      publishBtn.classList.remove('success');
-      publishBtn.classList.remove('ghost');
+      publishBtn.classList.remove('success', 'ghost');
       publishBtn.classList.add('primary');
       publishBtn.title = 'Ingen endelig gemning fundet – der gemmes automatisk ved udgivelse';
       return;
     }
 
-    // Vis status hvis allerede udgivet
     if (data[0].published) {
+      console.log('✅ Kontrakt allerede udgivet - viser success state');
       publishBtn.textContent = '✓ Udgivet';
       publishBtn.classList.remove('ghost');
       publishBtn.classList.add('success');
       publishBtn.disabled = false;
-      publishBtn.title = 'Kontrakt er allerede udgivet - klik for at udgive igen';
+      publishBtn.title = 'Kontrakt er allerede udgivet – klik for at udgive igen';
     } else {
+      console.log('✅ Gemt men ikke udgivet - aktiverer Udgiv-knap');
       publishBtn.textContent = '📤 Udgiv';
-      publishBtn.classList.remove('success');
-      publishBtn.classList.remove('ghost');
+      publishBtn.classList.remove('success', 'ghost');
       publishBtn.classList.add('primary');
       publishBtn.disabled = false;
       publishBtn.title = 'Udgiv kontrakt til MinUdvikling';
     }
-
   } catch (e) {
-    console.warn('Fejl ved tjek af publish status:', e);
-    publishBtn.disabled = true;
+    console.warn('⚠️ Fejl ved tjek af publish status (fail-open):', e);
+    // ⚠️ Fail-open: tillad udgivelse, selv hvis DB-tjek fejler (fil/state-flow)
+    publishBtn.disabled = false;
+    publishBtn.textContent = '📤 Udgiv';
+    publishBtn.classList.remove('success', 'ghost');
+    publishBtn.classList.add('primary');
+    publishBtn.title = 'Kan ikke verificere gemt kontrakt – udgivelse tilladt (der gemmes ved udgivelse)';
+    console.log('✅ Fail-open aktiveret - knap er enabled');
   }
+  
+  console.log('🏁 updatePublishButtonState() færdig. Knap state:', {
+    disabled: publishBtn.disabled,
+    text: publishBtn.textContent,
+    classes: publishBtn.className
+  });
 }
 
 /**
@@ -10716,7 +10890,7 @@ async function contractPublish() {
   }
 
   // Find gemt contract
-  const { data: contracts, error: contractError } = await supabase
+  const { data: contracts, error: contractError } = await window.supabaseClient
     .from('development_contract')
     .select('id, published, published_at')
     .eq('project_id', projectId)
@@ -10734,7 +10908,7 @@ async function contractPublish() {
       return;
     }
     // Re-check efter automatisk gemning
-    const { data: recheck, error: reErr } = await supabase
+    const { data: recheck, error: reErr } = await window.supabaseClient
       .from('development_contract')
       .select('id, published, published_at')
       .eq('project_id', projectId)
@@ -10742,6 +10916,7 @@ async function contractPublish() {
       .eq('is_draft', false)
       .order('updated_at', { ascending: false })
       .limit(1);
+
 
     if (reErr || !recheck || recheck.length === 0) {
       alert('❌ Ingen gemt kontrakt fundet efter automatisk gemning.');
@@ -10816,7 +10991,7 @@ async function contractPublish() {
     console.log('🔍 Contract selected_competencies:', contractDebug?.selected_competencies);
 
     // === STEP 1: Kald server-RPC som opretter assessment og flytter data ===
-    const { data: publishResult, error: publishError } = await supabase.rpc(
+    const { data: publishResult, error: publishError } = await window.supabaseClient.rpc(
       'publish_development_contract',
       {
         p_contract_id: contractId,
@@ -10848,7 +11023,7 @@ async function contractPublish() {
     const udvFilename = `udviklingskontrakt_${safe(projectLabel)}_${ma}.udv`;
     const udvPath = `minudvikling/${ma}/${assessmentId}/${udvFilename}`;
 
-    const { error: udvUploadError } = await supabase.storage
+    const { error: udvUploadError } = await window.supabaseClient.storage
       .from('artifacts')
       .upload(udvPath, udvBlob, {
         contentType: 'application/kompas-udv+json',
@@ -10861,7 +11036,7 @@ async function contractPublish() {
     console.log('✓ UDV uploadet:', udvPath);
 
     // Opret artifact entry for UDV
-    const { error: udvArtifactError } = await supabase
+    const { error: udvArtifactError } = await window.supabaseClient
       .from('individual_artifacts')
       .insert({
         ma: ma,
@@ -10886,7 +11061,7 @@ async function contractPublish() {
     progressText.textContent = 'Uploader PDF fil...';
     const pdfPath = `minudvikling/${ma}/${assessmentId}/contract.pdf`;
     
-    const { error: pdfUploadError } = await supabase.storage
+    const { error: pdfUploadError } = await window.supabaseClient.storage
       .from('artifacts')
       .upload(pdfPath, pdfBlob, {
         contentType: 'application/pdf',
@@ -10899,7 +11074,7 @@ async function contractPublish() {
     console.log('✓ PDF uploadet:', pdfPath);
 
     // Opret artifact entry for PDF
-    const { error: pdfArtifactError } = await supabase
+    const { error: pdfArtifactError } = await window.supabaseClient
       .from('individual_artifacts')
       .insert({
         ma: ma,
@@ -10926,7 +11101,7 @@ async function contractPublish() {
       throw new Error('UDV parse fejl: ' + (e?.message || e));
     }
 
-    const { error: updateError } = await supabase
+    const { error: updateError } = await window.supabaseClient
       .from('individual_assessments')
       .update({ 
         udv_json: udvObject 
