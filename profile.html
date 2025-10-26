@@ -2546,23 +2546,60 @@ function loadContractForAssessment() {
       html += '</div>';
     }
     
-    // 📅 30/60/90 — læs-kun i profile (samme datakilde som admin, ingen drag/drop/klik)
+    // 📅 30/60/90 — læs-kun i profile (robust mod legacy/formater)
     {
-      const p = c?.plan || {};
+      // Normaliser alle kendte formater til tre buckets
+      const norm = (() => {
+        const out = { d30: [], d60: [], d90: [] };
+        const p = c?.plan;
+
+        // Case 1: objekt med plan30/plan60/plan90
+        if (p && typeof p === 'object' && !Array.isArray(p)) {
+          if (Array.isArray(p.plan30)) out.d30 = p.plan30;
+          if (Array.isArray(p.plan60)) out.d60 = p.plan60;
+          if (Array.isArray(p.plan90)) out.d90 = p.plan90;
+        }
+
+        // Case 2: liste af punkter med bucket/when der indeholder 30/60/90
+        if (Array.isArray(p)) {
+          p.forEach(item => {
+            const tag = String(item.bucket || item.when || '').toLowerCase();
+            if (tag.includes('30')) out.d30.push(item);
+            else if (tag.includes('60')) out.d60.push(item);
+            else if (tag.includes('90')) out.d90.push(item);
+          });
+        }
+
+        // Case 3: flade nøgler '30' / '60' / '90'
+        if (p && typeof p === 'object' && !Array.isArray(p)) {
+          if (!out.d30.length && Array.isArray(p['30'])) out.d30 = p['30'];
+          if (!out.d60.length && Array.isArray(p['60'])) out.d60 = p['60'];
+          if (!out.d90.length && Array.isArray(p['90'])) out.d90 = p['90'];
+        }
+
+        return out;
+      })();
+
       const cols = [
-        { label: 'De første 30 dage – læring og relationer', list: Array.isArray(p.plan30) ? p.plan30 : [] },
-        { label: 'Dag 31–60 – praksis og feedback',          list: Array.isArray(p.plan60) ? p.plan60 : [] },
-        { label: 'Dag 61–90 – konsolidering og næste mål',    list: Array.isArray(p.plan90) ? p.plan90 : [] },
+        { label: 'De første 30 dage – læring og relationer', list: norm.d30 },
+        { label: 'Dag 31–60 – praksis og feedback',          list: norm.d60 },
+        { label: 'Dag 61–90 – konsolidering og næste mål',   list: norm.d90 },
       ];
-      const hasAny = cols.some(col => col.list.length > 0);
-      if ((c.include_306090_goals ?? true) && hasAny) {
+
+      // Kun skjul, hvis du eksplicit har fravalgt 30/60/90
+      const showFlag = (c.include_306090_goals !== false);
+      const hasAny = cols.some(col => Array.isArray(col.list) && col.list.length > 0);
+
+      if (showFlag && hasAny) {
         const planColsHtml = cols.map(col => {
           const chips = col.list.map(item => {
-            const id = item && item.id ? String(item.id) : null;
+            const id   = item && item.id ? String(item.id) : null;
             const meta = id && tipLookup instanceof Map ? tipLookup.get(id) : null;
+
             const title = esc((meta && meta.title) || item.title || item.text || 'Aktivitet');
-            const desc  = (meta && meta.desc) || item.description || item.desc || '';
-            const cat   = (meta && meta.category) || item.category || '';
+            const desc  = (meta && meta.desc)   || item.description || item.desc || '';
+            const cat   = (meta && meta.category) || item.category || (String(item.bucket || item.when || '').trim());
+
             return `
               <div style="margin:6px 0;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;background:#fff">
                 ${cat ? `<div style="font-size:11px;color:#667eea;margin-bottom:2px">${esc(cat)}</div>` : ''}
@@ -2571,6 +2608,7 @@ function loadContractForAssessment() {
               </div>
             `;
           }).join('');
+
           return `
             <div style="border:1px solid #e2e8f0;border-radius:10px;padding:12px;background:#fff">
               <div style="font-weight:700;margin-bottom:6px">${esc(col.label)}</div>
