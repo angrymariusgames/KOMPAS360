@@ -1229,7 +1229,7 @@
             <button id="contractSaveFinalBtn" class="btn success" disabled>Gem kontrakt</button>
             <button id="contractExportPdfBtn" class="btn primary" disabled>Gem PDF</button>
             <button id="contractOpenBtn" class="btn">Åben kontrakt</button>
-            <button id="contractPublishBtn" class="btn ghost" disabled title="Udgiv kontrakt til MinUdvikling">📤 Udgiv</button>
+            <button id="contractPublishBtn" class="btn" disabled title="Udgiv kontrakt til MinUdvikling">📤 Udgiv</button>
             <input id="contractOpenFileInput" type="file" accept=".udv,.json,application/json,application/kompas-udv+json" style="display:none">
           </div>
         </div>
@@ -10675,7 +10675,8 @@ async function updatePublishButtonState() {
       publishBtn.disabled = false;
       publishBtn.textContent = '📤 Udgiv';
       publishBtn.classList.remove('success');
-      publishBtn.classList.add('ghost');
+      publishBtn.classList.remove('ghost');
+      publishBtn.classList.add('primary');
       publishBtn.title = 'Ingen endelig gemning fundet – der gemmes automatisk ved udgivelse';
       return;
     }
@@ -10690,7 +10691,8 @@ async function updatePublishButtonState() {
     } else {
       publishBtn.textContent = '📤 Udgiv';
       publishBtn.classList.remove('success');
-      publishBtn.classList.add('ghost');
+      publishBtn.classList.remove('ghost');
+      publishBtn.classList.add('primary');
       publishBtn.disabled = false;
       publishBtn.title = 'Udgiv kontrakt til MinUdvikling';
     }
