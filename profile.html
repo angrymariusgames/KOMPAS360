@@ -2277,13 +2277,10 @@ function loadContractForAssessment() {
         ${c.title ? `<p style="margin:0;opacity:0.9">${esc(c.title)}</p>` : ''}
       </div>
       <div style="display:grid;grid-template-columns:1fr;gap:16px;align-items:stretch;margin-bottom:20px">
-        <div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px">
+        <div style="background:transparent;border:none;border-radius:0;padding:0">
           <h3 style="margin:0 0 10px 0;display:flex;align-items:center;gap:8px;color:var(--ink)"><span>🧭</span> Kompas</h3>
-          <div id="contractRadarSection" class="section" style="background:#fff;margin:0">
+          <div id="contractRadarSection" class="section" style="background:transparent;margin:0">
             <canvas id="contractRadar" height="420" style="max-height:600px;width:100%"></canvas>
-          </div>
-          <div style="display:flex;gap:8px;justify-content:center;margin-top:10px;font-size:.9rem;color:#64748b">
-            <span>👤 Selv</span><span>•</span><span>👥 Kolleger</span><span>•</span><span>👔 Leder</span>
           </div>
         </div>
       </div>
