@@ -2480,7 +2480,9 @@ function loadContractForAssessment() {
       ];
 
       // Byg data fra UDV (samme læsning som i profilen, men mappet til Admins radar)
-      const udv = assessment.udv_json || assessment.udv || null;
+      const udv = (typeof assessment?.udv_json === 'string'
+        ? (()=>{ try { return JSON.parse(assessment.udv_json); } catch { return null; } })()
+        : (assessment?.udv_json || assessment?.udv || null));
       let built = [];
 
       if (udv && Array.isArray(udv.scores) && udv.scores.length) {
@@ -2516,23 +2518,31 @@ function loadContractForAssessment() {
         });
       }
 
-      // Fallback: kompakt snapshot
-      if (!built.length && udv?.compass_snapshot?.categories && udv?.compass_snapshot?.series) {
+      // Fallback: kompakt snapshot (top-level ELLER under contract.compass_snapshot)
+      if (!built.length) {
         const names = orderedCategories.filter(Boolean);
-        const snap = udv.compass_snapshot;
-        const idx = new Map((snap.categories||[]).map((c,i)=>[c.name, i]));
-        const pull = (arr) => names.map(n => {
-          const i = idx.get(n);
-          return (i==null || !Array.isArray(arr) || arr[i]==null) ? null : Number(arr[i]);
-        });
-        const selfArr   = pull(snap.series.self);
-        const peerArr   = pull(snap.series.peer);
-        const leaderArr = pull(snap.series.leader);
-        names.forEach((n, i) => {
-          if (selfArr[i]   != null) built.push({ category_name:n, respondent_type:'self',   safe_avg:selfArr[i] });
-          if (peerArr[i]   != null) built.push({ category_name:n, respondent_type:'peer',   safe_avg:peerArr[i] });
-          if (leaderArr[i] != null) built.push({ category_name:n, respondent_type:'leader', safe_avg:leaderArr[i] });
-        });
+        const snap =
+          (udv && udv.compass_snapshot) ||
+          (udv && udv.contract && udv.contract.compass_snapshot) ||
+          null;
+
+        if (snap && snap.categories && snap.series) {
+          const idx = new Map((snap.categories || []).map((c,i)=>[c.name, i]));
+          const pull = (arr) => names.map(n => {
+            const i = idx.get(n);
+            return (i==null || !Array.isArray(arr) || arr[i]==null) ? null : Number(arr[i]);
+          });
+
+          const selfArr   = pull(snap.series.self);
+          const peerArr   = pull(snap.series.peer || snap.series.blended); // nogle filer har "blended" i stedet for peer
+          const leaderArr = pull(snap.series.leader);
+
+          names.forEach((n, i) => {
+            if (selfArr[i]   != null) built.push({ category_name:n, respondent_type:'self',   safe_avg:selfArr[i] });
+            if (peerArr[i]   != null) built.push({ category_name:n, respondent_type:'peer',   safe_avg:peerArr[i] });
+            if (leaderArr[i] != null) built.push({ category_name:n, respondent_type:'leader', safe_avg:leaderArr[i] });
+          });
+        }
       }
 
       // Map til Admins datasæt
