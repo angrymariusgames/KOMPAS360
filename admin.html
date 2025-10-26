@@ -11053,12 +11053,13 @@ async function contractPublish() {
         project_label: projectLabel,
         variant: variantEnum,
         published_at: new Date().toISOString(),
-        /* published_by sættes automatisk af triggeren trg_set_published_by */
+        // lad triggeren sætte published_by = auth.uid()
         development_contract: udvJson?.development_contract ?? null,
         udv_json: udvJson
       }])
-      .select('id')
+      .select('id')  // virker nu fordi vi har en SELECT-policy på published_by = auth.uid()
       .single();
+
 
     if (insertError) throw new Error('INSERT fejl: ' + insertError.message);
     const assessmentId = inserted.id;
