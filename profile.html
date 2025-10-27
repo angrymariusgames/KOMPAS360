@@ -1574,14 +1574,17 @@ async function loadAssessments() {
       .select('*')
       .eq('ma', userMA)
       .order('published_at', { ascending: false });
-    
+
     if (error) throw error;
-    
+
     assessments = data || [];
-    
+    // Hold window.assessments i sync, så andre steder der læser fra window ikke fejler
+    window.assessments = assessments;
+
   } catch (error) {
     console.error('Load assessments error:', error);
     assessments = [];
+    window.assessments = assessments;
   }
 }
 
@@ -2122,8 +2125,9 @@ function setupUploadZone() {
 function renderFilesList() {
   const list = document.getElementById('filesList');
   if (!list) return;
-  
-  if (!Array.isArray(window.assessments) || assessments.length === 0) {
+
+  // Brug den rigtige state-variabel; ellers vises "Ingen filer" selv når der er data
+  if (!Array.isArray(assessments) || assessments.length === 0) {
     list.innerHTML = `
       <li class="empty-state">
         <div class="empty-icon">📁</div>
