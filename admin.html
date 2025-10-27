@@ -11290,11 +11290,14 @@ async function generateUDVBlob(contractId, ma, projectLabel, variant) {
         // Kollegastøtte + Teamroller (valg)
         colleagues_selected:  contract.colleagues_selected  || [],
         team_roles_selection: contract.team_roles_selection || [],
-        // Struktureret + fritekst – ENSARTET
-            colleague_support: (colleague_support || []),    // [{id,name,category}]
-            colleague_support_detail: [],
-            colleague_support_text: colleague_support_text,
 
+        // Kollegastøtte – ren tekst (ingen DB slå op, ingen ID’er)
+        colleague_support_text:
+          typeof contract.colleague_support_text === 'string'
+            ? contract.colleague_support_text
+            : (Array.isArray(contract.colleagues_selected)
+                ? contract.colleagues_selected.map(c => `• ${c}`).join('\n')
+                : ''),
 
         // 30/60/90
         plan: contract.plan || null,
