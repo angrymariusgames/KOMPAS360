@@ -1067,24 +1067,68 @@ function viewAssessmentDetails(assessmentId) {
 }
 
 async function deleteAssessment(assessmentId) {
-  if (!confirm('Er du sikker på du vil slette denne assessment? Dette kan ikke fortrydes.')) {
+  if (!confirm('Er du sikker på, du vil slette denne udviklingskontrakt og ALT relateret? Dette kan ikke fortrydes.')) {
     return;
   }
-  
+
   try {
-    const { error } = await supabase
+    // 1) Hent tilknyttede filstier, så vi kan fjerne dem fra Storage
+    //    Justér kolonnenavne hvis dine hedder anderledes (fx file_path/bucket)
+    const { data: fileRows, error: filesErr } = await supabase
+      .from('individual_assessment_files')
+      .select('bucket, path')
+      .eq('assessment_id', assessmentId);
+
+    if (filesErr) throw filesErr;
+
+    // 2) Slet filer i Storage pr. bucket
+    if (Array.isArray(fileRows) && fileRows.length > 0) {
+      const pathsByBucket = fileRows.reduce((acc, row) => {
+        if (!acc[row.bucket]) acc[row.bucket] = [];
+        acc[row.bucket].push(row.path);
+        return acc;
+      }, {});
+
+      for (const [bucket, paths] of Object.entries(pathsByBucket)) {
+        const { error: storageErr } = await supabase.storage.from(bucket).remove(paths);
+        if (storageErr) throw storageErr;
+      }
+    }
+
+    // 3) Slet relaterede rækker i andre tabeller (børn) før hovedposten
+    //    Tilføj/fjern tabeller så de matcher din DB.
+    const RELATED_TABLES = [
+      'individual_assessment_notes',
+      'individual_assessment_collaborators',
+      'individual_assessment_signatures',
+      'individual_assessment_events',
+      'individual_assessment_files' // selve fil-indexet i DB (metadata) fjernes også
+    ];
+
+    for (const table of RELATED_TABLES) {
+      const { error: relErr } = await supabase
+        .from(table)
+        .delete()
+        .eq('assessment_id', assessmentId);
+      if (relErr && relErr.code !== 'PGRST116') { // ignorer "table missing" i tilfælde af at tabellen ikke findes
+        throw relErr;
+      }
+    }
+
+    // 4) Slet hovedposten i individual_assessments
+    const { error: delErr } = await supabase
       .from('individual_assessments')
       .delete()
       .eq('id', assessmentId);
-    
-    if (error) throw error;
-    
+    if (delErr) throw delErr;
+
+    // 5) UI refresh
     await loadAssessments();
     renderTimeline();
-    
+
   } catch (error) {
     console.error('Delete error:', error);
-    alert('Kunne ikke slette assessment');
+    alert('Kunne ikke slette udviklingskontrakten fuldstændigt: ' + (error?.message || 'ukendt fejl'));
   }
 }
 
@@ -2034,6 +2078,7 @@ function renderFilesList() {
       <div style="display:flex;gap:8px">
         <button class="btn small" onclick="viewContract('${a.id}')">Åbn i Kontrakt</button>
         <button class="btn small" onclick="downloadUDV('${a.id}')">Download</button>
+        <button class="btn small error" onclick="deleteAssessment('${a.id}')">Slet</button>
       </div>
     </li>
   `).join('');
