@@ -9728,12 +9728,12 @@ function contractSetupEventListeners(){
             keep_tips: (typeof contractSerializeKeepTips === 'function' ? contractSerializeKeepTips() : {}),
 
             // Kollegastøtte + Teamroller
-            colleagues_selected:  Array.from(contractState.colleaguesSelected ?? new Set()),
             team_roles_selection: Array.from(contractState.team_roles_selected ?? new Set()),
 
-            // Kollegastøtte – kun ren tekst i .UDV
-            colleague_support_text: colleague_support_text,
-
+            // Kollegastøtte – ny struktur i .UDV (support1/support2/support3)
+            support1: support1,
+            support2: support2,
+            support3: support3,
 
             // 30/60/90
             plan: (typeof contractSerializePlan === 'function' ? contractSerializePlan() : null),
@@ -11253,6 +11253,9 @@ async function generateUDVBlob(contractId, ma, projectLabel, variant) {
 
     // Samme format som efter “Gem kontrakt” download (1:1 gendannelse)
 
+    // Ensartet kollega-støtte – ny struktur (support1/2/3 uden ID-koder i .UDV)
+    const { support1, support2, support3 } = await contractCollectColleagueSupport();
+
     const exportPayload = {
       contract: {
         project: { id: project.id },
@@ -11281,16 +11284,12 @@ async function generateUDVBlob(contractId, ma, projectLabel, variant) {
         keep_tips: contract.keep_tips || {},
 
         // Kollegastøtte + Teamroller (valg)
-        colleagues_selected:  contract.colleagues_selected  || [],
         team_roles_selection: contract.team_roles_selection || [],
 
-        // Kollegastøtte – ren tekst (ingen DB slå op, ingen ID’er)
-        colleague_support_text:
-          typeof contract.colleague_support_text === 'string'
-            ? contract.colleague_support_text
-            : (Array.isArray(contract.colleagues_selected)
-                ? contract.colleagues_selected.map(c => `• ${c}`).join('\n')
-                : ''),
+        // Kollegastøtte – ny struktur i .UDV
+        support1: support1,
+        support2: support2,
+        support3: support3,
 
         // 30/60/90
         plan: contract.plan || null,
