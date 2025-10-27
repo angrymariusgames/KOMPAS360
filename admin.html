@@ -9702,7 +9702,9 @@ function contractSetupEventListeners(){
         const { simple: colleague_support, text: colleague_support_text } = await contractCollectColleagueSupport();
         // (legacy blok fjernet – værdierne bruges direkte)
 
-        colleagueSupportText = support.text;
+        // FIX: korrekt reference til den destrukturerede variabel
+        const colleagueSupportText = colleague_support_text;
+
 
         // Byg eksport-objekt (samme felter som indlæsning forventer – 1:1 gendannelse)
         const exportPayload = {
