@@ -7275,10 +7275,11 @@ function contractSerializePlan(){
 async function contractCollectColleagueSupport(){
   // Læs valgte par fra state: "category_id:person_id"
   const selectedPairs = Array.from(contractState.colleaguesSelected ?? new Set())
-    .map(k => {
-      const [compId, personId] = String(k).split(':');
-      return { personId: String(personId||''), compId: String(compId||'') };
-    });
+          .map(k => {
+            const [compId, personId] = String(k).split(':'); // KORREKT: "category_id:person_id"
+            return { compId: String(compId || ''), personId: String(personId || ''), key: String(k) };
+          });
+
 
   const includedYesNo = contractState.include_colleague_support ? 'Ja' : 'Nej';
 
@@ -9699,94 +9700,8 @@ function contractSetupEventListeners(){
       try {
         // Ensartet kollega-støtte (id, name, category)
         const { simple: colleague_support, text: colleague_support_text } = await contractCollectColleagueSupport();
-        // Byg plain text for kollegastøtte med kompetencer – robust (DB→DOM→optælling)
-        let colleagueSupportText = null;
-        const includedYesNo = contractState.include_colleague_support ? 'Ja' : 'Nej';
+        // (legacy blok fjernet – værdierne bruges direkte)
 
-        // Parse valg til [{compId, personId, key}]
-        const selectedPairs = Array.from(contractState.colleaguesSelected ?? new Set())
-          .map(k => {
-            const [compId, personId] = String(k).split(':'); // KORREKT: input er "category_id:person_id"
-            return { compId: String(compId || ''), personId: String(personId || ''), key: String(k) };
-          });
-
-        // Opslags-tabeller
-        const personNameById = new Map();
-        const compTitleById = new Map();
-
-        // 1) DB-opslag (personer)
-        try {
-          const { data: ppl } = await supabase
-            .from('project_people')
-            .select('id, full_name, name')
-            .eq('project_id', contractState.project_id);
-          (ppl || []).forEach(p =>
-            personNameById.set(String(p.id), (p.full_name || p.name || '').trim())
-          );
-        } catch (_) { /* går videre til DOM senere */ }
-
-        // 2) DB-opslag (kompetencer) – brug evt. lokal cache hvis sat af siden
-        if (window.contractCompetenceMap && typeof window.contractCompetenceMap === 'object') {
-          Object.entries(window.contractCompetenceMap).forEach(([id, title]) => {
-            compTitleById.set(String(id), String(title).trim());
-          });
-        } else {
-          try {
-            const { data: comps } = await supabase
-              .from('competences')
-              .select('id, title, name'); // title|name – brug hvad der findes
-            (comps || []).forEach(c => {
-              compTitleById.set(String(c.id), String(c.title || c.name || '').trim());
-            });
-          } catch (_) { /* DOM-fallback senere */ }
-        }
-
-        // 3) DOM-fallbacks (navne + kompetencer) fra viste kort
-        try {
-          const colRoot = document.getElementById('contractColleagueSupport');
-          const cards = Array.from(colRoot?.querySelectorAll('[data-colleague-key]') || []);
-          cards.forEach(card => {
-            const key = String(card.getAttribute('data-colleague-key') || '');
-            const [compId, personId] = key.split(':').map(String);
-            // Navn
-            const nameEl =
-              card.querySelector('[data-colleague-name]') ||
-              card.querySelector('div[style*="font-weight:600"]');
-            if (nameEl && !personNameById.get(personId)) {
-              const n = String(nameEl.textContent || '').trim();
-              if (n) personNameById.set(personId, n);
-            }
-            // Kompetencetitel
-            const compAttr = card.getAttribute('data-competence-name');
-            const compEl =
-              card.querySelector('[data-competence-name]') ||
-              card.querySelector('.competence-name') ||
-              card.querySelector('[data-badge="competence"]');
-            const title = String(compAttr || (compEl?.textContent ?? '')).trim();
-            if (title && !compTitleById.get(compId)) compTitleById.set(compId, title);
-          });
-        } catch (_) { /* fortsæt */ }
-
-        // 4) Byg visning: "Navn (Komp1, Komp2)"
-        const byPerson = new Map(); // personId -> {name, comps:Set}
-        selectedPairs.forEach(({ compId, personId }) => {
-          const name = personNameById.get(personId) || '';
-          const comp = compTitleById.get(compId) || '';
-          const entry = byPerson.get(personId) || { name, comps: new Set() };
-          if (name && !entry.name) entry.name = name;
-          if (comp) entry.comps.add(comp);
-          byPerson.set(personId, entry);
-        });
-
-        // Sørg for at compTitleById altid er udfyldt med de aktuelle kompetencer
-        if (!compTitleById || !(compTitleById instanceof Map)) {
-          compTitleById = new Map();
-          (contractState?.competences || []).forEach(c => {
-            if (c?.id != null) compTitleById.set(String(c.id), c.title || c.name || '');
-          });
-        }
-
-        const support = buildColleagueSupport(selectedPairs, includedYesNo, personNameById, compTitleById);
         colleagueSupportText = support.text;
 
         // Byg eksport-objekt (samme felter som indlæsning forventer – 1:1 gendannelse)
@@ -11342,89 +11257,6 @@ async function generateUDVBlob(contractId, ma, projectLabel, variant) {
     if (personErr || !person) throw new Error('Kunne ikke hente person: ' + (personErr?.message || 'ikke fundet'));
 
     // Samme format som efter “Gem kontrakt” download (1:1 gendannelse)
-
-    // Byg plain text for kollegastøtte med kompetencer – robust (DB→DOM→optælling)
-    let colleagueSupportText = null;
-    const includedYesNo = contract.include_colleague_support ? 'Ja' : 'Nej';
-
-    // Parse valg til [{compId, personId}]
-    const selectedPairs = (contract.colleagues_selected || []).map(k => {
-      const [compId, personId] = String(k).split(':'); // KORREKT: input er "category_id:person_id"
-      return { compId: String(compId || ''), personId: String(personId || ''), key: String(k) };
-    });
-
-    const personNameById = new Map();
-    const compTitleById = new Map();
-
-    // 1) DB: personer
-    try {
-      const { data: ppl } = await supabase
-        .from('project_people')
-        .select('id, full_name, name')
-        .eq('project_id', project.id);
-      (ppl || []).forEach(p =>
-        personNameById.set(String(p.id), (p.full_name || p.name || '').trim())
-      );
-    } catch (_) { /* DOM senere */ }
-
-    // 2) DB/Cache: kompetencer
-    if (window.contractCompetenceMap && typeof window.contractCompetenceMap === 'object') {
-      Object.entries(window.contractCompetenceMap).forEach(([id, title]) => {
-        compTitleById.set(String(id), String(title).trim());
-      });
-    } else {
-      try {
-        const { data: comps } = await supabase
-          .from('competences')
-          .select('id, title, name');
-        (comps || []).forEach(c => {
-          compTitleById.set(String(c.id), String(c.title || c.name || '').trim());
-        });
-      } catch (_) { /* DOM senere */ }
-    }
-
-    // 3) DOM-fallback (hvis download sker fra en side med kortene renderet)
-    try {
-      const colRoot = document.getElementById('contractColleagueSupport');
-      const cards = Array.from(colRoot?.querySelectorAll('[data-colleague-key]') || []);
-      cards.forEach(card => {
-        const key = String(card.getAttribute('data-colleague-key') || '');
-        const [compId, personId] = key.split(':').map(String);
-        const nameEl =
-          card.querySelector('[data-colleague-name]') ||
-          card.querySelector('div[style*="font-weight:600"]');
-        const compEl =
-          card.querySelector('[data-competence-name]') ||
-          card.querySelector('.competence-name') ||
-          card.querySelector('[data-badge="competence"]');
-        const n = String(nameEl?.textContent || '').trim();
-        const c = String(compEl?.textContent || card.getAttribute('data-competence-name') || '').trim();
-        if (n && !personNameById.get(personId)) personNameById.set(personId, n);
-        if (c && !compTitleById.get(compId)) compTitleById.set(compId, c);
-      });
-    } catch (_) { /* fortsæt */ }
-
-    // 4) Saml pr. person
-    const byPerson = new Map();
-    selectedPairs.forEach(({ compId, personId }) => {
-      const name = personNameById.get(personId) || '';
-      const comp = compTitleById.get(compId) || '';
-      const entry = byPerson.get(personId) || { name, comps: new Set() };
-      if (name && !entry.name) entry.name = name;
-      if (comp) entry.comps.add(comp);
-      byPerson.set(personId, entry);
-    });
-
-    // Sørg for at compTitleById altid er udfyldt med de aktuelle kompetencer
-    if (!compTitleById || !(compTitleById instanceof Map)) {
-      compTitleById = new Map();
-      (contractState?.competences || []).forEach(c => {
-        if (c?.id != null) compTitleById.set(String(c.id), c.title || c.name || '');
-      });
-    }
-
-    const support = buildColleagueSupport(selectedPairs, includedYesNo, personNameById, compTitleById);
-    colleagueSupportText = support.text;
 
     const exportPayload = {
       contract: {
