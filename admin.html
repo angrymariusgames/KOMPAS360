@@ -9640,9 +9640,10 @@ function contractSetupEventListeners(){
         // Parse valg til [{compId, personId, key}]
         const selectedPairs = Array.from(contractState.colleaguesSelected ?? new Set())
           .map(k => {
-            const [compId, personId] = String(k).split(':');
+            const [personId, compId] = String(k).split(':'); // FIX: input er "personId:compId"
             return { compId: String(compId || ''), personId: String(personId || ''), key: String(k) };
           });
+
 
         // Opslags-tabeller
         const personNameById = new Map();
@@ -11283,9 +11284,10 @@ async function generateUDVBlob(contractId, ma, projectLabel, variant) {
 
     // Parse valg til [{compId, personId}]
     const selectedPairs = (contract.colleagues_selected || []).map(k => {
-      const [compId, personId] = String(k).split(':');
+      const [personId, compId] = String(k).split(':'); // FIX: input er "personId:compId"
       return { compId: String(compId || ''), personId: String(personId || ''), key: String(k) };
     });
+
 
     const personNameById = new Map();
     const compTitleById = new Map();
@@ -11772,52 +11774,39 @@ function contractMethodLabel(method){
  * Returnerer: { text, list }
  */
 function buildColleagueSupport(selectedPairs, includedYesNo, personNameById, compTitleById){
-  // 1) Saml pr. person til den læsbare tekst
-  const byPerson = new Map(); // personId -> { name, comps:Set<string> }
-  (selectedPairs || []).forEach(({ compId, personId }) => {
-    const name = (personNameById?.get?.(personId) || '').trim();
-    const comp  = (compTitleById?.get?.(compId)  || '').trim();
-    const entry = byPerson.get(personId) || { name, comps: new Set() };
-    if (name && !entry.name) entry.name = name;
-    if (comp) entry.comps.add(comp);
-    byPerson.set(personId, entry);
-  });
+  // Kun det essentielle: { id, name, category } + læsbar tekst
+  const getVal = (src, key) => (src?.get?.(key) ?? src?.[key] ?? '').toString().trim();
 
-  let lines = [];
-  if (byPerson.size === 0) {
-    const count = (selectedPairs || []).length || 0;
-    lines = [count > 0 ? `${count} valgt` : 'Ingen valgt'];
-  } else {
-    lines = Array.from(byPerson.values()).map(v => {
-      const nm = v.name || 'Ukendt';
-      const compList = Array.from(v.comps);
-      return compList.length ? `${nm} (${compList.join(', ')})` : nm;
-    });
-  }
+  // Unikke (person, kompetence)-par
+  const pairs = Array.from(new Set((selectedPairs || []).map(p => `${p.personId}::${p.compId}`)));
 
-  // 2) Struktureret liste (ét element pr. (person, kompetence))
-  const list = Array.from(new Set((selectedPairs || []).map(p => `${p.personId}::${p.compId}`))).map(key => {
-    const [personId, compId] = key.split('::');
-    const person_name  = (personNameById?.get?.(personId) || '').trim();
-    const category_name = (compTitleById?.get?.(compId)   || '').trim();
+  // Simpelt output til UDV
+  const simple = pairs.map(k => {
+    const [personId, compId] = k.split('::');
     return {
-      person_id: String(personId || ''),
-      person_name,
-      category_id: Number(compId) || 0,
-      category_name
+      id: String(personId || ''),
+      name: getVal(personNameById, personId),
+      category: getVal(compTitleById, compId)
     };
   });
 
-  // 2b) Simpelt v2-format til UDV: { id, name, category }
-  const simple = list.map(row => ({
-    id: row.person_id,
-    name: row.person_name,
-    category: row.category_name
-  }));
+  // Læsbar tekst med kompetencer
+  const byPerson = new Map();
+  simple.forEach(r => {
+    const e = byPerson.get(r.id) || { name: r.name, cats: [] };
+    if (r.category) e.cats.push(r.category);
+    if (!e.name && r.name) e.name = r.name;
+    byPerson.set(r.id, e);
+  });
+
+  const lines = simple.length === 0
+    ? ['Ingen valgt']
+    : Array.from(byPerson.values()).map(v => v.cats.length ? `${v.name} (${v.cats.join(', ')})` : v.name);
 
   const text = `Medtaget: ${includedYesNo}\nKollegaer: ${lines.join(', ')}`;
-  return { text, list, simple };
+  return { text, simple };
 }
+
 
 async function contractGenerateColleagueSupportPdfSection() {
   const colleagueEl = $('contractColleagueSupport');
