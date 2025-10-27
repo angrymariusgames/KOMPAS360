@@ -253,7 +253,7 @@ a<body class="mu-profile">
   <div id="tab-kontrakt" class="content">
     <div class="section">
       <!-- Ny farvet overskrift (hero) for Udviklingskontrakt med samme gradient som det gamle banner -->
-      <div class="contract-hero" style="background:linear-gradient(90deg, #6a11cb, #ff5f6d); color:#fff; border-radius:16px; padding:18px 20px; display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:16px">
+      <div class="contract-hero" style="background:linear-gradient(135deg,var(--brand) 0%,#ff6b7a 100%); color:#fff; border-radius:16px; padding:18px 20px; display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:16px">
         <div style="display:flex; align-items:center; gap:12px">
           <div style="background:#ffffff; color:var(--bg1); width:40px; height:40px; border-radius:12px; display:grid; place-items:center; font-size:1.2rem">📋</div>
           <div>
@@ -2373,10 +2373,6 @@ function loadContractForAssessment() {
   if (looksLikeAdmin) {
     // HERO med titel + kompas-hjul (read-only)
     html += `
-      <div style="background:linear-gradient(135deg,var(--brand) 0%,#ff6b7a 100%);color:white;padding:20px;border-radius:12px;margin:0 0 20px 0;text-align:center">
-        <h2 style="margin:0 0 6px 0">📋 Udviklingskontrakt</h2>
-        ${c.title ? `<p style="margin:0;opacity:0.9">${esc(c.title)}</p>` : ''}
-      </div>
       <div style="display:grid;grid-template-columns:1fr;gap:16px;align-items:stretch;margin-bottom:20px">
         <div style="background:transparent;border:none;border-radius:0;padding:0">
           <h3 style="margin:0 0 10px 0;display:flex;align-items:center;gap:8px;color:var(--ink)"><span>🧭</span> Kompas</h3>
