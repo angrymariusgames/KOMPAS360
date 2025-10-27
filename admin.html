@@ -7280,20 +7280,18 @@ async function contractCollectColleagueSupport(){
             return { compId: String(compId || ''), personId: String(personId || ''), key: String(k) };
           });
 
-  const includedYesNo = contractState.include_colleague_support ? 'Ja' : 'Nej';
-
   // Kun UI/DOM og lokale caches — INGEN DB-slåop
   const personNameById = new Map();
   const compTitleById  = new Map();
 
-  // Hvis der findes en client-side map med kompetencetitler, brug den
+  // Evt. client-side cache med kompetencetitler
   if (window.contractCompetenceMap && typeof window.contractCompetenceMap === 'object') {
     Object.entries(window.contractCompetenceMap).forEach(([id, title]) => {
       compTitleById.set(String(id), String(title).trim());
     });
   }
 
-  // DOM-fallback (kortene på siden indeholder allerede navn + kompetence)
+  // DOM-fallback (navn + kompetence fra kortene)
   try {
     const colRoot = document.getElementById('contractColleagueSupport');
     const cards = Array.from(colRoot?.querySelectorAll('[data-colleague-key]') || []);
@@ -7317,9 +7315,23 @@ async function contractCollectColleagueSupport(){
     });
   } catch(_) {}
 
-  // Byg ren tekst via eksisterende builder (ingen IDs i output)
-  const support = buildColleagueSupport(selectedPairs, includedYesNo, personNameById, compTitleById);
-  return { simple: support.simple, text: support.text };
+  // Byg support1/support2/support3 (round-robin)
+  const support1 = [];
+  const support2 = [];
+  const support3 = [];
+
+  selectedPairs.forEach((p, idx) => {
+    const name = personNameById.get(p.personId) || '';
+    const cat  = compTitleById.get(p.compId)    || '';
+    const entry = { id: "ID", title: name, category: cat };
+
+    const bucket = idx % 3;
+    if (bucket === 0) support1.push(entry);
+    else if (bucket === 1) support2.push(entry);
+    else support3.push(entry);
+  });
+
+  return { support1, support2, support3 };
 }
 
 // ✅ Global helper til at hente tip metadata på tværs af både contractAvailableTips og contractKeepAvailableTips
@@ -9684,13 +9696,8 @@ function contractSetupEventListeners(){
 
       // ↓↓↓ DOWNLOAD AF DOKUMENT EFTER GEM ↓↓↓
       try {
-        // Ensartet kollega-støtte (id, name, category)
-        const { simple: colleague_support, text: colleague_support_text } = await contractCollectColleagueSupport();
-        // (legacy blok fjernet – værdierne bruges direkte)
-
-        // FIX: korrekt reference til den destrukturerede variabel
-        const colleagueSupportText = colleague_support_text;
-
+        // Ensartet kollega-støtte – ny struktur (support1/2/3 uden ID-koder i .UDV)
+        const { support1, support2, support3 } = await contractCollectColleagueSupport();
 
         // Byg eksport-objekt (samme felter som indlæsning forventer – 1:1 gendannelse)
         const exportPayload = {
