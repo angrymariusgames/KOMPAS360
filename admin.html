@@ -7271,6 +7271,70 @@ function contractSerializePlan(){
   };
 }
 
+// ——— Ensartet kollega-støtte til UDV (bruges af Gem/Udgiv) ———
+async function contractCollectColleagueSupport(){
+  // Læs valgte par fra state: "personId:compId"
+  const selectedPairs = Array.from(contractState.colleaguesSelected ?? new Set())
+    .map(k => {
+      const [personId, compId] = String(k).split(':');
+      return { personId: String(personId||''), compId: String(compId||'') };
+    });
+
+  const includedYesNo = contractState.include_colleague_support ? 'Ja' : 'Nej';
+
+  // Opslags-tabeller (DB → fallback DOM)
+  const personNameById = new Map();
+  const compTitleById  = new Map();
+
+  try {
+    const { data: ppl } = await supabase
+      .from('project_people')
+      .select('id, full_name, name')
+      .eq('project_id', contractState.project_id);
+    (ppl||[]).forEach(p => personNameById.set(String(p.id), (p.full_name || p.name || '').trim()));
+  } catch(_) {}
+
+  if (window.contractCompetenceMap && typeof window.contractCompetenceMap === 'object') {
+    Object.entries(window.contractCompetenceMap).forEach(([id, title]) => {
+      compTitleById.set(String(id), String(title).trim());
+    });
+  } else {
+    try {
+      const { data: comps } = await supabase
+        .from('competences')
+        .select('id, title, name');
+      (comps||[]).forEach(c => compTitleById.set(String(c.id), String(c.title || c.name || '').trim()));
+    } catch(_) {}
+  }
+
+  // DOM-fallbacks (hvis kortene er på siden)
+  try {
+    const colRoot = document.getElementById('contractColleagueSupport');
+    const cards = Array.from(colRoot?.querySelectorAll('[data-colleague-key]') || []);
+    cards.forEach(card => {
+      const key = String(card.getAttribute('data-colleague-key') || '');
+      const [compId, personId] = key.split(':').map(String);
+
+      const nameEl =
+        card.querySelector('[data-colleague-name]') ||
+        card.querySelector('div[style*="font-weight:600"]');
+      const compEl =
+        card.querySelector('[data-competence-name]') ||
+        card.querySelector('.competence-name') ||
+        card.querySelector('[data-badge="competence"]');
+
+      const n = String(nameEl?.textContent || '').trim();
+      const c = String(compEl?.textContent || card.getAttribute('data-competence-name') || '').trim();
+      if (n && !personNameById.get(personId)) personNameById.set(personId, n);
+      if (c && !compTitleById.get(compId))    compTitleById.set(compId, c);
+    });
+  } catch(_) {}
+
+  // Brug eksisterende builder til at skabe {simple,text}
+  const support = buildColleagueSupport(selectedPairs, includedYesNo, personNameById, compTitleById);
+  return { simple: support.simple, text: support.text };
+}
+
 // ✅ Global helper til at hente tip metadata på tværs af både contractAvailableTips og contractKeepAvailableTips
 function getGlobalTipMeta(tipId) {
   const id = String(tipId);
@@ -9633,6 +9697,8 @@ function contractSetupEventListeners(){
 
       // ↓↓↓ DOWNLOAD AF DOKUMENT EFTER GEM ↓↓↓
       try {
+        // Ensartet kollega-støtte (id, name, category)
+        const { simple: colleague_support, text: colleague_support_text } = await contractCollectColleagueSupport();
         // Byg plain text for kollegastøtte med kompetencer – robust (DB→DOM→optælling)
         let colleagueSupportText = null;
         const includedYesNo = contractState.include_colleague_support ? 'Ja' : 'Nej';
@@ -9755,10 +9821,10 @@ function contractSetupEventListeners(){
             // Kollegastøtte + Teamroller
             colleagues_selected:  Array.from(contractState.colleaguesSelected ?? new Set()),
             team_roles_selection: Array.from(contractState.team_roles_selected ?? new Set()),
-            // Struktureret + fritekst + v2 (enkelt format)
-            colleague_support: (support.simple || []),
-            colleague_support_detail: (support.list || []),
-            colleague_support_text: colleagueSupportText,
+            // Struktureret + fritekst – ENSARTET
+            colleague_support: (colleague_support || []),    // [{id,name,category}]
+            colleague_support_detail: [],                    // ryddet op
+            colleague_support_text: colleague_support_text,
 
             // 30/60/90
             plan: (typeof contractSerializePlan === 'function' ? contractSerializePlan() : null),
@@ -11392,10 +11458,11 @@ async function generateUDVBlob(contractId, ma, projectLabel, variant) {
         // Kollegastøtte + Teamroller (valg)
         colleagues_selected:  contract.colleagues_selected  || [],
         team_roles_selection: contract.team_roles_selection || [],
-        // Struktureret + fritekst + v2 (enkelt format)
-        colleague_support: (support.simple || []),
-        colleague_support_detail: (support.list || []),
-        colleague_support_text: colleagueSupportText,
+        // Struktureret + fritekst – ENSARTET
+            colleague_support: (colleague_support || []),    // [{id,name,category}]
+            colleague_support_detail: [],
+            colleague_support_text: colleague_support_text,
+
 
         // 30/60/90
         plan: contract.plan || null,
