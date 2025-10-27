@@ -1074,8 +1074,8 @@ async function deleteAssessment(assessmentId) {
   // Hjælpere der tåler manglende tabeller/buckets
   const isIgnorableMissingTable = (err) =>
     !!err && (
-      (typeof err.message === 'string' && err.message.toLowerCase().includes('schema cache')) || // "Could not find the table ... in the schema cache"
-      err.code === 'PGRST116' || // PostgREST: relation not found / resource not found
+      (typeof err.message === 'string' && err.message.toLowerCase().includes('schema cache')) ||
+      err.code === 'PGRST116' ||
       (typeof err.details === 'string' && err.details.toLowerCase().includes('does not exist'))
     );
 
@@ -1091,7 +1091,7 @@ async function deleteAssessment(assessmentId) {
       .eq('assessment_id', assessmentId);
 
     if (error) {
-      if (isIgnorableMissingTable(error)) return []; // filindekset findes ikke -> ingen filer at slette
+      if (isIgnorableMissingTable(error)) return [];
       throw error;
     }
     return Array.isArray(data) ? data : [];
@@ -1100,14 +1100,12 @@ async function deleteAssessment(assessmentId) {
   async function tryRemoveFromStorage(bucket, paths) {
     if (!paths || paths.length === 0) return;
     const { error } = await supabase.storage.from(bucket).remove(paths);
-    // Hvis bucket ikke findes eller filerne mangler, spring videre
     if (error && !(typeof error.message === 'string' && error.message.toLowerCase().includes('not found'))) {
       throw error;
     }
   }
 
   try {
-    // 1) Hent og slet tilknyttede filer (hvis filindekset findes)
     const fileRows = await trySelectFiles('individual_assessment_files', assessmentId);
     if (fileRows.length > 0) {
       const pathsByBucket = fileRows.reduce((acc, row) => {
@@ -1123,20 +1121,18 @@ async function deleteAssessment(assessmentId) {
       }
     }
 
-    // 2) Slet relaterede rækker i andre (mulige) tabeller — ignorer hvis de ikke findes
     const RELATED_TABLES = [
       'individual_assessment_notes',
       'individual_assessment_collaborators',
       'individual_assessment_signatures',
       'individual_assessment_events',
-      'individual_assessment_files' // metadata-rækker fjernes også (hvis tabellen findes)
+      'individual_assessment_files'
     ];
 
     for (const table of RELATED_TABLES) {
       await tryDeleteRelated(table, 'assessment_id', assessmentId);
     }
 
-    // 3) Slet hovedposten
     {
       const { error: delErr } = await supabase
         .from('individual_assessments')
@@ -1145,9 +1141,22 @@ async function deleteAssessment(assessmentId) {
       if (delErr) throw delErr;
     }
 
-    // 4) UI refresh
-    await loadAssessments();
-    renderTimeline();
+    // UI refresh — robust mod manglende elementer/funktioner
+    try {
+      if (typeof loadAssessments === 'function') {
+        await loadAssessments();
+      }
+    } catch (e) {
+      console.warn('loadAssessments() fejlede:', e);
+    }
+
+    try {
+      if (typeof renderTimeline === 'function') {
+        renderTimeline();
+      }
+    } catch (e) {
+      console.warn('renderTimeline() fejlede:', e);
+    }
 
   } catch (error) {
     console.error('Delete error:', error);
@@ -2081,6 +2090,7 @@ function setupUploadZone() {
 // ============================================================================
 function renderFilesList() {
   const list = document.getElementById('filesList');
+  if (!list) return; // <- robust mod manglende container
   
   if (assessments.length === 0) {
     list.innerHTML = `
