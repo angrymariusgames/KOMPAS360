@@ -9696,9 +9696,21 @@ function contractSetupEventListeners(){
           }
         };
 
-        // Filnavn: projektId_målpersonId_YYYYMMDD.udv
-        const ymd = new Date().toISOString().slice(0,10).replace(/-/g,'');
-        const filename = `udviklingskontrakt_${contractState.project_id}_${contractState.target_id}_${ymd}.udv`;
+        // Filnavn: MA + UVK{ÅR}Q{KVARTAL}.udv  (fx 123456UVK2025Q4.udv)
+        let ma6 = 'NA';
+        try {
+          const { data: personRow } = await supabase
+            .from('project_people')
+            .select('employee_no')
+            .eq('id', contractState.target_id)
+            .single();
+          if (personRow?.employee_no !== undefined && personRow?.employee_no !== null) {
+            ma6 = String(personRow.employee_no).replace(/\D/g,'').padStart(6,'0').slice(-6);
+          }
+        } catch (_) {}
+        const now = new Date();
+        const q = Math.ceil((now.getMonth()+1)/3);
+        const filename = `${ma6}UVK${now.getFullYear()}Q${q}.udv`;
 
         const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: 'application/kompas-udv+json' });
         const url  = URL.createObjectURL(blob);
