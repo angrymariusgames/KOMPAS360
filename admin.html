@@ -9633,8 +9633,10 @@ function contractSetupEventListeners(){
 
       // ↓↓↓ DOWNLOAD AF DOKUMENT EFTER GEM ↓↓↓
       try {
-        // Byg plain text for kollegastøtte (uden projektkontekst)
+        // Byg plain text for kollegastøtte (uden projektkontekst) – robust (DB→DOM→optælling)
         let colleagueSupportText = null;
+        const includedYesNo = contractState.include_colleague_support ? 'Ja' : 'Nej';
+        let names = [];
         try {
           const { data: ppl } = await supabase
             .from('project_people')
@@ -9642,15 +9644,30 @@ function contractSetupEventListeners(){
             .eq('project_id', contractState.project_id);
           const selectedIds = Array.from(contractState.colleaguesSelected ?? new Set())
             .map(s => String(s).split(':')[1]);
-          const names = (ppl || [])
+          names = (ppl || [])
             .filter(p => selectedIds.includes(String(p.id)))
             .map(p => p.full_name || p.name)
             .filter(Boolean);
-          colleagueSupportText =
-            `Medtaget: ${contractState.include_colleague_support ? 'Ja' : 'Nej'}\n` +
-            `Kollegaer: ${names.join(', ')}`;
-        } catch (e) {
-          colleagueSupportText = `Medtaget: ${contractState.include_colleague_support ? 'Ja' : 'Nej'}`;
+        } catch (_) { /* fortsæt til DOM-fallback */ }
+
+        if (names.length === 0) {
+          // DOM-fallback: hent navne fra viste kort i rubrik 6
+          try {
+            const colRoot = document.getElementById('contractColleagueSupport');
+            const cards = Array.from(colRoot?.querySelectorAll('[data-colleague-key]') || []);
+            const selectedSet = new Set(Array.from(contractState.colleaguesSelected ?? new Set()));
+            names = cards
+              .filter(card => selectedSet.has(card.getAttribute('data-colleague-key')))
+              .map(card => card.querySelector('div[style*="font-weight:600"]')?.textContent?.trim())
+              .filter(Boolean);
+          } catch (_) { /* sidste fallback nedenfor */ }
+        }
+
+        if (names.length > 0) {
+          colleagueSupportText = `Medtaget: ${includedYesNo}\nKollegaer: ${names.join(', ')}`;
+        } else {
+          const count = (contractState.colleaguesSelected ?? new Set()).size || 0;
+          colleagueSupportText = `Medtaget: ${includedYesNo}\nKollegaer: ${count} valgt`;
         }
 
         // Byg eksport-objekt (samme felter som indlæsning forventer – 1:1 gendannelse)
@@ -11205,8 +11222,10 @@ async function generateUDVBlob(contractId, ma, projectLabel, variant) {
 
     // Samme format som efter “Gem kontrakt” download (1:1 gendannelse)
 
-    // Byg plain text for kollegastøtte (uden projektkontekst)
+    // Byg plain text for kollegastøtte (uden projektkontekst) – robust (DB→optælling)
     let colleagueSupportText = null;
+    const includedYesNo = contract.include_colleague_support ? 'Ja' : 'Nej';
+    let names = [];
     try {
       const { data: ppl } = await supabase
         .from('project_people')
@@ -11214,15 +11233,17 @@ async function generateUDVBlob(contractId, ma, projectLabel, variant) {
         .eq('project_id', project.id);
       const selectedIds = (contract.colleagues_selected || [])
         .map(s => String(s).split(':')[1]);
-      const names = (ppl || [])
+      names = (ppl || [])
         .filter(p => selectedIds.includes(String(p.id)))
         .map(p => p.full_name || p.name)
         .filter(Boolean);
-      colleagueSupportText =
-        `Medtaget: ${contract.include_colleague_support ? 'Ja' : 'Nej'}\n` +
-        `Kollegaer: ${names.join(', ')}`;
-    } catch (e) {
-      colleagueSupportText = `Medtaget: ${contract.include_colleague_support ? 'Ja' : 'Nej'}`;
+    } catch (_) { /* fortsæt til count-fallback */ }
+
+    if (names.length > 0) {
+      colleagueSupportText = `Medtaget: ${includedYesNo}\nKollegaer: ${names.join(', ')}`;
+    } else {
+      const count = (contract.colleagues_selected || []).length || 0;
+      colleagueSupportText = `Medtaget: ${includedYesNo}\nKollegaer: ${count} valgt`;
     }
 
     const exportPayload = {
