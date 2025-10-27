@@ -1071,58 +1071,81 @@ async function deleteAssessment(assessmentId) {
     return;
   }
 
-  try {
-    // 1) Hent tilknyttede filstier, så vi kan fjerne dem fra Storage
-    //    Justér kolonnenavne hvis dine hedder anderledes (fx file_path/bucket)
-    const { data: fileRows, error: filesErr } = await supabase
-      .from('individual_assessment_files')
+  // Hjælpere der tåler manglende tabeller/buckets
+  const isIgnorableMissingTable = (err) =>
+    !!err && (
+      (typeof err.message === 'string' && err.message.toLowerCase().includes('schema cache')) || // "Could not find the table ... in the schema cache"
+      err.code === 'PGRST116' || // PostgREST: relation not found / resource not found
+      (typeof err.details === 'string' && err.details.toLowerCase().includes('does not exist'))
+    );
+
+  async function tryDeleteRelated(table, column, value) {
+    const { error } = await supabase.from(table).delete().eq(column, value);
+    if (error && !isIgnorableMissingTable(error)) throw error;
+  }
+
+  async function trySelectFiles(table, assessmentId) {
+    const { data, error } = await supabase
+      .from(table)
       .select('bucket, path')
       .eq('assessment_id', assessmentId);
 
-    if (filesErr) throw filesErr;
+    if (error) {
+      if (isIgnorableMissingTable(error)) return []; // filindekset findes ikke -> ingen filer at slette
+      throw error;
+    }
+    return Array.isArray(data) ? data : [];
+  }
 
-    // 2) Slet filer i Storage pr. bucket
-    if (Array.isArray(fileRows) && fileRows.length > 0) {
+  async function tryRemoveFromStorage(bucket, paths) {
+    if (!paths || paths.length === 0) return;
+    const { error } = await supabase.storage.from(bucket).remove(paths);
+    // Hvis bucket ikke findes eller filerne mangler, spring videre
+    if (error && !(typeof error.message === 'string' && error.message.toLowerCase().includes('not found'))) {
+      throw error;
+    }
+  }
+
+  try {
+    // 1) Hent og slet tilknyttede filer (hvis filindekset findes)
+    const fileRows = await trySelectFiles('individual_assessment_files', assessmentId);
+    if (fileRows.length > 0) {
       const pathsByBucket = fileRows.reduce((acc, row) => {
-        if (!acc[row.bucket]) acc[row.bucket] = [];
-        acc[row.bucket].push(row.path);
+        if (row?.bucket && row?.path) {
+          if (!acc[row.bucket]) acc[row.bucket] = [];
+          acc[row.bucket].push(row.path);
+        }
         return acc;
       }, {});
 
       for (const [bucket, paths] of Object.entries(pathsByBucket)) {
-        const { error: storageErr } = await supabase.storage.from(bucket).remove(paths);
-        if (storageErr) throw storageErr;
+        await tryRemoveFromStorage(bucket, paths);
       }
     }
 
-    // 3) Slet relaterede rækker i andre tabeller (børn) før hovedposten
-    //    Tilføj/fjern tabeller så de matcher din DB.
+    // 2) Slet relaterede rækker i andre (mulige) tabeller — ignorer hvis de ikke findes
     const RELATED_TABLES = [
       'individual_assessment_notes',
       'individual_assessment_collaborators',
       'individual_assessment_signatures',
       'individual_assessment_events',
-      'individual_assessment_files' // selve fil-indexet i DB (metadata) fjernes også
+      'individual_assessment_files' // metadata-rækker fjernes også (hvis tabellen findes)
     ];
 
     for (const table of RELATED_TABLES) {
-      const { error: relErr } = await supabase
-        .from(table)
-        .delete()
-        .eq('assessment_id', assessmentId);
-      if (relErr && relErr.code !== 'PGRST116') { // ignorer "table missing" i tilfælde af at tabellen ikke findes
-        throw relErr;
-      }
+      await tryDeleteRelated(table, 'assessment_id', assessmentId);
     }
 
-    // 4) Slet hovedposten i individual_assessments
-    const { error: delErr } = await supabase
-      .from('individual_assessments')
-      .delete()
-      .eq('id', assessmentId);
-    if (delErr) throw delErr;
+    // 3) Slet hovedposten
+    {
+      const { error: delErr } = await supabase
+        .from('individual_assessments')
+        .delete()
+        .eq('id', assessmentId);
+      if (delErr) throw delErr;
+    }
 
-    // 5) UI refresh
+    // 4) UI refresh
     await loadAssessments();
     renderTimeline();
 
