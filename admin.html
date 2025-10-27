@@ -9712,9 +9712,16 @@ function contractSetupEventListeners(){
           byPerson.set(personId, entry);
         });
 
+        // Sørg for at compTitleById altid er udfyldt med de aktuelle kompetencer
+        if (!compTitleById || !(compTitleById instanceof Map)) {
+          compTitleById = new Map();
+          (contractState?.competences || []).forEach(c => {
+            if (c?.id != null) compTitleById.set(String(c.id), c.title || c.name || '');
+          });
+        }
+
         const support = buildColleagueSupport(selectedPairs, includedYesNo, personNameById, compTitleById);
         colleagueSupportText = support.text;
-
 
         // Byg eksport-objekt (samme felter som indlæsning forventer – 1:1 gendannelse)
         const exportPayload = {
@@ -11340,6 +11347,14 @@ async function generateUDVBlob(contractId, ma, projectLabel, variant) {
       if (comp) entry.comps.add(comp);
       byPerson.set(personId, entry);
     });
+
+    // Sørg for at compTitleById altid er udfyldt med de aktuelle kompetencer
+    if (!compTitleById || !(compTitleById instanceof Map)) {
+      compTitleById = new Map();
+      (contractState?.competences || []).forEach(c => {
+        if (c?.id != null) compTitleById.set(String(c.id), c.title || c.name || '');
+      });
+    }
 
     const support = buildColleagueSupport(selectedPairs, includedYesNo, personNameById, compTitleById);
     colleagueSupportText = support.text;
