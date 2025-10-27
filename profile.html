@@ -2539,10 +2539,13 @@ function loadContractForAssessment() {
 
     // Kollegastøtte
     if (c.include_colleague_support) {
+      const txt = c.colleague_support_text && String(c.colleague_support_text).trim();
       html += `
         <div style="margin-bottom:18px">
           <h3 style="color:var(--brand);margin-bottom:10px;display:flex;align-items:center;gap:8px"><span>🤝</span> Kollegastøtte</h3>
-          <div style="color:#475569">Kollegastøtte er markeret som en del af planen.</div>
+          ${txt
+            ? `<div style="white-space:pre-wrap;color:#334155">${esc ? esc(txt) : txt}</div>`
+            : `<div style="color:#475569">Kollegastøtte er markeret som en del af planen.</div>`}
         </div>
       `;
     }
