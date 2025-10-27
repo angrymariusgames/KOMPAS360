@@ -882,7 +882,7 @@ async function handleUDVUpload(file) {
 
       const { data, error } = await supabase.rpc('import_individual_assessment', {
         p_ma: assessment.ma,
-        p_project_label: assessment.project_label,
+        p_project_label: getAssessmentDisplayName(assessment),
         p_variant: assessment.variant,
         p_completed_at: assessment.completed_at,
         p_udv_json: udv,
@@ -915,7 +915,7 @@ async function handleUDVUpload(file) {
 
       const { data, error } = await supabase.rpc('import_individual_assessment', {
         p_ma: assessment.ma,
-        p_project_label: assessment.project_label,
+        p_project_label: getAssessmentDisplayName(assessment),
         p_variant: assessment.variant,
         p_completed_at: assessment.completed_at,
         p_udv_json: udv,                 // gem hele payload’en som modtaget
@@ -958,7 +958,7 @@ async function handleUDVUpload(file) {
 
       const { data: res, error: err } = await supabase.rpc('import_individual_assessment', {
         p_ma: assessment.ma,
-        p_project_label: assessment.project_label,
+        p_project_label: getAssessmentDisplayName(assessment),
         p_variant: assessment.variant,
         p_completed_at: assessment.completed_at,
         p_udv_json: { assessment, responses, categories, contract },
@@ -1044,7 +1044,7 @@ function renderTimeline() {
         return `
           <div class="card">
             <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px">
-              <div class="card-title">${a.project_label}</div>
+              <div class="card-title">${getAssessmentDisplayName(a)}</div>
               <div style="background:${badgeColor};color:#fff;padding:4px 10px;border-radius:6px;font-size:0.8rem;font-weight:700">
                 ${variant}
               </div>
@@ -1225,7 +1225,7 @@ function renderCompareOptions() {
   document.getElementById('compareCheckboxes').innerHTML = assessments.map(a => `
     <label class="round-checkbox">
       <input type="checkbox" value="${a.id}" onchange="updateCompareSelection(this)">
-      <span>${a.project_label} (${a.variant})</span>
+      <span>${getAssessmentDisplayName(a)} (${a.variant})</span>
     </label>
   `).join('');
   
@@ -1272,7 +1272,7 @@ async function renderComparison() {
     
     const assessmentLabels = selectedForComparison.map(id => {
       const a = assessments.find(x => x.id === id);
-      return { id, label: a?.project_label || 'Ukendt' };
+      return { id, label: getAssessmentDisplayName(a) || 'Ukendt' };
     });
     
     // Grupper data
@@ -1415,7 +1415,7 @@ async function updateComparisonRadar() {
       const assessmentScores = scores.filter(s => s.assessment_id === assessmentId);
       
       return {
-        label: assessment.project_label,
+        label: getAssessmentDisplayName(assessment),
         data: categories.map(cat => {
           const score = assessmentScores.find(s => s.category_name === cat);
           return score ? parseFloat(score.score_numeric) : null;
@@ -1553,7 +1553,7 @@ async function downloadAllData() {
     const zip = new JSZip();
     
     assessments.forEach(a => {
-      const filename = `${a.project_label}_${a.variant}.json`;
+      const filename = `${getAssessmentDisplayName(a)}_${a.variant}.json`;
       zip.file(filename, JSON.stringify(a.udv_json, null, 2));
     });
     
@@ -1649,7 +1649,7 @@ function renderDashboard() {
   } else {
     assessmentsList.innerHTML = assessments.map(a => `
       <div class="card">
-        <div class="card-title">${a.project_label}</div>
+        <div class="card-title">${getAssessmentDisplayName(a)}</div>
         <div class="card-meta">
           ${a.variant} • Udgivet ${new Date(a.published_at).toLocaleDateString('da-DK')}
         </div>
@@ -1676,7 +1676,7 @@ function initializeCompassTab() {
   // Byg dropdown KUN fra profilens assessments (inkl. uploadede .UDV)
   const opts = [
     '<option value="">-- Vælg en assessment --</option>',
-    (assessments || []).map(a => `<option value="${a.id}">${a.project_label} (${a.variant})</option>`).join('')
+    (assessments || []).map(a => `<option value="${a.id}">${getAssessmentDisplayName(a)} (${a.variant})</option>`).join('')
   ].join('');
   select.innerHTML = opts;
 
@@ -1976,7 +1976,7 @@ async function downloadCompassPDF() {
     container.style.background = '#fff';
     container.innerHTML = `
       <h1 style="color:#667eea;margin-bottom:10px">🧭 KOMPAS - Kompetenceprofil</h1>
-      <h2 style="color:#666;margin-bottom:30px">${assessment.project_label} (${assessment.variant})</h2>
+      <h2 style="color:#666;margin-bottom:30px">${getAssessmentDisplayName(assessment)} (${assessment.variant})</h2>
       <p style="margin-bottom:20px;color:#555">Medarbejdernummer: ${userMA}</p>
       <div id="chartForPdf" style="width:700px;height:500px;margin:20px auto"></div>
       <div style="margin-top:30px;padding:20px;background:#f8fafc;border-radius:10px">
@@ -2041,7 +2041,7 @@ async function downloadCompassPDF() {
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
     
     pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-    pdf.save(`Kompas_${userMA}_${assessment.project_label}.pdf`);
+    pdf.save(`Kompas_${userMA}_${getAssessmentDisplayName(assessment)}.pdf`);
     
     // Cleanup
     pdfChart.destroy();
@@ -2081,7 +2081,7 @@ function exportCompassData() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `Kompas_Data_${userMA}_${assessment.project_label}.csv`;
+  a.download = `Kompas_Data_${userMA}_${getAssessmentDisplayName(assessment)}.csv`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -2131,6 +2131,24 @@ function setupUploadZone() {
 // ============================================================================
 // FILES LIST
 // ============================================================================
+// === NAVN-HJÆLPER ===
+function getAssessmentDisplayName(a) {
+  try {
+    if (a && a.udv_json && (a.udv_json.original_filename || a.udv_json.filename)) {
+      return a.udv_json.original_filename || a.udv_json.filename;
+    }
+    if (a && (a.file_original_name || a.file_name)) {
+      return a.file_original_name || a.file_name;
+    }
+    const ma = (typeof userMA !== 'undefined' && userMA != null) ? String(userMA).trim() : 'UKENDT';
+    const proj = (a && a.project_label) ? String(a.project_label).trim().replace(/\s+/g,'_') : 'UKENDT';
+    return `udviklingskontrakt_${proj}_${ma}.udv`;
+  } catch(e) {
+    return 'UKENDT.udv';
+  }
+}
+
+
 function renderFilesList() {
   const list = document.getElementById('filesList');
   if (!list) return;
@@ -2349,7 +2367,7 @@ function initializeContractTab() {
   document.getElementById('contractEmptyState').style.display = 'none';
   
   select.innerHTML = '<option value="">-- Vælg en assessment --</option>' +
-    assessmentsWithContract.map(a => `<option value="${a.id}">${a.project_label} (${a.variant})</option>`).join('');
+    assessmentsWithContract.map(a => `<option value="${a.id}">${getAssessmentDisplayName(a)} (${a.variant})</option>`).join('');
   
   // Auto-select første
   if (assessmentsWithContract.length > 0) {
@@ -2384,7 +2402,7 @@ function loadContractForAssessment() {
     <div id="contractPrintable" style="background:#fff;padding:30px;border-radius:12px;border:1px solid var(--line)">
       <div style="text-align:center;margin-bottom:30px;padding-bottom:20px;border-bottom:2px solid var(--brand)">
         <h2 style="color:var(--brand);margin-bottom:10px">📋 UDVIKLINGSKONTRAKT</h2>
-        <div style="font-size:1.1em;color:#666">${escOrDash(assessment.project_label)}</div>
+        <div style="font-size:1.1em;color:#666">${escOrDash(getAssessmentDisplayName(assessment))}</div>
         <div style="margin-top:10px;color:#888">Medarbejdernummer: ${escOrDash(userMA)}</div>
         <div style="margin-top:5px;color:#888">Udgivet: ${escOrDash(new Date(assessment.published_at).toLocaleDateString('da-DK'))}</div>
       </div>
@@ -2835,95 +2853,8 @@ try {
     const known = new Set(['title','competencies','tips','roles','plan','employee_actions','employee_wishes','leader_actions','include_team_roles','include_colleague_support','include_306090_goals','followup_date','notes']);
     const rest = Object.keys(c).filter(k => !known.has(k));
     if (rest.length) {
-    // 🤝 Kollegastøtte — læs som i admin (brug colleagues_selected + opslag af navne)
-      try {
-        if (c.include_colleague_support) {
-          // 1) Udpeg valgte par (kompetence:person)
-          const selectedPairs = Array.isArray(c.colleagues_selected)
-            ? c.colleagues_selected.map(k => {
-                const [compId, personId] = String(k).split(':');
-                return { compId: String(compId||''), personId: String(personId||'') };
-              })
-            : [];
-
-          // 2) Opslagstabeller til NAVNE
-          const personNameById = new Map();
-          const compTitleById  = new Map();
-
-          // 2a) Personnavne: brug struktureret liste hvis tilstede
-          if (Array.isArray(c.colleague_support)) {
-            c.colleague_support.forEach(it => {
-              if (it?.person_id && (it.person_name || it.name)) {
-                personNameById.set(String(it.person_id), String(it.person_name || it.name).trim());
-              }
-            });
-          }
-
-          // 2b) Kompetencetitler: snapshot fra kompas
-          if (c?.compass_snapshot?.categories && Array.isArray(c.compass_snapshot.categories)) {
-            c.compass_snapshot.categories.forEach(x => {
-              if (x?.id != null && (x?.name || x?.title)) {
-                compTitleById.set(String(x.id), String(x.name || x.title).trim());
-              }
-            });
-          }
-
-          // 2c) Kompetencetitler: taxonomy fra UDV (assessment.udv_json)
-          try {
-            const udvObj = (typeof assessment?.udv_json === 'string'
-              ? (()=>{ try { return JSON.parse(assessment.udv_json); } catch { return null; } })()
-              : (assessment?.udv_json || null));
-            const taxCats = (udvObj?.taxonomy && (udvObj.taxonomy.categories || udvObj.taxonomy)) || [];
-            (Array.isArray(taxCats) ? taxCats : []).forEach(tc => {
-              if (tc?.id != null && (tc.name || tc.title)) {
-                const k = String(tc.id);
-                if (!compTitleById.has(k)) compTitleById.set(k, String(tc.name || tc.title).trim());
-              }
-            });
-          } catch (_) { /* no-op */ }
-
-          // 2d) Sidste fallback: hvis category_name er udfyldt i c.colleague_support
-          if (Array.isArray(c.colleague_support)) {
-            c.colleague_support.forEach(it => {
-              if (it?.category_id != null && it?.category_name) {
-                const k = String(it.category_id);
-                if (!compTitleById.has(k)) compTitleById.set(k, String(it.category_name).trim());
-              }
-            });
-          }
-
-          // 3) Byg visning (grid-kort) – én pr. valgt (kompetence, kollega)
-          if (selectedPairs.length > 0) {
-            const items = selectedPairs.map(({ compId, personId }) => {
-              const compName = compTitleById.get(String(compId)) || `Kompetence ${compId}`;
-              const person   = personNameById.get(String(personId)) || 'Kollega';
-              return `
-                <div style="border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px">
-                  <div style="font-size:11px;color:#667eea;margin-bottom:2px">${esc(compName)}</div>
-                  <div style="font-weight:700">${esc(person)}</div>
-                </div>`;
-            }).join('');
-
-            html += `
-              <div style="margin-bottom:18px">
-                <h3 style="color:var(--brand);margin-bottom:10px;display:flex;align-items:center;gap:8px"><span>🤝</span> Kollegastøtte</h3>
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">${items}</div>
-              </div>
-            `;
-          } else if (c.colleague_support_text) {
-            html += `
-              <div style="margin-bottom:18px">
-                <h3 style="color:var(--brand);margin-bottom:10px;display:flex;align-items:center;gap:8px"><span>🤝</span> Kollegastøtte</h3>
-                <div style="white-space:pre-wrap;color:#334155">${esc(String(c.colleague_support_text))}</div>
-              </div>
-            `;
-          }
-        }
-      } catch (_) { /* vis intet hvis noget failede */ }
-
-      // (eksisterende) Andre felter
       html += `
-        <div style="border:1px solid var(--line);border-radius:12px;padding:12px;background:#fff">
+        <div class="card" style="border:1px solid var(--line);border-radius:12px;padding:12px;background:#fff">
           <div style="font-weight:700;margin-bottom:6px">Andre felter</div>
           <pre style="white-space:pre-wrap;overflow:auto;margin:0;color:#334155">${esc(JSON.stringify(Object.fromEntries(rest.map(k => [k, c[k]])), null, 2))}</pre>
         </div>
@@ -3245,7 +3176,7 @@ async function downloadContractPDF() {
       heightLeft -= 297;
     }
     
-    pdf.save(`Udviklingskontrakt_${userMA}_${assessment.project_label}.pdf`);
+    pdf.save(`Udviklingskontrakt_${userMA}_${getAssessmentDisplayName(assessment)}.pdf`);
     
   } catch (error) {
     console.error('PDF generation error:', error);
