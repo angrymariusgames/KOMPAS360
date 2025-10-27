@@ -205,7 +205,6 @@ a<body class="mu-profile">
   <!-- Tabs -->
   <div class="tabbar">
     <button class="tabbtn active" data-tab="oversigt">Oversigt</button>
-    <button class="tabbtn" data-tab="kompas">Kompas</button>
     <button class="tabbtn" data-tab="kontrakt">Udviklingskontrakt</button>
     <button class="tabbtn" data-tab="sammenlign">Sammenlign</button>
     <button class="tabbtn" data-tab="upload">Upload</button>
@@ -247,56 +246,6 @@ a<body class="mu-profile">
     <div class="section">
       <h2 class="section-title">Mine Evalueringer</h2>
       <div id="assessmentsList"></div>
-    </div>
-  </div>
-
-  <!-- Kompas Tab -->
-  <div id="tab-kompas" class="content">
-    <div class="section">
-      <h2 class="section-title">🧭 Kompas - Dine Kompetencer</h2>
-      <p class="section-subtitle">Visualiser dine kompetencer med interaktivt radar diagram</p>
-      
-      <!-- Assessment vælger -->
-      <div style="margin-bottom:20px">
-        <label style="display:block;font-weight:600;margin-bottom:8px">Vælg assessment:</label>
-        <select id="compassAssessmentSelect" class="input" onchange="loadCompassForAssessment()" style="max-width:400px">
-          <option value="">-- Vælg en assessment --</option>
-        </select>
-      </div>
-      
-      <!-- Respondent type checkboxes -->
-      <div id="compassRespondentControls" class="compass-controls" style="margin-bottom:20px;display:none">
-        <label class="round-checkbox">
-          <input type="checkbox" id="cbSelf" checked onchange="updateCompassChart()">
-          <span>👤 Selv</span>
-        </label>
-        <label class="round-checkbox">
-          <input type="checkbox" id="cbPeer" checked onchange="updateCompassChart()">
-          <span>👥 Kolleger</span>
-        </label>
-        <label class="round-checkbox">
-          <input type="checkbox" id="cbLeader" checked onchange="updateCompassChart()">
-          <span>👔 Leder</span>
-        </label>
-      </div>
-      
-      <!-- Radar chart -->
-      <div class="compass-container" id="compassChartContainer" style="display:none">
-        <canvas id="compassChart" style="max-height:500px"></canvas>
-      </div>
-      
-      <!-- Actions -->
-      <div id="compassActions" style="margin-top:20px;display:none;gap:12px">
-        <button class="btn primary" onclick="downloadCompassPDF()">📥 Download Kompas PDF</button>
-        <button class="btn" onclick="exportCompassData()">📊 Eksporter Data</button>
-      </div>
-      
-      <!-- Empty state -->
-      <div id="compassEmptyState" class="empty-state">
-        <div class="empty-icon">🧭</div>
-        <div class="empty-title">Ingen assessments tilgængelige</div>
-        <div class="empty-text">Upload eller vent på at en assessment bliver udgivet</div>
-      </div>
     </div>
   </div>
 
@@ -671,8 +620,8 @@ async function init() {
   // Load data
   await loadAssessments();
   renderDashboard();
-  initializeCompassTab();
   renderFilesList();
+
   
   // Setup event listeners for knapper
   setupEventListeners();
@@ -736,7 +685,6 @@ function setupTabs() {
         // Refresh content baseret på tab
         try {
           if (target === 'oversigt') renderDashboard();
-          if (target === 'kompas') initializeCompassTab();
           if (target === 'kontrakt') initializeContractTab();
           if (target === 'sammenlign') renderCompareOptions();
           if (target === 'upload') {
@@ -1072,8 +1020,11 @@ function renderTimeline() {
 }
 
 function viewAssessmentDetails(assessmentId) {
-  viewCompass(assessmentId);
+  switchTab('kontrakt');
+  const sel = document.getElementById('contractAssessmentSelect');
+  if (sel) { sel.value = assessmentId; loadContractForAssessment(); }
 }
+
 
 async function deleteAssessment(assessmentId) {
   if (!confirm('Er du sikker på, du vil slette denne udviklingskontrakt og ALT relateret? Dette kan ikke fortrydes.')) {
@@ -1654,7 +1605,6 @@ function renderDashboard() {
           ${a.variant} • Udgivet ${new Date(a.published_at).toLocaleDateString('da-DK')}
         </div>
         <div class="card-actions">
-          <button class="btn primary small" onclick="viewCompass('${a.id}')">Se Kompas</button>
           <button class="btn small" onclick="downloadUDV('${a.id}')">Download .UDV</button>
         </div>
       </div>
