@@ -809,8 +809,11 @@ async function handleUDVUpload(file) {
   statusEl.textContent = 'Uploader fil.';
 
   try {
+    // LÆS rå tekst én gang (bruges til fallback/MA-scan)
+    const rawText = await file.text();
+
     // Forsøg at parse .UDV med fælles parser (understøtter JSON + base64-JSON)
-    let udv = await readUdvFileProfile(file);
+    let udv = await readUdvFileProfile(new File([rawText], file.name, { type: file.type }));
 
     // Hvis ikke parsebart som JSON, gem rå fil som base64-wrapper (bevar adfærd)
     if (!udv || Object.keys(udv).length === 0) {
@@ -824,19 +827,13 @@ async function handleUDVUpload(file) {
       };
     }
 
-    // (legacy fallback parsing fjernet)
-
     let assessment, categories, responses, contract;
 
     if (udv && udv.udv_version) {
-      // -------------------------------------------
-      // Admin-format (.UDV som JSON) — udviklingskontrakt
-      // -------------------------------------------
-
-      // Find den aktuelle person i UDV via MA/employee_no
+      // ===== Survey-/project-UDV (med udv_version) =====
       const people = Array.isArray(udv.people) ? udv.people : [];
 
-      // 1) Kandidater fra people[]
+      // Kandidater fra people[]
       const maSet = new Set(
         people.flatMap(p => [
           p.employee_no, p.employeeNo, p.ma, p.ma_no, p.maNo,
@@ -845,19 +842,11 @@ async function handleUDVUpload(file) {
         .map(v => String(v).trim())
       );
 
-      // 2) Fald tilbage: scan rå filtekst for 6-cifrede tal (MA-format)
+      // Fald tilbage: scan rå tekst for 6-cifrede tal (MA-format)
       try {
         (rawText.match(/\b\d{6}\b/g) || []).forEach(v => maSet.add(String(v).trim()));
       } catch {}
 
-      // Midlertidigt: ingen MA-krav. Tillad upload for alle brugere.
-      // const hasMAOverlap = maSet.has(String(userMA).trim());
-      // if (!hasMAOverlap) {
-      //   throw new Error('Denne fil tilhører ikke dig (MA ikke fundet i UDV)');
-      // }
-
-
-      // Byg assessment minimal-objekt til RPC
       const variant =
         udv.variant ||
         (udv.project && (udv.project.is_lite ? 'LITE' : 'FULL')) ||
@@ -874,21 +863,12 @@ async function handleUDVUpload(file) {
         completed_at: udv.exported_at || new Date().toISOString()
       };
 
-      // Kategorier fra taxonomy hvis tilgængeligt (ellers tom liste)
       const cats =
         (udv.taxonomy && (udv.taxonomy.categories || udv.taxonomy)) ||
         [];
       categories = { categories: Array.isArray(cats) ? cats : [] };
-
-      // Responses ikke nødvendige til kontrakt-visning; efterlad tom
       responses = {};
-
-      // Kontrakt-objekt hvis til stede
       contract = udv.contract || {};
-
-      // -------------------------------------------
-      // Importer hele UDV som p_udv_json for at kunne vise det efterfølgende
-      // -------------------------------------------
 
       statusEl.textContent = 'Importerer udviklingskontrakt til database.';
 
@@ -897,11 +877,8 @@ async function handleUDVUpload(file) {
         p_project_label: assessment.project_label,
         p_variant: assessment.variant,
         p_completed_at: assessment.completed_at,
-        // Gem hele UDV’en, så den kan vises 1:1 i profil
         p_udv_json: udv,
-        // Kategorier bruges i portalens grafer – tag fra taxonomy hvis muligt
         p_categories: categories.categories || [],
-        // Gem kontrakten hvis den findes
         p_development_contract: contract
       });
 
@@ -909,55 +886,82 @@ async function handleUDVUpload(file) {
       if (data?.error) throw new Error(data.error);
       if (!data?.success) throw new Error('Import fejlede');
 
-} else {
-  // Legacy/ukendt format: accepter alt og gem som RAW
-  let data = null;
-  try { data = JSON.parse(rawText); } catch {}
+    } else if (udv && udv.contract) {
+      // ===== NYT: Contract-only UDV fra Admin (Gem/Udgiv) =====
+      // Struktur: { contract: { ... } } uden udv_version
+      const c = udv.contract || {};
 
-  if (data && (data.assessment || data.categories || data.contract)) {
-    assessment = data.assessment || { ma: String(userMA).trim(), project_label: 'IMPORT', variant: 'LEGACY', completed_at: new Date().toISOString() };
-    categories = data.categories || { categories: [] };
-    responses  = data.responses  || {};
-    contract   = data.contract   || {};
-  } else {
-    // Ikke-JSON: gem som base64-wrapper
-    const buf = await file.arrayBuffer();
-    const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
-    assessment = {
-      ma: String(userMA).trim(),
-      project_label: 'UPLOAD',
-      variant: 'RAW',
-      completed_at: new Date().toISOString()
-    };
-    categories = { categories: [] };
-    responses  = {};
-    contract   = {};
-    udv = { raw_file_base64: b64, filename: file.name, mimetype: file.type || 'application/octet-stream', note: 'unparsed' };
-  }
+      // Minimal assessment (ingen taxonomy/scores i dette format)
+      assessment = {
+        ma: String(userMA).trim(),
+        project_label: (c.project && c.project.title) || 'UKENDT',
+        variant: 'FULL',
+        completed_at: c.saved_at || new Date().toISOString()
+      };
 
-  // Ingen MA-overlap validering – alt tilladt
-  if (!assessment) assessment = {};
-  if (!assessment.ma) assessment.ma = String(userMA).trim();
-  if (!assessment.project_label) assessment.project_label = 'IMPORT';
-  if (!assessment.variant) assessment.variant = 'LEGACY';
-  if (!assessment.completed_at) assessment.completed_at = new Date().toISOString();
+      categories = { categories: [] };
+      responses  = {};
+      contract   = c; // behold felter inkl. kollegastøtte (include_colleague_support, colleagues_selected, colleague_support_text)
 
-  statusEl.textContent = 'Importerer til database.';
+      statusEl.textContent = 'Importerer udviklingskontrakt (contract-only) til database.';
 
-  const { data: res, error: err } = await supabase.rpc('import_individual_assessment', {
-    p_ma: assessment.ma,
-    p_project_label: assessment.project_label,
-    p_variant: assessment.variant,
-    p_completed_at: assessment.completed_at,
-    p_udv_json: { assessment, responses, categories, contract },
-    p_categories: categories.categories || [],
-    p_development_contract: contract
-  });
+      const { data, error } = await supabase.rpc('import_individual_assessment', {
+        p_ma: assessment.ma,
+        p_project_label: assessment.project_label,
+        p_variant: assessment.variant,
+        p_completed_at: assessment.completed_at,
+        p_udv_json: udv,                 // gem hele payload’en som modtaget
+        p_categories: [],                // ingen kategorier i contract-only
+        p_development_contract: contract // vigtig: kontrakten ind i development_contract
+      });
 
-  if (err) throw err;
-  if (res?.error) throw new Error(res.error);
-  if (!res?.success) throw new Error('Import fejlede');
-}
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (!data?.success) throw new Error('Import fejlede');
+
+    } else {
+      // ===== Legacy/ukendt – accepter JSON wrappers eller base64 RAW =====
+      let data = null;
+      try { data = JSON.parse(rawText); } catch {}
+
+      if (data && (data.assessment || data.categories || data.contract)) {
+        assessment = data.assessment || { ma: String(userMA).trim(), project_label: 'IMPORT', variant: 'LEGACY', completed_at: new Date().toISOString() };
+        categories = data.categories || { categories: [] };
+        responses  = data.responses  || {};
+        contract   = data.contract   || {};
+      } else {
+        // Ikke-JSON: gem som base64-wrapper
+        const buf = await file.arrayBuffer();
+        const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+        assessment = {
+          ma: String(userMA).trim(),
+          project_label: 'UPLOAD',
+          variant: 'RAW',
+          completed_at: new Date().toISOString()
+        };
+        categories = { categories: [] };
+        responses  = {};
+        contract   = {};
+        udv = { raw_file_base64: b64, filename: file.name, mimetype: file.type || 'application/octet-stream', note: 'unparsed' };
+      }
+
+      // Gem i DB
+      statusEl.textContent = 'Importerer til database.';
+
+      const { data: res, error: err } = await supabase.rpc('import_individual_assessment', {
+        p_ma: assessment.ma,
+        p_project_label: assessment.project_label,
+        p_variant: assessment.variant,
+        p_completed_at: assessment.completed_at,
+        p_udv_json: { assessment, responses, categories, contract },
+        p_categories: categories.categories || [],
+        p_development_contract: contract
+      });
+
+      if (err) throw err;
+      if (res?.error) throw new Error(res.error);
+      if (!res?.success) throw new Error('Import fejlede');
+    }
 
     // Success
     statusEl.className = 'alert success';
@@ -970,7 +974,6 @@ async function handleUDVUpload(file) {
       switchTab('kontrakt');
       const sel = document.getElementById('contractAssessmentSelect');
       if (sel && assessments.length) {
-        // vælg den nyeste assessment som har en kontrakt
         const withContract = assessments.filter(a => a.development_contract);
         if (withContract.length) {
           sel.value = withContract[0].id;
@@ -984,17 +987,15 @@ async function handleUDVUpload(file) {
       if (inp) inp.value = '';
     }, 500);
 
-
   } catch (error) {
-  console.error('Upload error:', error);
-  statusEl.className = 'alert error';
-  const msg = (error && error.message) ? String(error.message) : 'Upload fejlede';
-  // Ryd op i JSZip’s tekniske fejltekst
-  const pretty = msg.includes('end of central directory')
-    ? 'UDV-filen er ikke en ZIP (og bør være JSON fra Admin).'
-    : msg;
-  statusEl.textContent = `❌ ${pretty}`;
-}
+    console.error('Upload error:', error);
+    statusEl.className = 'alert error';
+    const msg = (error && error.message) ? String(error.message) : 'Upload fejlede';
+    const pretty = msg.includes('end of central directory')
+      ? 'UDV-filen er ikke en ZIP (og bør være JSON fra Admin).'
+      : msg;
+    statusEl.textContent = `❌ ${pretty}`;
+  }
 }
 
 // ============================================================================
