@@ -710,7 +710,7 @@ function setupEventListeners() {
 function setupTabs() {
   try {
     document.querySelectorAll('.tabbtn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', async (e) => {
         e.preventDefault();
         const target = btn.getAttribute('data-tab');
         
@@ -739,7 +739,10 @@ function setupTabs() {
           if (target === 'kompas') initializeCompassTab();
           if (target === 'kontrakt') initializeContractTab();
           if (target === 'sammenlign') renderCompareOptions();
-          if (target === 'upload') renderFilesList();
+          if (target === 'upload') {
+            await loadAssessments();   // <- hent friske data før listen
+            renderFilesList();
+          }
           if (target === 'profil') renderProfileInfo();
         } catch (err) {
           console.error(`Fejl ved indlæsning af tab ${target}:`, err);
@@ -967,8 +970,9 @@ async function handleUDVUpload(file) {
     statusEl.className = 'alert success';
     statusEl.textContent = '✅ UDV-fil uploadet og læst korrekt.';
 
-    // Opdatér data og hop direkte til Udviklingskontrakt
+    // Opdatér data og UI med det samme
     await loadAssessments();
+    renderFilesList();               // <- opdater Upload-listen straks
     initializeContractTab();
     setTimeout(() => {
       switchTab('kontrakt');
@@ -2402,12 +2406,90 @@ function loadContractForAssessment() {
 
     // Kompetencer som chips (robust) + Tips (Fastholde/Udvikle) grupperet pr. kompetence – READ-ONLY
 {
-  // === Opslagstabeller ===
-  const catById = new Map(
-    Array.isArray(c?.compass_snapshot?.categories)
-      ? c.compass_snapshot.categories.map(x => [String(x.id), x.name])
-      : []
-  );
+  // === Opslagstabeller (ADMIN-LIGNENDE, ROBUST) ===
+// 1) Start med snapshot fra kontrakten
+const catById = new Map(
+  Array.isArray(c?.compass_snapshot?.categories)
+    ? c.compass_snapshot.categories.map(x => [String(x.id), x.name])
+    : []
+);
+
+// 2) Fald tilbage: hent fra UDV (taxonomy) hvis tilgængelig
+try {
+  const udvObj = (typeof assessment?.udv_json === 'string'
+    ? (()=>{ try { return JSON.parse(assessment.udv_json); } catch { return null; } })()
+    : (assessment?.udv_json || null));
+
+  const taxCats =
+    (udvObj?.taxonomy && (udvObj.taxonomy.categories || udvObj.taxonomy)) || [];
+
+  (Array.isArray(taxCats) ? taxCats : []).forEach(tc => {
+    if (tc?.id != null && (tc.name || tc.title)) {
+      const k = String(tc.id);
+      if (!catById.has(k)) catById.set(k, tc.name || tc.title);
+    }
+  });
+
+  // 3) Fald tilbage: brug kontraktens egne kompetencelister, hvis de har navn/titel
+  const mergeFromArr = (arr) => {
+    (Array.isArray(arr) ? arr : []).forEach(it => {
+      const id = it?.id ?? it?.category_id ?? it?.category;
+      const nm = it?.name || it?.title || it?.label;
+      if (id != null && nm) {
+        const k = String(id);
+        if (!catById.has(k)) catById.set(k, String(nm));
+      }
+    });
+  };
+  mergeFromArr(c?.competencies);
+  mergeFromArr(c?.keep_competencies);
+
+  // 4) Sidste fallback: asynkron hydrering fra DB (som i admin)
+  //    Vi prøver v_category_path via template_id, hvis vi kan finde et template-id.
+  (async () => {
+    try {
+      // Find mulig template_id
+      const templateId =
+        udvObj?.project?.template_id ??
+        udvObj?.project?.templateId ??
+        c?.project?.template_id ??
+        null;
+
+      if (!templateId) return;
+
+      // Find manglende ids vi har brugt i tips/keep_tips
+      const wanted = new Set();
+      const addWanted = (obj) => {
+        if (!obj || typeof obj !== 'object') return;
+        Object.keys(obj).forEach(cid => {
+          const k = String(cid);
+          if (!catById.has(k)) wanted.add(k);
+        });
+      };
+      addWanted(c?.tips);
+      addWanted(c?.keep_tips);
+
+      if (wanted.size === 0) return;
+
+      const { data: cats } = await supabase
+        .from('v_category_path')
+        .select('category_id, category_name, template_id')
+        .eq('template_id', templateId);
+
+      (cats || []).forEach(row => {
+        const k = String(row.category_id);
+        if (!catById.has(k)) catById.set(k, row.category_name || `Kompetence ${k}`);
+      });
+
+      // Hydrér allerede renderede kompetencetitler i DOM (hvis nogen)
+      document.querySelectorAll('[data-competence-id]').forEach(el => {
+        const cid = String(el.getAttribute('data-competence-id') || '');
+        const nm = catById.get(cid);
+        if (nm) el.textContent = nm;
+      });
+    } catch { /* ignorer stille */ }
+  })();
+} catch { /* ignorer stille */ }
 
   // Map af tipId -> {title, desc, category}
   const tipLookup = (() => {
@@ -2495,10 +2577,28 @@ function loadContractForAssessment() {
   })();
 
   // Hjælpere
+  // ADMIN-lignende label-opslag med flere fallbacks
   const compLabel = (k) => {
     if (!k) return '—';
-    const id = typeof k === 'object' ? (k.id || k.category_id) : k;
-    return catById.get(String(id)) || k.name || k.title || k.label || String(id);
+    const id = String(typeof k === 'object' ? (k.id ?? k.category_id ?? k.category) : k);
+
+    // 1) Primært opslag
+    let nm = catById.get(id);
+    if (nm) return nm;
+
+    // 2) Sekundært: scan kontraktens kompetencelister
+    const scanArr = (arr) => {
+      for (const it of (Array.isArray(arr) ? arr : [])) {
+        const iid = String(it?.id ?? it?.category_id ?? it?.category ?? '');
+        if (iid === id) return it?.name || it?.title || it?.label || null;
+      }
+      return null;
+    };
+    nm = scanArr(c?.competencies) || scanArr(c?.keep_competencies);
+    if (nm) { catById.set(id, nm); return nm; }
+
+    // 3) Sidste udvej: “Kompetence {id}”
+    return `Kompetence ${id}`;
   };
 
   const renderGrouped = (mapObj, headingHtml) => {
@@ -2516,7 +2616,7 @@ function loadContractForAssessment() {
     }).join('');
       return `
         <div style="border:1px solid #e2e8f0;border-radius:10px;padding:12px;background:#fff">
-          <div style="font-weight:700">${esc(compName)}</div>
+          <div style="font-weight:700" data-competence-id="${esc(String(cid))}">${esc(compName)}</div>
           <ul style="margin:8px 0 0 16px;padding:0;list-style:disc">${lis}</ul>
         </div>
       `;
