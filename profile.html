@@ -252,8 +252,8 @@ a<body class="mu-profile">
   <!-- Udviklingskontrakt Tab -->
   <div id="tab-kontrakt" class="content">
     <div class="section">
-      <!-- Ny farvet overskrift (hero) for Udviklingskontrakt -->
-      <div class="contract-hero" style="background:linear-gradient(90deg, var(--bg1), var(--bg2)); color:#fff; border-radius:16px; padding:18px 20px; display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:16px">
+      <!-- Ny farvet overskrift (hero) for Udviklingskontrakt med samme gradient som det gamle banner -->
+      <div class="contract-hero" style="background:linear-gradient(90deg, #6a11cb, #ff5f6d); color:#fff; border-radius:16px; padding:18px 20px; display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:16px">
         <div style="display:flex; align-items:center; gap:12px">
           <div style="background:#ffffff; color:var(--bg1); width:40px; height:40px; border-radius:12px; display:grid; place-items:center; font-size:1.2rem">📋</div>
           <div>
@@ -2356,7 +2356,6 @@ function loadContractForAssessment() {
   let html = `
     <div id="contractPrintable" style="background:#fff;padding:30px;border-radius:12px;border:1px solid var(--line)">
       <div style="text-align:center;margin-bottom:30px;padding-bottom:20px;border-bottom:2px solid var(--brand)">
-        <h2 style="color:var(--brand);margin-bottom:10px">📋 UDVIKLINGSKONTRAKT</h2>
         <div style="font-size:1.1em;color:#666">${escOrDash(getAssessmentDisplayName(assessment))}</div>
         <div style="margin-top:10px;color:#888">Medarbejdernummer: ${escOrDash(userMA)}</div>
         <div style="margin-top:5px;color:#888">Udgivet: ${escOrDash(new Date(assessment.published_at).toLocaleDateString('da-DK'))}</div>
