@@ -271,15 +271,12 @@ a<body class="mu-profile">
     </div>
   </div>
 
- <!-- Udviklingskontrakt Tab -->
+  <!-- Udviklingskontrakt Tab -->
   <div id="tab-kontrakt" class="content">
-    <div class="tab-hero">
-      <div class="tab-hero-title">Udviklingskontrakt</div>
-      <div class="tab-hero-meta" id="contractBannerMeta"></div>
-    </div>
     <div class="section">
-      <!-- (tidligere H2 og undertekst fjernet – banneret er nu overskrift) -->
-      
+      <h2 class="section-title">📋 Udviklingskontrakt</h2>
+      <p class="section-subtitle">Dine udviklingsmål og handlingsplaner</p>
+
       <!-- Assessment vælger -->
       <div style="margin-bottom:20px">
         <label style="display:block;font-weight:600;margin-bottom:8px">Vælg assessment:</label>
@@ -2351,6 +2348,24 @@ function initializeContractTab() {
   }
 }
 
+function makeKontraktBarHeader(){
+  const tab = document.getElementById('tab-kontrakt');
+  if (!tab) return;
+
+  // find den eksisterende farvede spalte (vi rører IKKE farver/facon)
+  const candidate = tab.querySelector(
+    '.section .gradient, .section .grad, .section .banner, .section .pill, .section .card, .section [data-contract-title]'
+  );
+
+  if (!candidate) return;
+
+  // flyt den op som fanens overskrift én gang
+  if (!candidate.classList.contains('as-tab-heading')) {
+    candidate.classList.add('as-tab-heading');
+    tab.insertBefore(candidate, tab.firstElementChild);
+  }
+}
+
 function loadContractForAssessment() {
   const select = document.getElementById('contractAssessmentSelect');
   const assessmentId = select.value;
@@ -2364,13 +2379,12 @@ function loadContractForAssessment() {
   currentContractAssessment = assessmentId;
   const assessment = assessments.find(a => a.id === assessmentId);
 
-  // Opdatér banner-overskrift (faneheading)
-  const metaEl = document.getElementById('contractBannerMeta');
-  if (metaEl) {
-    const name = getAssessmentDisplayName(assessment) || '';
-    const date = assessment?.published_at ? new Date(assessment.published_at).toLocaleDateString('da-DK') : '';
-    metaEl.textContent = date ? `${name} • Udgivet ${date}` : name;
-  }
+  // efter indlæsning – sørg for at den eksisterende spalte bliver overskrift
+  setTimeout(makeKontraktBarHeader, 0);
+}
+
+document.addEventListener('DOMContentLoaded', makeKontraktBarHeader);
+
 
   if (!assessment || !assessment.development_contract) {
     document.getElementById('contractContent').innerHTML = '<div class="alert warning">Ingen udviklingskontrakt for denne assessment</div>';
@@ -3191,7 +3205,6 @@ try {
   }
 
   document.getElementById('contractActions').style.display = 'flex';
-}
 
 async function downloadContractPDF() {
   if (!currentContractAssessment) {
