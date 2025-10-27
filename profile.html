@@ -99,28 +99,6 @@
     
     .mu-profile .content{padding:24px;display:none}
     .mu-profile .content.active{display:block}
-
-    /* Kontrakt hero-banner (ny fane-overskrift) */
-    .tab-hero{
-      background:linear-gradient(135deg,var(--bg1) 0%, var(--bg2) 100%);
-      color:#fff;
-      padding:18px 24px;
-      border-bottom:1px solid var(--line);
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:12px;
-      position:sticky;
-      top:49px; /* lige under tabbar */
-      z-index:19;
-    }
-    .tab-hero-title{font-size:1.15rem;font-weight:800;display:flex;align-items:center;gap:10px}
-    .tab-hero-title::before{content:'📋';}
-    .tab-hero-meta{opacity:.9;font-size:.95rem}
-
-    /* Skjul gammel overskrift i kontrakt-sektionen */
-    #tab-kontrakt .section .section-title,
-    #tab-kontrakt .section .section-subtitle{display:none}
     
     /* Cards og sektioner */
     .section{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin-bottom:20px}
@@ -274,15 +252,20 @@ a<body class="mu-profile">
   <!-- Udviklingskontrakt Tab -->
   <div id="tab-kontrakt" class="content">
     <div class="section">
-      <h2 class="section-title">📋 Udviklingskontrakt</h2>
-      <p class="section-subtitle">Dine udviklingsmål og handlingsplaner</p>
-
-      <!-- Assessment vælger -->
-      <div style="margin-bottom:20px">
-        <label style="display:block;font-weight:600;margin-bottom:8px">Vælg assessment:</label>
-        <select id="contractAssessmentSelect" class="input" onchange="loadContractForAssessment()" style="max-width:400px">
-          <option value="">-- Vælg en assessment --</option>
-        </select>
+      <!-- Ny farvet overskrift (hero) for Udviklingskontrakt -->
+      <div class="contract-hero" style="background:linear-gradient(90deg, var(--bg1), var(--bg2)); color:#fff; border-radius:16px; padding:18px 20px; display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:16px">
+        <div style="display:flex; align-items:center; gap:12px">
+          <div style="background:#ffffff; color:var(--bg1); width:40px; height:40px; border-radius:12px; display:grid; place-items:center; font-size:1.2rem">📋</div>
+          <div>
+            <div style="font-weight:800; font-size:1.2rem; letter-spacing:.2px">Udviklingskontrakt</div>
+            <div style="opacity:.9; font-size:.95rem">Dine udviklingsmål og handlingsplaner</div>
+          </div>
+        </div>
+        <div>
+          <select id="contractAssessmentSelect" class="input" onchange="loadContractForAssessment()" aria-label="Vælg assessment" style="max-width:400px">
+            <option value="">-- Vælg en assessment --</option>
+          </select>
+        </div>
       </div>
       
       <!-- Kontrakt indhold -->
@@ -2348,24 +2331,6 @@ function initializeContractTab() {
   }
 }
 
-function makeKontraktBarHeader(){
-  const tab = document.getElementById('tab-kontrakt');
-  if (!tab) return;
-
-  // find den eksisterende farvede spalte (vi rører IKKE farver/facon)
-  const candidate = tab.querySelector(
-    '.section .gradient, .section .grad, .section .banner, .section .pill, .section .card, .section [data-contract-title]'
-  );
-
-  if (!candidate) return;
-
-  // flyt den op som fanens overskrift én gang
-  if (!candidate.classList.contains('as-tab-heading')) {
-    candidate.classList.add('as-tab-heading');
-    tab.insertBefore(candidate, tab.firstElementChild);
-  }
-}
-
 function loadContractForAssessment() {
   const select = document.getElementById('contractAssessmentSelect');
   const assessmentId = select.value;
@@ -2378,13 +2343,6 @@ function loadContractForAssessment() {
 
   currentContractAssessment = assessmentId;
   const assessment = assessments.find(a => a.id === assessmentId);
-
-  // efter indlæsning – sørg for at den eksisterende spalte bliver overskrift
-  setTimeout(makeKontraktBarHeader, 0);
-}
-
-document.addEventListener('DOMContentLoaded', makeKontraktBarHeader);
-
 
   if (!assessment || !assessment.development_contract) {
     document.getElementById('contractContent').innerHTML = '<div class="alert warning">Ingen udviklingskontrakt for denne assessment</div>';
@@ -3205,6 +3163,7 @@ try {
   }
 
   document.getElementById('contractActions').style.display = 'flex';
+}
 
 async function downloadContractPDF() {
   if (!currentContractAssessment) {
