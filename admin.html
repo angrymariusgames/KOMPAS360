@@ -7276,39 +7276,24 @@ async function contractCollectColleagueSupport(){
   // Læs valgte par fra state: "category_id:person_id"
   const selectedPairs = Array.from(contractState.colleaguesSelected ?? new Set())
           .map(k => {
-            const [compId, personId] = String(k).split(':'); // KORREKT: "category_id:person_id"
+            const [compId, personId] = String(k).split(':'); // "category_id:person_id"
             return { compId: String(compId || ''), personId: String(personId || ''), key: String(k) };
           });
 
-
   const includedYesNo = contractState.include_colleague_support ? 'Ja' : 'Nej';
 
-  // Opslags-tabeller (DB → fallback DOM)
+  // Kun UI/DOM og lokale caches — INGEN DB-slåop
   const personNameById = new Map();
   const compTitleById  = new Map();
 
-  try {
-    const { data: ppl } = await supabase
-      .from('project_people')
-      .select('id, full_name, name')
-      .eq('project_id', contractState.project_id);
-    (ppl||[]).forEach(p => personNameById.set(String(p.id), (p.full_name || p.name || '').trim()));
-  } catch(_) {}
-
+  // Hvis der findes en client-side map med kompetencetitler, brug den
   if (window.contractCompetenceMap && typeof window.contractCompetenceMap === 'object') {
     Object.entries(window.contractCompetenceMap).forEach(([id, title]) => {
       compTitleById.set(String(id), String(title).trim());
     });
-  } else {
-    try {
-      const { data: comps } = await supabase
-        .from('competences')
-        .select('id, title, name');
-      (comps||[]).forEach(c => compTitleById.set(String(c.id), String(c.title || c.name || '').trim()));
-    } catch(_) {}
   }
 
-  // DOM-fallbacks (hvis kortene er på siden)
+  // DOM-fallback (kortene på siden indeholder allerede navn + kompetence)
   try {
     const colRoot = document.getElementById('contractColleagueSupport');
     const cards = Array.from(colRoot?.querySelectorAll('[data-colleague-key]') || []);
@@ -7326,12 +7311,13 @@ async function contractCollectColleagueSupport(){
 
       const n = String(nameEl?.textContent || '').trim();
       const c = String(compEl?.textContent || card.getAttribute('data-competence-name') || '').trim();
+
       if (n && !personNameById.get(personId)) personNameById.set(personId, n);
       if (c && !compTitleById.get(compId))    compTitleById.set(compId, c);
     });
   } catch(_) {}
 
-  // Brug eksisterende builder til at skabe {simple,text}
+  // Byg ren tekst via eksisterende builder (ingen IDs i output)
   const support = buildColleagueSupport(selectedPairs, includedYesNo, personNameById, compTitleById);
   return { simple: support.simple, text: support.text };
 }
