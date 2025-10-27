@@ -2659,12 +2659,16 @@ function loadContractForAssessment() {
           ${
             hasList
               ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
-                  ${arr.map(it => `
-                    <div style="border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px">
-                      <div style="font-size:.9rem;color:#64748b;margin-bottom:4px">${esc(it.category_name || '')}</div>
-                      <div style="font-weight:700">${esc(it.person_name || '')}</div>
-                    </div>
-                  `).join('')}
+                  ${arr.map(it => {
+                    const cat = (it.category_name || '').trim();
+                    const person = (it.person_name || '').trim();
+                    return `
+                      <div style="border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px">
+                        <div style="font-weight:700;font-size:1rem;color:#111827">${esc(person || 'Ukendt kollega')}</div>
+                        <div style="font-size:.9rem;color:#475569;margin-top:2px">${esc(cat || 'Ingen kompetence angivet')}</div>
+                      </div>
+                    `;
+                  }).join('')}
                  </div>`
               : (txt
                   ? `<div style="white-space:pre-wrap;color:#334155">${esc ? esc(txt) : txt}</div>`
