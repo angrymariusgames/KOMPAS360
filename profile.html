@@ -285,11 +285,11 @@
       </div>
     </div>
   </div>
-<!-- Sammenlign Tab -->
+<!-- Sammenlign Tab (forenklet version) -->
 <div id="tab-sammenlign" class="content">
   <div class="section">
     <h2 class="section-title">⚖️ Sammenlign Assessments</h2>
-    <p class="section-subtitle">Samme layout som Admins 🌱 Udvikling — her vælger du blot dine allerede uploadede runder</p>
+    <p class="section-subtitle">Sammenlign dine tidligere uploads</p>
 
     <!-- Vælg assessments -->
     <div style="margin-bottom:16px">
@@ -297,41 +297,26 @@
       <div id="compareCheckboxes" class="compass-controls"></div>
     </div>
 
-    <!-- Indstillinger (kopi af Admin-udvikling, men uden upload) -->
-    <div style="display:flex;gap:10px;margin:12px 0;flex-wrap:wrap">
+    <!-- Respondenttyper + visning -->
+    <div style="display:flex;gap:10px;margin:12px 0;flex-wrap:wrap;align-items:center">
       <label><input type="checkbox" id="cmpTypeSelf" checked> Selv</label>
       <label><input type="checkbox" id="cmpTypePeer" checked> Kollega</label>
-      <label><input type="checkbox" id="cmpTypeLeader" checked> Fører</label>
+      <label><input type="checkbox" id="cmpTypeLeader" checked> Leder</label>
 
       <select id="cmpView" class="input" title="Visning" style="min-width:190px">
         <option value="category">Kategorier</option>
         <option value="overall">Samlet (gennemsnit)</option>
       </select>
 
-      <select id="cmpNorm" class="input" title="Sammenligningsmetode" style="min-width:260px">
-        <option value="none">Ingen normalisering (0–5)</option>
-        <option value="zscore">Z-score pr. kategori (over tid)</option>
-      </select>
-
-      <button id="btnShowTable" class="btn primary" disabled>📊 Vis tabel</button>
-      <button id="btnShowLine"  class="btn" disabled>📈 Vis linje</button>
       <button id="btnShowRadar" class="btn" disabled>🧭 Vis radar</button>
     </div>
 
-    <!-- Radar A/B (dengang vs. nu) -->
-    <div style="display:flex;gap:8px;align-items:center;margin:10px 0;flex-wrap:wrap">
-      <strong>Radar A/B:</strong>
-      <select id="cmpWaveA" class="input" style="min-width:200px"></select>
-      <select id="cmpWaveB" class="input" style="min-width:200px"></select>
-      <button id="btnRadarAB" class="btn" disabled>🧭 Opdater radar</button>
-    </div>
-
-    <!-- Output -->
-    <div id="comparisonResult" class="compass-container" style="margin-top:10px"></div>
+    <!-- Radar -->
     <div id="cmpChartWrap" style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:12px;display:none">
       <canvas id="cmpChart" style="width:100%;height:420px"></canvas>
     </div>
 
+    <!-- Eksport -->
     <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn" id="btnCmpPdf" disabled>📥 Download Sammenligning PDF</button>
       <button class="btn" id="btnCmpCsv" disabled>📊 Eksporter CSV</button>
@@ -1192,48 +1177,19 @@ async function deleteAssessment(assessmentId) {
 }
 
 // ============================================================================
-// SAMMENLIGN FUNKTIONALITET (ADMIN-UDVIKLING LAYOUT • UDEN UPLOAD)
+// SAMMENLIGN FUNKTIONALITET (FORENKLET VERSION)
 // ============================================================================
 let selectedForComparison = [];
 let cmpChart = null;
 
-function getSelectedRespondentTypes(){
-  const types = [];
-  if (document.getElementById('cmpTypeSelf')?.checked) types.push('self');
-  if (document.getElementById('cmpTypePeer')?.checked) types.push('peer');
-  if (document.getElementById('cmpTypeLeader')?.checked) types.push('leader');
-  return types.length ? types : ['self','peer','leader'];
-}
-
-function bindCompareUIEvents(){
-  const btnTable = document.getElementById('btnShowTable');
-  const btnLine  = document.getElementById('btnShowLine');
-  const btnRadar = document.getElementById('btnShowRadar');
-  const btnRadarAB = document.getElementById('btnRadarAB');
-
-  if (btnTable) btnTable.onclick = renderComparisonTable;
-  if (btnLine)  btnLine.onclick  = renderComparisonLine;
-  if (btnRadar) btnRadar.onclick = renderComparisonRadarAB;
-  if (btnRadarAB) btnRadarAB.onclick = renderComparisonRadarAB;
-
-  ['cmpTypeSelf','cmpTypePeer','cmpTypeLeader','cmpView','cmpNorm','cmpWaveA','cmpWaveB']
-    .forEach(id => document.getElementById(id)?.addEventListener('change', () => {
-      // Bevar simpelt: re-render sidste valgte mode ikke tracket; vi opdaterer tabel som default
-      renderComparisonTable();
-    }));
-}
-
 function renderCompareOptions() {
   const boxes = document.getElementById('compareCheckboxes');
   if (!Array.isArray(assessments) || assessments.length < 2) {
-    if (boxes) boxes.innerHTML = '';
+    boxes.innerHTML = '';
     document.getElementById('compareEmptyState').style.display = 'block';
-    document.getElementById('btnShowTable').disabled = true;
-    document.getElementById('btnShowLine').disabled  = true;
     document.getElementById('btnShowRadar').disabled = true;
-    document.getElementById('btnRadarAB').disabled   = true;
-    document.getElementById('btnCmpPdf').disabled    = true;
-    document.getElementById('btnCmpCsv').disabled    = true;
+    document.getElementById('btnCmpPdf').disabled = true;
+    document.getElementById('btnCmpCsv').disabled = true;
     return;
   }
   document.getElementById('compareEmptyState').style.display = 'none';
@@ -1244,7 +1200,6 @@ function renderCompareOptions() {
     </label>
   `).join('');
   updateCompareSelection();
-  bindCompareUIEvents();
 }
 
 function updateCompareSelection(checkbox) {
@@ -1261,241 +1216,96 @@ function updateCompareSelection(checkbox) {
     }
   }
   const disable = selectedForComparison.length < 2;
-  ['btnShowTable','btnShowLine','btnShowRadar','btnRadarAB','btnCmpPdf','btnCmpCsv']
-    .forEach(id => { const el = document.getElementById(id); if (el) el.disabled = disable; });
-
-  // udfyld A/B drop-downs
-  const waveA = document.getElementById('cmpWaveA');
-  const waveB = document.getElementById('cmpWaveB');
-  if (waveA && waveB) {
-    const opts = selectedForComparison.map(id=>{
-      const a = assessments.find(x=>x.id===id);
-      return `<option value="${id}">${getAssessmentDisplayName(a)}</option>`;
-    }).join('');
-    waveA.innerHTML = `<option value="">— Vælg A —</option>${opts}`;
-    waveB.innerHTML = `<option value="">— Vælg B —</option>${opts}`;
-  }
+  ['btnShowRadar','btnCmpPdf','btnCmpCsv'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = disable;
+  });
 }
 
-async function fetchComparisonScores(ids, types){
-  const { data, error } = await supabase
+function getSelectedRespondentTypes(){
+  const t=[];
+  if(document.getElementById('cmpTypeSelf')?.checked)t.push('self');
+  if(document.getElementById('cmpTypePeer')?.checked)t.push('peer');
+  if(document.getElementById('cmpTypeLeader')?.checked)t.push('leader');
+  return t.length?t:['self'];
+}
+
+async function renderComparisonRadar(){
+  if(selectedForComparison.length<2)return;
+  const container=document.getElementById('cmpChartWrap');
+  const ctx=document.getElementById('cmpChart');
+  container.style.display='block';
+  const types=getSelectedRespondentTypes();
+  const view=document.getElementById('cmpView')?.value||'category';
+
+  const {data,error}=await supabase
     .from('individual_compass_scores')
     .select('*')
-    .in('assessment_id', ids)
-    .in('respondent_type', types);
-  if (error) throw error;
-  return data || [];
-}
+    .in('assessment_id',selectedForComparison)
+    .in('respondent_type',types);
+  if(error){console.error(error);return;}
 
-function normalizeIfNeeded(rows, method){
-  if (method !== 'zscore') return rows;
-  // Z-score pr. kategori across assessments
-  const byCat = new Map();
-  rows.forEach(r=>{
-    const k = r.category_name;
-    if (!byCat.has(k)) byCat.set(k, []);
-    byCat.get(k).push(r.score_numeric);
-  });
-  const stats = {};
-  byCat.forEach((arr, cat)=>{
-    const vals = arr.map(Number).filter(v=>Number.isFinite(v));
-    const mu = vals.reduce((a,b)=>a+b,0)/(vals.length||1);
-    const sd = Math.sqrt(vals.reduce((a,b)=>a+(b-mu)*(b-mu),0)/(vals.length||1)) || 1;
-    stats[cat] = {mu, sd};
-  });
-  return rows.map(r=>{
-    const s = stats[r.category_name];
-    return {...r, score_numeric: (Number(r.score_numeric)-s.mu)/s.sd};
-  });
-}
-
-function tableHtml(headers, bodyRows){
-  let h = '<table style="width:100%;border-collapse:collapse;font-size:0.95em">';
-  h += '<thead><tr style="background:var(--surface)">';
-  headers.forEach(th=>h+=`<th style="padding:10px;text-align:${th.center?'center':'left'}">${th.title}</th>`);
-  h += '</tr></thead><tbody>';
-  bodyRows.forEach((row, idx)=>{
-    h += `<tr style="border-bottom:1px solid var(--line);background:${idx%2===0?'#fff':'var(--surface)'}">`;
-    row.forEach((cell,i)=>h+=`<td style="padding:10px;${headers[i].center?'text-align:center':''}">${cell}</td>`);
-    h += '</tr>';
-  });
-  h += '</tbody></table>';
-  return h;
-}
-
-async function renderComparisonTable(){
-  const container = document.getElementById('comparisonResult');
-  if (selectedForComparison.length < 2) {
-    container.innerHTML = '<div class="alert warning">Vælg mindst 2 assessments</div>';
-    return;
-  }
-  const types = getSelectedRespondentTypes();
-  const norm  = document.getElementById('cmpNorm')?.value || 'none';
-  const view  = document.getElementById('cmpView')?.value || 'category';
-
-  const data = normalizeIfNeeded(await fetchComparisonScores(selectedForComparison, types), norm);
-  const labels = selectedForComparison.map(id=>{
-    const a = assessments.find(x=>x.id===id);
-    return {id, label:getAssessmentDisplayName(a)||'Ukendt'};
-  });
-
-  let html = '<h3 style="margin-bottom:10px">📊 Sammenligning — Tabel</h3>';
-  const headers = [{title:'Kategori',center:false}, ...labels.map(l=>({title:l.label,center:true})), {title:'Ændring',center:true}];
-  let rows = [];
-
-  if (view==='overall'){
-    // pr. assessment samlet gennemsnit
-    const byAssess = new Map();
-    data.forEach(r=>{
-      if (!byAssess.has(r.assessment_id)) byAssess.set(r.assessment_id, []);
-      byAssess.get(r.assessment_id).push(Number(r.score_numeric));
+  const cats=Array.from(new Set(data.map(d=>d.category_name)));
+  const datasets=selectedForComparison.map((id,i)=>{
+    const a=assessments.find(x=>x.id===id);
+    const label=getAssessmentDisplayName(a);
+    const vals=cats.map(cat=>{
+      const s=data.find(d=>d.assessment_id===id&&d.category_name===cat);
+      return s?Number(s.score_numeric):0;
     });
-    const vals = labels.map(l=>{
-      const arr = byAssess.get(l.id)||[];
-      const avg = arr.length? (arr.reduce((a,b)=>a+b,0)/arr.length):0;
-      return avg||0;
-    });
-    const delta = vals[vals.length-1]-vals[0];
-    rows.push(['Samlet gennemsnit', ...vals.map(v=>v? v.toFixed(2):'-'), `${delta>0?'▲':delta<0?'▼':'━'} ${Math.abs(delta).toFixed(2)}`]);
-  } else {
-    const cats = Array.from(new Set(data.map(d=>d.category_name)));
-    cats.forEach(cat=>{
-      const rowVals = labels.map(l=>{
-        const hit = data.find(d=>d.assessment_id===l.id && d.category_name===cat);
-        return hit? Number(hit.score_numeric):0;
-      });
-      const delta = rowVals[rowVals.length-1]-rowVals[0];
-      rows.push([cat, ...rowVals.map(v=>v? v.toFixed(2):'-'), `${delta>0?'▲':delta<0?'▼':'━'} ${Math.abs(delta).toFixed(2)}`]);
-    });
-  }
-
-  container.innerHTML = tableHtml(headers, rows);
-  document.getElementById('cmpChartWrap').style.display = 'none';
-}
-
-async function renderComparisonLine(){
-  if (selectedForComparison.length < 2) return;
-  const types = getSelectedRespondentTypes();
-  const norm  = document.getElementById('cmpNorm')?.value || 'none';
-  const view  = document.getElementById('cmpView')?.value || 'category';
-  const data  = normalizeIfNeeded(await fetchComparisonScores(selectedForComparison, types), norm);
-
-  // X-akse = kronologi (sortér efter assessment.created_at hvis tilgængelig ellers efter navn)
-  const ordered = [...selectedForComparison].sort((a,b)=>{
-    const A = assessments.find(x=>x.id===a), B = assessments.find(x=>x.id===b);
-    const ta = new Date(A?.created_at||A?.created||0).getTime();
-    const tb = new Date(B?.created_at||B?.created||0).getTime();
-    return ta-tb;
+    const colors=['#667eea','#48bb78','#ed8936','#f56565','#319795','#805ad5'];
+    return{
+      label,
+      data:vals,
+      borderColor:colors[i%colors.length],
+      backgroundColor:colors[i%colors.length]+'33',
+      borderWidth:2,
+      pointRadius:4
+    };
   });
-  const labels = ordered.map(id=>{
-    const a = assessments.find(x=>x.id===id);
-    return getAssessmentDisplayName(a);
-  });
-
-  // Samlet gennemsnit pr. assessment (eller gennemsnit af alle kat. i view=category)
-  const byAssess = new Map();
-  data.forEach(r=>{
-    if (!byAssess.has(r.assessment_id)) byAssess.set(r.assessment_id, []);
-    byAssess.get(r.assessment_id).push(Number(r.score_numeric));
-  });
-  const series = ordered.map(id=>{
-    const arr = byAssess.get(id)||[];
-    return arr.length ? (arr.reduce((a,b)=>a+b,0)/arr.length) : 0;
-  });
-
-  const ctx = document.getElementById('cmpChart');
-  document.getElementById('comparisonResult').innerHTML = '';
-  document.getElementById('cmpChartWrap').style.display = 'block';
-  if (cmpChart) cmpChart.destroy();
-  cmpChart = new Chart(ctx, {
-    type:'line',
-    data:{ labels, datasets:[{ label:'Samlet score', data:series, borderWidth:2, pointRadius:4 }]},
-    options:{
-      responsive:true,
-      maintainAspectRatio:false,
-      scales:{ y:{ beginAtZero:true, min: (norm==='zscore'? -3:0), max:(norm==='zscore'? 3:5), ticks:{ stepSize:(norm==='zscore'?1:1)} } },
-      plugins:{ legend:{ position:'bottom' } }
-    }
-  });
-}
-
-async function renderComparisonRadarAB(){
-  if (selectedForComparison.length < 2) return;
-  const a = document.getElementById('cmpWaveA')?.value;
-  const b = document.getElementById('cmpWaveB')?.value;
-  const container = document.getElementById('comparisonResult');
-
-  if (!a || !b || a===b){
-    container.innerHTML = '<div class="alert info">Vælg to forskellige assessments til A og B.</div>';
-    document.getElementById('cmpChartWrap').style.display = 'none';
-    return;
-  }
-  const types = getSelectedRespondentTypes();
-  const norm  = document.getElementById('cmpNorm')?.value || 'none';
-  const raw   = await fetchComparisonScores([a,b], types);
-  const data  = normalizeIfNeeded(raw, norm);
-
-  const cats = Array.from(new Set(data.map(d=>d.category_name)));
-  const A = assessments.find(x=>x.id===a), B = assessments.find(x=>x.id===b);
-  const labA = getAssessmentDisplayName(A), labB = getAssessmentDisplayName(B);
-
-  const getVec = (id)=>cats.map(cat=>{
-    const hit = data.find(d=>d.assessment_id===id && d.category_name===cat);
-    return hit? Number(hit.score_numeric):0;
-  });
-
-  const ctx = document.getElementById('cmpChart');
-  document.getElementById('cmpChartWrap').style.display = 'block';
-  container.innerHTML = '';
-  if (cmpChart) cmpChart.destroy();
-  cmpChart = new Chart(ctx, {
+  if(cmpChart)cmpChart.destroy();
+  cmpChart=new Chart(ctx,{
     type:'radar',
-    data:{
-      labels: cats,
-      datasets:[
-        {label:labA, data:getVec(a), borderWidth:2, pointRadius:4, backgroundColor:'#667eea33', borderColor:'#667eea'},
-        {label:labB, data:getVec(b), borderWidth:2, pointRadius:4, backgroundColor:'#48bb7833', borderColor:'#48bb78'}
-      ]
-    },
+    data:{labels:cats,datasets},
     options:{
       responsive:true,
       maintainAspectRatio:false,
-      scales:{ r:{ beginAtZero:true, min:(norm==='zscore'?-3:0), max:(norm==='zscore'?3:5), ticks:{ stepSize:1 } } },
-      plugins:{ legend:{ position:'bottom' }, title:{ display:true, text:'Radar — “dengang vs. nu”' } }
+      scales:{r:{beginAtZero:true,min:0,max:5,ticks:{stepSize:1}}},
+      plugins:{legend:{position:'bottom'}}
     }
   });
 }
 
-// Eksport (virker nu)
 async function downloadComparisonPDF(){
-  const wrap = document.getElementById('tab-sammenlign');
-  if (!wrap) return;
-  const { jsPDF } = window.jspdf;
-  const canvas = await html2canvas(wrap, { scale:2 });
-  const img = canvas.toDataURL('image/png');
-  const pdf = new jsPDF('p','mm','a4');
-  const pageW = 210, pageH = 297;
-  const imgW = pageW-20, imgH = (canvas.height/canvas.width)*imgW;
-  pdf.addImage(img, 'PNG', 10, 10, imgW, Math.min(imgH, pageH-20));
+  const wrap=document.getElementById('tab-sammenlign');
+  if(!wrap)return;
+  const{jsPDF}=window.jspdf;
+  const canvas=await html2canvas(wrap,{scale:2});
+  const img=canvas.toDataURL('image/png');
+  const pdf=new jsPDF('p','mm','a4');
+  const w=210,h=297,imgW=w-20,imgH=(canvas.height/canvas.width)*imgW;
+  pdf.addImage(img,'PNG',10,10,imgW,Math.min(imgH,h-20));
   pdf.save('sammenligning.pdf');
 }
 
 function exportComparisonCSV(){
-  const container = document.getElementById('comparisonResult');
-  const table = container.querySelector('table');
-  if (!table){ alert('Ingen tabel at eksportere.'); return; }
-  const rows = [...table.querySelectorAll('tr')].map(tr=>[...tr.children].map(td=>`"${(td.textContent||'').replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob = new Blob([rows], {type:'text/csv;charset=utf-8;'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'sammenligning.csv';
+  if(!cmpChart){alert('Ingen data at eksportere.');return;}
+  const labels=cmpChart.data.labels;
+  const csv=['Kategori,'+cmpChart.data.datasets.map(d=>`"${d.label}"`).join(',')];
+  labels.forEach((cat,i)=>{
+    const row=[cat,...cmpChart.data.datasets.map(d=>d.data[i])];
+    csv.push(row.join(','));
+  });
+  const blob=new Blob([csv.join('\n')],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='sammenligning.csv';
   a.click();
 }
 
-// Kald første visning når fanen åbnes
-document.getElementById('btnShowTable')?.addEventListener('click', renderComparisonTable);
-document.getElementById('btnCmpPdf')?.addEventListener('click', downloadComparisonPDF);
-document.getElementById('btnCmpCsv')?.addEventListener('click', exportComparisonCSV);
+document.getElementById('btnShowRadar')?.addEventListener('click',renderComparisonRadar);
+document.getElementById('btnCmpPdf')?.addEventListener('click',downloadComparisonPDF);
+document.getElementById('btnCmpCsv')?.addEventListener('click',exportComparisonCSV);
 
 // ============================================================================
 // PROFIL INFO
