@@ -1105,7 +1105,26 @@ async function deleteAssessment(assessmentId) {
     }
   }
 
+  // --- OPTIMISTIC UI: lås knappen og fjern elementet med det samme ---
+  let rollback = null;
   try {
+    // lås "Slet"-knappen hvis den findes
+    const delBtn = document.querySelector(`button[data-del="${assessmentId}"]`);
+    if (delBtn) {
+      delBtn.disabled = true;
+      delBtn.textContent = 'Sletter…';
+      delBtn.setAttribute('aria-busy', 'true');
+    }
+
+    // fjern fra UI med det samme (optimistic)
+    if (Array.isArray(window.assessments)) {
+      const prev = assessments.slice();
+      rollback = () => { assessments = prev; if (typeof renderFilesList === 'function') renderFilesList(); };
+      assessments = assessments.filter(a => a.id !== assessmentId);
+      if (typeof renderFilesList === 'function') renderFilesList();
+    }
+
+    // 1) filer (hvis filindeks findes)
     const fileRows = await trySelectFiles('individual_assessment_files', assessmentId);
     if (fileRows.length > 0) {
       const pathsByBucket = fileRows.reduce((acc, row) => {
@@ -1115,12 +1134,12 @@ async function deleteAssessment(assessmentId) {
         }
         return acc;
       }, {});
-
       for (const [bucket, paths] of Object.entries(pathsByBucket)) {
         await tryRemoveFromStorage(bucket, paths);
       }
     }
 
+    // 2) relaterede rækker
     const RELATED_TABLES = [
       'individual_assessment_notes',
       'individual_assessment_collaborators',
@@ -1128,11 +1147,11 @@ async function deleteAssessment(assessmentId) {
       'individual_assessment_events',
       'individual_assessment_files'
     ];
-
     for (const table of RELATED_TABLES) {
       await tryDeleteRelated(table, 'assessment_id', assessmentId);
     }
 
+    // 3) hovedpost
     {
       const { error: delErr } = await supabase
         .from('individual_assessments')
@@ -1141,15 +1160,17 @@ async function deleteAssessment(assessmentId) {
       if (delErr) throw delErr;
     }
 
-    // UI refresh — robust mod manglende elementer/funktioner
+    // 4) sync fra backend og re-render
     try {
       if (typeof loadAssessments === 'function') {
         await loadAssessments();
       }
+      if (typeof renderFilesList === 'function') {
+        renderFilesList();
+      }
     } catch (e) {
-      console.warn('loadAssessments() fejlede:', e);
+      console.warn('UI sync fejl:', e);
     }
-
     try {
       if (typeof renderTimeline === 'function') {
         renderTimeline();
@@ -1159,8 +1180,18 @@ async function deleteAssessment(assessmentId) {
     }
 
   } catch (error) {
+    // rollback UI hvis noget fejler
+    if (typeof rollback === 'function') rollback();
     console.error('Delete error:', error);
     alert('Kunne ikke slette udviklingskontrakten fuldstændigt: ' + (error?.message || 'ukendt fejl'));
+  } finally {
+    // frigør knap
+    const delBtn = document.querySelector(`button[data-del="${assessmentId}"]`);
+    if (delBtn) {
+      delBtn.disabled = false;
+      delBtn.textContent = 'Slet';
+      delBtn.removeAttribute('aria-busy');
+    }
   }
 }
 
@@ -2090,9 +2121,9 @@ function setupUploadZone() {
 // ============================================================================
 function renderFilesList() {
   const list = document.getElementById('filesList');
-  if (!list) return; // <- robust mod manglende container
+  if (!list) return;
   
-  if (assessments.length === 0) {
+  if (!Array.isArray(window.assessments) || assessments.length === 0) {
     list.innerHTML = `
       <li class="empty-state">
         <div class="empty-icon">📁</div>
@@ -2101,9 +2132,9 @@ function renderFilesList() {
     `;
     return;
   }
-  
+
   list.innerHTML = assessments.map(a => `
-    <li class="file-item">
+    <li class="file-item" data-id="${a.id}">
       <div class="file-info">
         <div class="file-name">udviklingskontrakt_${(a.project_label || '').replace(/\s+/g,'_')}_${(userMA || '').toString().trim()}.udv</div>
         <div class="file-meta">Udgivet ${new Date(a.published_at).toLocaleDateString('da-DK')}</div>
@@ -2111,7 +2142,7 @@ function renderFilesList() {
       <div style="display:flex;gap:8px">
         <button class="btn small" onclick="viewContract('${a.id}')">Åbn i Kontrakt</button>
         <button class="btn small" onclick="downloadUDV('${a.id}')">Download</button>
-        <button class="btn small error" onclick="deleteAssessment('${a.id}')">Slet</button>
+        <button class="btn small error" data-del="${a.id}" onclick="deleteAssessment('${a.id}')">Slet</button>
       </div>
     </li>
   `).join('');
