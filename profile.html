@@ -2780,10 +2780,74 @@ try {
       }
     }
 
-    // Kollegastøtte
+    // Kollegastøtte (robust – understøtter nyt admin-format: colleagues_selected)
     if (c.include_colleague_support) {
-      const arr = Array.isArray(c.colleague_support) ? c.colleague_support : null;
-      const hasList = !!(arr && arr.length);
+      // Hent UDV-objekt til opslag (folk + taxonomy)
+      const udvObj = (typeof assessment?.udv_json === 'string'
+        ? (()=>{ try { return JSON.parse(assessment.udv_json); } catch { return null; } })()
+        : (assessment?.udv_json || assessment?.udv || null)) || {};
+
+      // Opslagstabeller (kategorier + personer)
+      const catById = new Map(
+        Array.isArray(udvObj?.compass_snapshot?.categories)
+          ? udvObj.compass_snapshot.categories.map(x => [String(x.id), x.name])
+          : Array.isArray(udvObj?.taxonomy?.categories)
+            ? udvObj.taxonomy.categories.map(x => [String(x.id ?? x.category_id), x.name ?? x.category_name])
+            : []
+      );
+      const personById = new Map(
+        Array.isArray(udvObj?.people)
+          ? udvObj.people.map(p => {
+              const id = String(p.id ?? p.person_id ?? p.employee_id ?? '').trim();
+              const name = [p.first_name, p.last_name].filter(Boolean).join(' ') || p.name || p.person_name || p.employee_name || '';
+              return [id, name];
+            })
+          : []
+      );
+
+      // Normaliser alle kendte formater til {person_name, category_name}
+      const normalized = (() => {
+        // 1) Gammelt format (colleague_support: [{ person_name, category_name }])
+        if (Array.isArray(c?.colleague_support) && c.colleague_support.length) {
+          return c.colleague_support.map(it => ({
+            person_name: String(it.person_name || it.name || '').trim(),
+            category_name: String(it.category_name || it.category || '').trim()
+          })).filter(x => x.person_name || x.category_name);
+        }
+
+        // 2) Nyt admin-format (colleagues_selected: [{ person_id?, person_name?, category_id?, category_name? }])
+        if (Array.isArray(c?.colleagues_selected) && c.colleagues_selected.length) {
+          return c.colleagues_selected.map(it => {
+            const pid = it.person_id != null ? String(it.person_id) : '';
+            const cid = it.category_id != null ? String(it.category_id) : '';
+            const person_name = String(it.person_name || it.name || personById.get(pid) || '').trim();
+            const category_name = String(it.category_name || it.category || catById.get(cid) || '').trim();
+            return { person_name, category_name };
+          }).filter(x => x.person_name || x.category_name);
+        }
+
+        // 3) Fallback: kig på udvObj.contract.*
+        const c2 = udvObj?.contract || {};
+        if (Array.isArray(c2?.colleagues_selected) && c2.colleagues_selected.length) {
+          return c2.colleagues_selected.map(it => {
+            const pid = it.person_id != null ? String(it.person_id) : '';
+            const cid = it.category_id != null ? String(it.category_id) : '';
+            const person_name = String(it.person_name || it.name || personById.get(pid) || '').trim();
+            const category_name = String(it.category_name || it.category || catById.get(cid) || '').trim();
+            return { person_name, category_name };
+          }).filter(x => x.person_name || x.category_name);
+        }
+        if (Array.isArray(c2?.colleague_support) && c2.colleague_support.length) {
+          return c2.colleague_support.map(it => ({
+            person_name: String(it.person_name || it.name || '').trim(),
+            category_name: String(it.category_name || it.category || '').trim()
+          })).filter(x => x.person_name || x.category_name);
+        }
+
+        return [];
+      })();
+
+      const hasList = normalized.length > 0;
       const txt = c.colleague_support_text && String(c.colleague_support_text).trim();
 
       html += `
@@ -2792,13 +2856,13 @@ try {
           ${
             hasList
               ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
-                  ${arr.map(it => {
-                    const cat = (it.category_name || '').trim();
-                    const person = (it.person_name || '').trim();
+                  ${normalized.map(it => {
+                    const person = (it.person_name || 'Ukendt kollega').trim();
+                    const cat = (it.category_name || 'Ingen kompetence angivet').trim();
                     return `
                       <div style="border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px">
-                        <div style="font-weight:700;font-size:1rem;color:#111827">${esc(person || 'Ukendt kollega')}</div>
-                        <div style="font-size:.9rem;color:#475569;margin-top:2px">${esc(cat || 'Ingen kompetence angivet')}</div>
+                        <div style="font-weight:700;font-size:1rem;color:#111827">${esc(person)}</div>
+                        <div style="font-size:.9rem;color:#475569;margin-top:2px">${esc(cat)}</div>
                       </div>
                     `;
                   }).join('')}
