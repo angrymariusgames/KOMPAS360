@@ -9633,6 +9633,26 @@ function contractSetupEventListeners(){
 
       // ↓↓↓ DOWNLOAD AF DOKUMENT EFTER GEM ↓↓↓
       try {
+        // Byg plain text for kollegastøtte (uden projektkontekst)
+        let colleagueSupportText = null;
+        try {
+          const { data: ppl } = await supabase
+            .from('project_people')
+            .select('id, full_name, name')
+            .eq('project_id', contractState.project_id);
+          const selectedIds = Array.from(contractState.colleaguesSelected ?? new Set())
+            .map(s => String(s).split(':')[1]);
+          const names = (ppl || [])
+            .filter(p => selectedIds.includes(String(p.id)))
+            .map(p => p.full_name || p.name)
+            .filter(Boolean);
+          colleagueSupportText =
+            `Medtaget: ${contractState.include_colleague_support ? 'Ja' : 'Nej'}\n` +
+            `Kollegaer: ${names.join(', ')}`;
+        } catch (e) {
+          colleagueSupportText = `Medtaget: ${contractState.include_colleague_support ? 'Ja' : 'Nej'}`;
+        }
+
         // Byg eksport-objekt (samme felter som indlæsning forventer – 1:1 gendannelse)
         const exportPayload = {
           contract: {
@@ -9664,6 +9684,8 @@ function contractSetupEventListeners(){
             // Kollegastøtte + Teamroller
             colleagues_selected:  Array.from(contractState.colleaguesSelected ?? new Set()),
             team_roles_selection: Array.from(contractState.team_roles_selected ?? new Set()),
+            // Redundans til miljøer uden projektkontekst (plain text)
+            colleague_support_text: colleagueSupportText,
 
             // 30/60/90
             plan: (typeof contractSerializePlan === 'function' ? contractSerializePlan() : null),
@@ -11170,6 +11192,27 @@ async function generateUDVBlob(contractId, ma, projectLabel, variant) {
     if (personErr || !person) throw new Error('Kunne ikke hente person: ' + (personErr?.message || 'ikke fundet'));
 
     // Samme format som efter “Gem kontrakt” download (1:1 gendannelse)
+
+    // Byg plain text for kollegastøtte (uden projektkontekst)
+    let colleagueSupportText = null;
+    try {
+      const { data: ppl } = await supabase
+        .from('project_people')
+        .select('id, full_name, name')
+        .eq('project_id', project.id);
+      const selectedIds = (contract.colleagues_selected || [])
+        .map(s => String(s).split(':')[1]);
+      const names = (ppl || [])
+        .filter(p => selectedIds.includes(String(p.id)))
+        .map(p => p.full_name || p.name)
+        .filter(Boolean);
+      colleagueSupportText =
+        `Medtaget: ${contract.include_colleague_support ? 'Ja' : 'Nej'}\n` +
+        `Kollegaer: ${names.join(', ')}`;
+    } catch (e) {
+      colleagueSupportText = `Medtaget: ${contract.include_colleague_support ? 'Ja' : 'Nej'}`;
+    }
+
     const exportPayload = {
       contract: {
         project: { id: project.id },
@@ -11200,6 +11243,8 @@ async function generateUDVBlob(contractId, ma, projectLabel, variant) {
         // Kollegastøtte + Teamroller (valg)
         colleagues_selected:  contract.colleagues_selected  || [],
         team_roles_selection: contract.team_roles_selection || [],
+        // Redundans til miljøer uden projektkontekst (plain text)
+        colleague_support_text: colleagueSupportText,
 
         // 30/60/90
         plan: contract.plan || null,
