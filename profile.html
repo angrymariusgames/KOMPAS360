@@ -2649,13 +2649,28 @@ function loadContractForAssessment() {
 
     // Kollegastøtte
     if (c.include_colleague_support) {
+      const arr = Array.isArray(c.colleague_support) ? c.colleague_support : null;
+      const hasList = !!(arr && arr.length);
       const txt = c.colleague_support_text && String(c.colleague_support_text).trim();
+
       html += `
         <div style="margin-bottom:18px">
           <h3 style="color:var(--brand);margin-bottom:10px;display:flex;align-items:center;gap:8px"><span>🤝</span> Kollegastøtte</h3>
-          ${txt
-            ? `<div style="white-space:pre-wrap;color:#334155">${esc ? esc(txt) : txt}</div>`
-            : `<div style="color:#475569">Kollegastøtte er markeret som en del af planen.</div>`}
+          ${
+            hasList
+              ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
+                  ${arr.map(it => `
+                    <div style="border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px">
+                      <div style="font-size:.9rem;color:#64748b;margin-bottom:4px">${esc(it.category_name || '')}</div>
+                      <div style="font-weight:700">${esc(it.person_name || '')}</div>
+                    </div>
+                  `).join('')}
+                 </div>`
+              : (txt
+                  ? `<div style="white-space:pre-wrap;color:#334155">${esc ? esc(txt) : txt}</div>`
+                  : `<div style="color:#475569">Kollegastøtte er markeret som en del af planen.</div>`
+                )
+          }
         </div>
       `;
     }
