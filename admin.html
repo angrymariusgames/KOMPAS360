@@ -9712,20 +9712,9 @@ function contractSetupEventListeners(){
           byPerson.set(personId, entry);
         });
 
-        let lines = [];
-        // Hvis vi stadig ikke har konkrete navne/kompetencer, lav fallback til optælling
-        if (byPerson.size === 0) {
-          const count = selectedPairs.length || 0;
-          lines = [count > 0 ? `${count} valgt` : 'Ingen valgt'];
-        } else {
-          lines = Array.from(byPerson.values()).map(v => {
-            const nm = v.name || 'Ukendt';
-            const compList = Array.from(v.comps);
-            return compList.length ? `${nm} (${compList.join(', ')})` : nm;
-          });
-        }
+        const support = buildColleagueSupport(selectedPairs, includedYesNo, personNameById, compTitleById);
+        colleagueSupportText = support.text;
 
-        colleagueSupportText = `Medtaget: ${includedYesNo}\nKollegaer: ${lines.join(', ')}`;
 
         // Byg eksport-objekt (samme felter som indlæsning forventer – 1:1 gendannelse)
         const exportPayload = {
@@ -9758,7 +9747,8 @@ function contractSetupEventListeners(){
             // Kollegastøtte + Teamroller
             colleagues_selected:  Array.from(contractState.colleaguesSelected ?? new Set()),
             team_roles_selection: Array.from(contractState.team_roles_selected ?? new Set()),
-            // Redundans til miljøer uden projektkontekst (plain text)
+            // Struktureret + fritekst (bagudkompatibilitet)
+            colleague_support: support.list,
             colleague_support_text: colleagueSupportText,
 
             // 30/60/90
@@ -11351,19 +11341,8 @@ async function generateUDVBlob(contractId, ma, projectLabel, variant) {
       byPerson.set(personId, entry);
     });
 
-    let lines = [];
-    if (byPerson.size === 0) {
-      const count = selectedPairs.length || 0;
-      lines = [count > 0 ? `${count} valgt` : 'Ingen valgt'];
-    } else {
-      lines = Array.from(byPerson.values()).map(v => {
-        const nm = v.name || 'Ukendt';
-        const compList = Array.from(v.comps);
-        return compList.length ? `${nm} (${compList.join(', ')})` : nm;
-      });
-    }
-
-    colleagueSupportText = `Medtaget: ${includedYesNo}\nKollegaer: ${lines.join(', ')}`;
+    const support = buildColleagueSupport(selectedPairs, includedYesNo, personNameById, compTitleById);
+    colleagueSupportText = support.text;
 
     const exportPayload = {
       contract: {
@@ -11395,8 +11374,10 @@ async function generateUDVBlob(contractId, ma, projectLabel, variant) {
         // Kollegastøtte + Teamroller (valg)
         colleagues_selected:  contract.colleagues_selected  || [],
         team_roles_selection: contract.team_roles_selection || [],
-        // Redundans til miljøer uden projektkontekst (plain text)
+        // Struktureret + fritekst (bagudkompatibilitet)
+        colleague_support: support.list,
         colleague_support_text: colleagueSupportText,
+
 
         // 30/60/90
         plan: contract.plan || null,
@@ -11764,6 +11745,55 @@ function contractMethodLabel(method){
     group: 'Gruppe', external: 'Ekstern', course: 'Kursus'
   };
   return m[method] || method;
+}
+
+/**
+ * Én samlet kilde til kollegastøtte-tekst + struktureret liste.
+ * selectedPairs: Array<{compId:string, personId:string}>
+ * includedYesNo: 'Ja' | 'Nej'
+ * personNameById: Map(personId -> name)
+ * compTitleById:  Map(compId -> competence title)
+ * Returnerer: { text, list }
+ */
+function buildColleagueSupport(selectedPairs, includedYesNo, personNameById, compTitleById){
+  // 1) Saml pr. person til den læsbare tekst
+  const byPerson = new Map(); // personId -> { name, comps:Set<string> }
+  (selectedPairs || []).forEach(({ compId, personId }) => {
+    const name = (personNameById?.get?.(personId) || '').trim();
+    const comp  = (compTitleById?.get?.(compId)  || '').trim();
+    const entry = byPerson.get(personId) || { name, comps: new Set() };
+    if (name && !entry.name) entry.name = name;
+    if (comp) entry.comps.add(comp);
+    byPerson.set(personId, entry);
+  });
+
+  let lines = [];
+  if (byPerson.size === 0) {
+    const count = (selectedPairs || []).length || 0;
+    lines = [count > 0 ? `${count} valgt` : 'Ingen valgt'];
+  } else {
+    lines = Array.from(byPerson.values()).map(v => {
+      const nm = v.name || 'Ukendt';
+      const compList = Array.from(v.comps);
+      return compList.length ? `${nm} (${compList.join(', ')})` : nm;
+    });
+  }
+
+  // 2) Struktureret liste (ét element pr. (person, kompetence))
+  const list = Array.from(new Set((selectedPairs || []).map(p => `${p.personId}::${p.compId}`))).map(key => {
+    const [personId, compId] = key.split('::');
+    const person_name  = (personNameById?.get?.(personId) || '').trim();
+    const category_name = (compTitleById?.get?.(compId)   || '').trim();
+    return {
+      person_id: String(personId || ''),
+      person_name,
+      category_id: Number(compId) || 0,
+      category_name
+    };
+  });
+
+  const text = `Medtaget: ${includedYesNo}\nKollegaer: ${lines.join(', ')}`;
+  return { text, list };
 }
 
 async function contractGenerateColleagueSupportPdfSection() {
