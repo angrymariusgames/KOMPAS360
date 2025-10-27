@@ -2780,12 +2780,13 @@ try {
       }
     }
 
-    // Kollegastøtte (robust – understøtter nyt admin-format: colleagues_selected)
+    // Kollegastøtte (robust – understøtter nyt admin-format: colleagues_selected + contract.support1/2/3)
     if (c.include_colleague_support) {
       // Hent UDV-objekt til opslag (folk + taxonomy)
       const udvObj = (typeof assessment?.udv_json === 'string'
         ? (()=>{ try { return JSON.parse(assessment.udv_json); } catch { return null; } })()
         : (assessment?.udv_json || assessment?.udv || null)) || {};
+      const contract = udvObj?.contract || {};
 
       // Opslagstabeller (kategorier + personer)
       const catById = new Map(
@@ -2820,28 +2821,42 @@ try {
           return c.colleagues_selected.map(it => {
             const pid = it.person_id != null ? String(it.person_id) : '';
             const cid = it.category_id != null ? String(it.category_id) : '';
-            const person_name = String(it.person_name || it.name || personById.get(pid) || '').trim();
+            const person_name = String(it.person_name || it.title || it.name || personById.get(pid) || '').trim();
             const category_name = String(it.category_name || it.category || catById.get(cid) || '').trim();
             return { person_name, category_name };
           }).filter(x => x.person_name || x.category_name);
         }
 
-        // 3) Fallback: kig på udvObj.contract.*
-        const c2 = udvObj?.contract || {};
-        if (Array.isArray(c2?.colleagues_selected) && c2.colleagues_selected.length) {
-          return c2.colleagues_selected.map(it => {
+        // 3) Fallback: kig på udvObj.contract.* (colleagues_selected / colleague_support)
+        if (Array.isArray(contract?.colleagues_selected) && contract.colleagues_selected.length) {
+          return contract.colleagues_selected.map(it => {
             const pid = it.person_id != null ? String(it.person_id) : '';
             const cid = it.category_id != null ? String(it.category_id) : '';
-            const person_name = String(it.person_name || it.name || personById.get(pid) || '').trim();
+            const person_name = String(it.person_name || it.title || it.name || personById.get(pid) || '').trim();
             const category_name = String(it.category_name || it.category || catById.get(cid) || '').trim();
             return { person_name, category_name };
           }).filter(x => x.person_name || x.category_name);
         }
-        if (Array.isArray(c2?.colleague_support) && c2.colleague_support.length) {
-          return c2.colleague_support.map(it => ({
-            person_name: String(it.person_name || it.name || '').trim(),
+        if (Array.isArray(contract?.colleague_support) && contract.colleague_support.length) {
+          return contract.colleague_support.map(it => ({
+            person_name: String(it.person_name || it.title || it.name || '').trim(),
             category_name: String(it.category_name || it.category || '').trim()
           })).filter(x => x.person_name || x.category_name);
+        }
+
+        // 4) Nyt admin-layout: support1/2/3 [{ id?, person_id?, title|name, category|category_name|category_id }]
+        const s1 = Array.isArray(contract?.support1) ? contract.support1 : [];
+        const s2 = Array.isArray(contract?.support2) ? contract.support2 : [];
+        const s3 = Array.isArray(contract?.support3) ? contract.support3 : [];
+        const merged = [...s1, ...s2, ...s3];
+        if (merged.length) {
+          return merged.map(it => {
+            const pid = it.person_id != null ? String(it.person_id) : (it.id != null ? String(it.id) : '');
+            const cid = it.category_id != null ? String(it.category_id) : (it.categoryId != null ? String(it.categoryId) : '');
+            const person_name = String(it.person_name || it.title || it.name || personById.get(pid) || '').trim();
+            const category_name = String(it.category_name || it.category || catById.get(cid) || '').trim();
+            return { person_name, category_name };
+          }).filter(x => x.person_name || x.category_name);
         }
 
         return [];
