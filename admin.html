@@ -7273,10 +7273,10 @@ function contractSerializePlan(){
 
 // ——— Ensartet kollega-støtte til UDV (bruges af Gem/Udgiv) ———
 async function contractCollectColleagueSupport(){
-  // Læs valgte par fra state: "personId:compId"
+  // Læs valgte par fra state: "category_id:person_id"
   const selectedPairs = Array.from(contractState.colleaguesSelected ?? new Set())
     .map(k => {
-      const [personId, compId] = String(k).split(':');
+      const [compId, personId] = String(k).split(':');
       return { personId: String(personId||''), compId: String(compId||'') };
     });
 
@@ -9706,10 +9706,9 @@ function contractSetupEventListeners(){
         // Parse valg til [{compId, personId, key}]
         const selectedPairs = Array.from(contractState.colleaguesSelected ?? new Set())
           .map(k => {
-            const [personId, compId] = String(k).split(':'); // FIX: input er "personId:compId"
+            const [compId, personId] = String(k).split(':'); // KORREKT: input er "category_id:person_id"
             return { compId: String(compId || ''), personId: String(personId || ''), key: String(k) };
           });
-
 
         // Opslags-tabeller
         const personNameById = new Map();
@@ -11350,10 +11349,9 @@ async function generateUDVBlob(contractId, ma, projectLabel, variant) {
 
     // Parse valg til [{compId, personId}]
     const selectedPairs = (contract.colleagues_selected || []).map(k => {
-      const [personId, compId] = String(k).split(':'); // FIX: input er "personId:compId"
+      const [compId, personId] = String(k).split(':'); // KORREKT: input er "category_id:person_id"
       return { compId: String(compId || ''), personId: String(personId || ''), key: String(k) };
     });
-
 
     const personNameById = new Map();
     const compTitleById = new Map();
