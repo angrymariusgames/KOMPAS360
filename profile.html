@@ -1232,41 +1232,177 @@ function getSelectedRespondentTypes(){
 
 async function renderComparisonRadar(){
   if(selectedForComparison.length<2)return;
+
   const container=document.getElementById('cmpChartWrap');
   const ctx=document.getElementById('cmpChart');
   container.style.display='block';
+
   const types=getSelectedRespondentTypes();
   const view=document.getElementById('cmpView')?.value||'category';
 
-  const {data,error}=await supabase
-    .from('individual_compass_scores')
-    .select('*')
-    .in('assessment_id',selectedForComparison)
-    .in('respondent_type',types);
-  if(error){console.error(error);return;}
+  // 1) Hent eksisterende (DB-beregnede) scores for de valgte assessments
+  let dbData=[];
+  try{
+    const {data,error}=await supabase
+      .from('individual_compass_scores')
+      .select('*')
+      .in('assessment_id',selectedForComparison)
+      .in('respondent_type',types);
+    if(error){console.warn('DB compass fetch fejl:',error);}
+    else if(Array.isArray(data)){dbData=data;}
+  }catch(e){console.warn('DB compass exception:',e);}
 
-  const cats=Array.from(new Set(data.map(d=>d.category_name)));
-  const datasets=selectedForComparison.map((id,i)=>{
+  // 2) Byg komplet datasæt pr. assessment med SAMME fallback som i kontraktens kompas
+  async function buildForAssessment(assessmentId){
+    // Start med DB-rækker for netop dette assessment
+    let built = dbData.filter(d=>d.assessment_id===assessmentId);
+
+    if(built.length){
+      // Normaliser til ens struktur
+      return built.map(r=>({
+        category_name: r.category_name,
+        respondent_type: r.respondent_type,
+        score_numeric: Number(r.score_numeric)
+      }));
+    }
+
+    // Fallback fra UDV – identisk logik som i loadCompassForAssessment (samme datakilder)
+    const a=(assessments||[]).find(x=>x.id===assessmentId);
+    const udv=a&&a.udv_json?a.udv_json:null;
+    let out=[];
+
+    // 2A) Klassiske per-score målinger
+    if(udv && Array.isArray(udv.scores)){
+      // Find taxonomy-navne
+      let taxonomy = Array.isArray(udv.taxonomy)
+        ? udv.taxonomy.map(t=>({category_id:t.category_id,category_name:t.category_name}))
+        : [];
+
+      if(!taxonomy.length && Array.isArray(a?.categories)){
+        taxonomy = a.categories.map(c=>({category_id:c.category_id,category_name:c.category_name}));
+      }
+      if(!taxonomy.length){
+        const ids=Array.from(new Set(udv.scores.map(s=>s.category_id)));
+        taxonomy=ids.map((id,i)=>({category_id:id,category_name:`Kategori ${i+1}`}));
+      }
+
+      // Find målperson
+      const people=Array.isArray(udv.people)?udv.people:[];
+      let targetId=null;
+      const match=people.find(p=>String(p.employee_no??p.ma??p.meta?.employee_no??'').trim()===String(userMA).trim());
+      if(match) targetId=match.id;
+      else if(people.length===1) targetId=people[0].id;
+      else targetId=people[0]?.id??null;
+
+      const getVal=(catId,type)=>{
+        const r=udv.scores.find(s=>
+          String(s.target_id)===String(targetId) &&
+          (s.category_id===catId || s.category===catId || s.category_name===taxonomy.find(t=>t.category_id===catId)?.category_name) &&
+          (s.respondent_type===type || s.type===type)
+        );
+        if(!r) return null;
+        const v=Number.isFinite(r.value)?r.value:(Number.isFinite(r.safe_avg)?r.safe_avg:null);
+        return v;
+      };
+
+      ['self','peer','leader'].forEach(type=>{
+        if(!types.includes(type)) return;
+        taxonomy.forEach(cat=>{
+          const v=getVal(cat.category_id,type);
+          if(v!=null){
+            out.push({category_name:cat.category_name,respondent_type:type,score_numeric:Number(v)});
+          }
+        });
+      });
+    }
+    // 2B) Kompakt kompas-snapshot
+    else if(udv && udv.compass_snapshot && Array.isArray(udv.compass_snapshot.categories) && udv.compass_snapshot.series){
+      const snap=udv.compass_snapshot;
+      const catNames=snap.categories.map(c=>c.name);
+      const pushSeries=(arr,type)=>{
+        if(!Array.isArray(arr) || !types.includes(type)) return;
+        arr.forEach((v,idx)=>{
+          const n=catNames[idx];
+          if(n==null || v==null) return;
+          out.push({category_name:n,respondent_type:type,score_numeric:Number(v)});
+        });
+      };
+      pushSeries(snap.series.self,'self');
+      pushSeries(snap.series.peer,'peer');
+      pushSeries(snap.series.leader,'leader');
+
+      if(!out.length && Array.isArray(snap.series.blended)){
+        snap.series.blended.forEach((v,idx)=>{
+          const n=catNames[idx];
+          if(n==null || v==null) return;
+          out.push({category_name:n,respondent_type:'peer',score_numeric:Number(v)});
+        });
+      }
+    }
+
+    return out;
+  }
+
+  // Saml ALLE rækker for alle valgte assessments
+  const allRows = [];
+  for(const id of selectedForComparison){
+    const rows = await buildForAssessment(id);
+    rows.forEach(r=>allRows.push({...r,assessment_id:id}));
+  }
+
+  if(!allRows.length){
+    // Intet at vise
+    if(cmpChart) cmpChart.destroy();
+    container.style.display='none';
+    alert('Ingen KOMPAS-data at sammenligne for de valgte assessments.');
+    return;
+  }
+
+  // Labels (kategorier) eller samlet visning
+  let labels = [];
+  if(view==='overall'){
+    labels = ['Samlet'];
+  }else{
+    labels = Array.from(new Set(allRows.map(r=>r.category_name)));
+  }
+
+  // Byg datasets pr. assessment
+  const colors=['#667eea','#48bb78','#ed8936','#f56565','#319795','#805ad5','#2b6cb0','#d53f8c','#38a169','#dd6b20'];
+  const datasets = selectedForComparison.map((id,i)=>{
     const a=assessments.find(x=>x.id===id);
     const label=getAssessmentDisplayName(a);
-    const vals=cats.map(cat=>{
-      const s=data.find(d=>d.assessment_id===id&&d.category_name===cat);
-      return s?Number(s.score_numeric):0;
-    });
-    const colors=['#667eea','#48bb78','#ed8936','#f56565','#319795','#805ad5'];
+
+    let dataPoints=[];
+    if(view==='overall'){
+      // Gennemsnit over alle viste kategorier og valgte respondenttyper
+      const vals = allRows.filter(r=>r.assessment_id===id);
+      const nums = vals.map(v=>Number(v.score_numeric)).filter(n=>Number.isFinite(n));
+      const avg = nums.length ? (nums.reduce((s,n)=>s+n,0)/nums.length) : 0;
+      dataPoints=[Number(avg.toFixed(2))];
+    }else{
+      dataPoints=labels.map(cat=>{
+        // Gennemsnit pr. kategori (på tværs af valgte respondenttyper)
+        const vals = allRows.filter(r=>r.assessment_id===id && r.category_name===cat);
+        const nums = vals.map(v=>Number(v.score_numeric)).filter(n=>Number.isFinite(n));
+        const avg = nums.length ? (nums.reduce((s,n)=>s+n,0)/nums.length) : 0;
+        return Number(avg.toFixed(2));
+      });
+    }
+
     return{
       label,
-      data:vals,
+      data:dataPoints,
       borderColor:colors[i%colors.length],
       backgroundColor:colors[i%colors.length]+'33',
       borderWidth:2,
       pointRadius:4
     };
   });
+
   if(cmpChart)cmpChart.destroy();
   cmpChart=new Chart(ctx,{
     type:'radar',
-    data:{labels:cats,datasets},
+    data:{labels,datasets},
     options:{
       responsive:true,
       maintainAspectRatio:false,
