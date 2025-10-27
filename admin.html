@@ -9754,8 +9754,9 @@ function contractSetupEventListeners(){
             // Kollegastøtte + Teamroller
             colleagues_selected:  Array.from(contractState.colleaguesSelected ?? new Set()),
             team_roles_selection: Array.from(contractState.team_roles_selected ?? new Set()),
-            // Struktureret + fritekst (bagudkompatibilitet)
-            colleague_support: support.list,
+            // Struktureret + fritekst + v2 (enkelt format)
+            colleague_support: (support.simple || []),
+            colleague_support_detail: (support.list || []),
             colleague_support_text: colleagueSupportText,
 
             // 30/60/90
@@ -11389,10 +11390,10 @@ async function generateUDVBlob(contractId, ma, projectLabel, variant) {
         // Kollegastøtte + Teamroller (valg)
         colleagues_selected:  contract.colleagues_selected  || [],
         team_roles_selection: contract.team_roles_selection || [],
-        // Struktureret + fritekst (bagudkompatibilitet)
-        colleague_support: support.list,
+        // Struktureret + fritekst + v2 (enkelt format)
+        colleague_support: (support.simple || []),
+        colleague_support_detail: (support.list || []),
         colleague_support_text: colleagueSupportText,
-
 
         // 30/60/90
         plan: contract.plan || null,
@@ -11807,8 +11808,15 @@ function buildColleagueSupport(selectedPairs, includedYesNo, personNameById, com
     };
   });
 
+  // 2b) Simpelt v2-format til UDV: { id, name, category }
+  const simple = list.map(row => ({
+    id: row.person_id,
+    name: row.person_name,
+    category: row.category_name
+  }));
+
   const text = `Medtaget: ${includedYesNo}\nKollegaer: ${lines.join(', ')}`;
-  return { text, list };
+  return { text, list, simple };
 }
 
 async function contractGenerateColleagueSupportPdfSection() {
