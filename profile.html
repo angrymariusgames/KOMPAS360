@@ -99,6 +99,28 @@
     
     .mu-profile .content{padding:24px;display:none}
     .mu-profile .content.active{display:block}
+
+    /* Kontrakt hero-banner (ny fane-overskrift) */
+    .tab-hero{
+      background:linear-gradient(135deg,var(--bg1) 0%, var(--bg2) 100%);
+      color:#fff;
+      padding:18px 24px;
+      border-bottom:1px solid var(--line);
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      position:sticky;
+      top:49px; /* lige under tabbar */
+      z-index:19;
+    }
+    .tab-hero-title{font-size:1.15rem;font-weight:800;display:flex;align-items:center;gap:10px}
+    .tab-hero-title::before{content:'📋';}
+    .tab-hero-meta{opacity:.9;font-size:.95rem}
+
+    /* Skjul gammel overskrift i kontrakt-sektionen */
+    #tab-kontrakt .section .section-title,
+    #tab-kontrakt .section .section-subtitle{display:none}
     
     /* Cards og sektioner */
     .section{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin-bottom:20px}
@@ -249,11 +271,14 @@ a<body class="mu-profile">
     </div>
   </div>
 
-  <!-- Udviklingskontrakt Tab -->
+ <!-- Udviklingskontrakt Tab -->
   <div id="tab-kontrakt" class="content">
+    <div class="tab-hero">
+      <div class="tab-hero-title">Udviklingskontrakt</div>
+      <div class="tab-hero-meta" id="contractBannerMeta"></div>
+    </div>
     <div class="section">
-      <h2 class="section-title">📋 Udviklingskontrakt</h2>
-      <p class="section-subtitle">Dine udviklingsmål og handlingsplaner</p>
+      <!-- (tidligere H2 og undertekst fjernet – banneret er nu overskrift) -->
       
       <!-- Assessment vælger -->
       <div style="margin-bottom:20px">
@@ -2338,6 +2363,14 @@ function loadContractForAssessment() {
 
   currentContractAssessment = assessmentId;
   const assessment = assessments.find(a => a.id === assessmentId);
+
+  // Opdatér banner-overskrift (faneheading)
+  const metaEl = document.getElementById('contractBannerMeta');
+  if (metaEl) {
+    const name = getAssessmentDisplayName(assessment) || '';
+    const date = assessment?.published_at ? new Date(assessment.published_at).toLocaleDateString('da-DK') : '';
+    metaEl.textContent = date ? `${name} • Udgivet ${date}` : name;
+  }
 
   if (!assessment || !assessment.development_contract) {
     document.getElementById('contractContent').innerHTML = '<div class="alert warning">Ingen udviklingskontrakt for denne assessment</div>';
