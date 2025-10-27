@@ -7324,7 +7324,7 @@ async function contractCollectColleagueSupport(){
     const name = personNameById.get(p.personId) || '';
     const cat  = compTitleById.get(p.compId)    || '';
 
-    // Gem både kompetence-ID og -navn (backward compatible: 'category' er navnet)
+    // Gem rigtigt person-ID og kompetence-ID + læsbart navn
     const entry = { id: p.personId, title: name, category: cat, category_id: p.compId };
 
     const bucket = idx % 3;
@@ -8731,8 +8731,8 @@ async function contractLoadColleagueSupport() {
       return `
         <div class="contract-tip-card ${sel ? 'selected' : ''}" data-colleague-key="${i.key}" style="cursor:pointer">
           <div style="display:flex;align-items:center;gap:8px">
-            <span class="method-badge" style="background:var(--surface);border:1px solid var(--line);padding:2px 6px;border-radius:999px;font-size:.75rem">${compName}</span>
-            <div style="font-weight:600">${i.full_name}</div>
+            <span class="method-badge competence-name" data-badge="competence" data-competence-name="${compName}" style="background:var(--surface);border:1px solid var(--line);padding:2px 6px;border-radius:999px;font-size:.75rem">${compName}</span>
+            <div data-colleague-name style="font-weight:600">${i.full_name}</div>
             <div style="margin-left:auto;font-size:.8rem;color:var(--muted)">Kollegastøtte</div>
           </div>
         </div>`;
