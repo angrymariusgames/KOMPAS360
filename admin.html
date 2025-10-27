@@ -7323,7 +7323,9 @@ async function contractCollectColleagueSupport(){
   selectedPairs.forEach((p, idx) => {
     const name = personNameById.get(p.personId) || '';
     const cat  = compTitleById.get(p.compId)    || '';
-    const entry = { id: "ID", title: name, category: cat };
+
+    // Gem både kompetence-ID og -navn (backward compatible: 'category' er navnet)
+    const entry = { id: p.personId, title: name, category: cat, category_id: p.compId };
 
     const bucket = idx % 3;
     if (bucket === 0) support1.push(entry);
