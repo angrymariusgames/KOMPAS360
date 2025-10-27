@@ -691,9 +691,9 @@ function setupTabs() {
         try {
           if (target === 'oversigt') renderDashboard();
           if (target === 'kontrakt') initializeContractTab();
-          if (target === 'sammenlign') renderCompareOptions();
+          if (target === 'sammenlign') initializeCompareDevTab();   // ny: Admin “Udvikling”-layout på profil
           if (target === 'upload') {
-            await loadAssessments();   // <- hent friske data før listen
+            await loadAssessments();
             renderFilesList();
           }
           if (target === 'profil') renderProfileInfo();
@@ -1161,470 +1161,272 @@ async function deleteAssessment(assessmentId) {
 }
 
 // ============================================================================
-// SAMMENLIGN FUNKTIONALITET (MED RADAR OVERLAY)
+// UDVIKLING-LAYOUT SAMMENLIGNING (profil)
+//  - Samme UI som Admin “Udvikling”
+//  - Data-kilde: individual_compass_scores for de valgte assessments
 // ============================================================================
 let selectedForComparison = [];
-let comparisonChart = null;
+let devLineChartProfile = null;
+let devRadarChartProfile = null;
 
-function renderCompareOptions() {
-  if (assessments.length < 2) {
-    document.getElementById('compareCheckboxes').innerHTML = '';
+function initializeCompareDevTab() {
+  // 1) Checkbokse (vælg runder)
+  const wrap = document.getElementById('compareCheckboxes');
+  if (!wrap) return;
+
+  if (!assessments || assessments.length < 2) {
+    wrap.innerHTML = '';
     document.getElementById('compareEmptyState').style.display = 'block';
-    document.getElementById('btnCompare').disabled = true;
-    document.getElementById('btnCompareRadar').disabled = true;
     return;
   }
-  
   document.getElementById('compareEmptyState').style.display = 'none';
 
-  
-  document.getElementById('compareCheckboxes').innerHTML = assessments.map(a => `
+  wrap.innerHTML = assessments.map(a => `
     <label class="round-checkbox">
-      <input type="checkbox" value="${a.id}" onchange="updateCompareSelection(this)">
+      <input type="checkbox" value="${a.id}" onchange="profileCompareToggle(this)">
       <span>${getAssessmentDisplayName(a)} (${a.variant})</span>
     </label>
   `).join('');
-  
-  updateCompareSelection();
+
+  // Forvælg seneste to
+  selectedForComparison = assessments.slice(0,2).map(a=>a.id);
+  // markér i UI
+  wrap.querySelectorAll('input[type="checkbox"]').forEach(cb=>{
+    if (selectedForComparison.includes(cb.value)) cb.checked = true;
+  });
+
+  // 2) Udfyld A/B dropdowns (samme liste)
+  const selA = document.getElementById('devWaveAProfile');
+  const selB = document.getElementById('devWaveBProfile');
+  const opt = (a)=>`<option value="${a.id}">${getAssessmentDisplayName(a)} (${a.variant})</option>`;
+  selA.innerHTML = assessments.map(opt).join('');
+  selB.innerHTML = assessments.map(opt).join('');
+  if (assessments.length >= 2) {
+    selA.value = assessments[0].id;
+    selB.value = assessments[1].id;
+  }
+
+  selA.onchange = renderDevRadarProfile;
+  selB.onchange = renderDevRadarProfile;
+
+  // 3) Tegn alle tre visninger
+  renderDevLineProfile();
+  renderDevRadarProfile();
+  renderDevTableProfile();
+
+  // 4) CSV-eksport
+  const btnCsv = document.getElementById('btnExportDevCsvProfile');
+  if (btnCsv) btnCsv.onclick = exportProfileDevCsv;
 }
 
-function updateCompareSelection(checkbox) {
-  if (checkbox) {
-    if (checkbox.checked) {
-      if (selectedForComparison.length < 4) {
-        selectedForComparison.push(checkbox.value);
-      } else {
-        checkbox.checked = false;
-        alert('Du kan maksimalt sammenligne 4 assessments');
-      }
-    } else {
-      selectedForComparison = selectedForComparison.filter(id => id !== checkbox.value);
+function profileCompareToggle(cb){
+  if (cb.checked) {
+    if (selectedForComparison.length >= 4) {
+      cb.checked = false;
+      alert('Du kan maksimalt sammenligne 4 assessments');
+      return;
     }
+    selectedForComparison.push(cb.value);
+  } else {
+    selectedForComparison = selectedForComparison.filter(id=>id!==cb.value);
   }
-  
-  document.getElementById('btnCompare').disabled = selectedForComparison.length < 2;
-  document.getElementById('btnCompare').textContent = `📊 Vis Tabel (${selectedForComparison.length})`;
-  
-  document.getElementById('btnCompareRadar').disabled = selectedForComparison.length < 2;
-  document.getElementById('btnCompareRadar').textContent = `🧭 Vis Radar (${selectedForComparison.length})`;
-}
-
-async function renderComparison() {
-  const container = document.getElementById('comparisonResult');
-
-  if (selectedForComparison.length < 2) {
-    container.innerHTML = '<div class="alert warning">Vælg mindst 2 assessments</div>';
-    return;
-  }
-
-  try {
-    // 1) Prøv DB-scores
-    let { data: scores, error } = await supabase
-      .from('individual_compass_scores')
-      .select('*')
-      .in('assessment_id', selectedForComparison);
-
-    if (error) throw error;
-    scores = Array.isArray(scores) ? scores.slice() : [];
-
-    // 2) Fallback pr. assessment fra UDV – som i kompas-fanen
-    for (const assessmentId of selectedForComparison) {
-      const hasAny = scores.some(s => s.assessment_id === assessmentId);
-      if (hasAny) continue;
-
-      const a = assessments.find(x => x.id === assessmentId);
-      const udv = a?.udv_json;
-      if (!udv || !Array.isArray(udv.scores)) continue;
-
-      // Taxonomi-navne
-      let taxonomy = Array.isArray(udv.taxonomy)
-        ? udv.taxonomy.map(t => ({ category_id: t.category_id, category_name: t.category_name }))
-        : Array.isArray(a?.categories)
-          ? a.categories.map(c => ({ category_id: c.category_id, category_name: c.category_name }))
-          : [];
-
-      if (!taxonomy.length) {
-        const ids = Array.from(new Set(udv.scores.map(s => s.category_id)));
-        taxonomy = ids.map((id, i) => ({ category_id: id, category_name: `Kategori ${i + 1}` }));
-      }
-
-      // Find målperson
-      const people = Array.isArray(udv.people) ? udv.people : [];
-      let targetId = null;
-      const match = people.find(p => String(p.employee_no ?? p.ma ?? p.meta?.employee_no ?? '').trim() === String(userMA).trim());
-      if (match) targetId = match.id;
-      else if (people.length === 1) targetId = people[0].id;
-      else targetId = people[0]?.id ?? null;
-
-      ['self', 'peer', 'leader'].forEach(type => {
-        taxonomy.forEach(cat => {
-          const r = udv.scores.find(s =>
-            (String(s.target_id) === String(targetId) || targetId == null) &&
-            (s.category_id === cat.category_id || s.category === cat.category_id || s.category_name === cat.category_name) &&
-            (s.respondent_type === type || s.type === type)
-          );
-          const v = r ? (Number.isFinite(r.value) ? r.value : (Number.isFinite(r.safe_avg) ? r.safe_avg : null)) : null;
-          if (v != null) {
-            scores.push({
-              assessment_id: assessmentId,
-              category_name: cat.category_name,
-              respondent_type: type,
-              score_numeric: v
-            });
-          }
-        });
-      });
+  // Tegn igen hvis vi stadig har noget at vise
+  if (selectedForComparison.length >= 2) {
+    renderDevLineProfile();
+    // hold A/B hvis muligt, ellers auto-justér
+    const a = document.getElementById('devWaveAProfile'), b = document.getElementById('devWaveBProfile');
+    if (a && b && (!selectedForComparison.includes(a.value) || !selectedForComparison.includes(b.value))) {
+      a.value = selectedForComparison[0];
+      b.value = selectedForComparison[1] || selectedForComparison[0];
     }
-
-    const assessmentLabels = selectedForComparison.map(id => {
-      const a = assessments.find(x => x.id === id);
-      return { id, label: getAssessmentDisplayName(a) || 'Ukendt' };
-    });
-
-    const categories = Array.from(new Set(scores.map(s => s.category_name))).filter(Boolean);
-    const respondentTypes = ['self', 'peer', 'leader'];
-
-    let html = '<div class="compass-container">';
-    html += '<h3 style="margin-bottom:20px">📊 Sammenligning - Tabelvisning</h3>';
-
-    respondentTypes.forEach(type => {
-      const typeLabel = type === 'self' ? '👤 Selv' : type === 'peer' ? '👥 Kolleger' : '👔 Leder';
-      const typeScores = scores.filter(s => s.respondent_type === type);
-
-      if (typeScores.length === 0) return;
-
-      html += `<h4 style="margin-top:25px;margin-bottom:15px;color:var(--brand)">${typeLabel}</h4>`;
-      html += '<table style="width:100%;border-collapse:collapse;font-size:0.95em">';
-      html += '<thead><tr style="background:var(--surface)"><th style="padding:10px;text-align:left">Kategori</th>';
-
-      assessmentLabels.forEach(a => {
-        html += `<th style="padding:10px;text-align:center">${a.label}</th>`;
-      });
-
-      html += '<th style="padding:10px;text-align:center">Ændring</th></tr></thead><tbody>';
-
-      categories.forEach((cat, idx) => {
-        html += `<tr style="border-bottom:1px solid var(--line);background:${idx % 2 === 0 ? '#fff' : 'var(--surface)'}">`;
-        html += `<td style="padding:10px">${cat}</td>`;
-
-        const values = assessmentLabels.map(a => {
-          const score = typeScores.find(s => s.assessment_id === a.id && s.category_name === cat);
-          return score ? parseFloat(score.score_numeric) : 0;
-        });
-
-        values.forEach(v => {
-          html += `<td style="padding:10px;text-align:center;font-weight:600">${v > 0 ? v.toFixed(2) : '-'}</td>`;
-        });
-
-        const delta = values[values.length - 1] - values[0];
-        const arrow = delta > 0 ? '▲' : delta < 0 ? '▼' : '━';
-        const color = delta > 0 ? 'var(--success)' : delta < 0 ? 'var(--error)' : 'var(--muted)';
-
-        html += `<td style="padding:10px;text-align:center;color:${color};font-weight:700">${arrow} ${Math.abs(delta).toFixed(2)}</td>`;
-        html += '</tr>';
-      });
-
-      html += '</tbody></table>';
-    });
-
-    html += '<div style="margin-top:25px">';
-    html += '<button class="btn primary" onclick="downloadComparisonPDF()">📥 Download Sammenligning PDF</button>';
-    html += '<button class="btn" onclick="exportComparisonCSV()" style="margin-left:10px">📊 Eksporter CSV</button>';
-    html += '</div>';
-
-    html += '</div>';
-
-    container.innerHTML = html;
-
-  } catch (error) {
-    console.error('Comparison error:', error);
-    container.innerHTML = '<div class="alert error">Kunne ikke sammenligne assessments</div>';
+    renderDevRadarProfile();
+    renderDevTableProfile();
   }
 }
 
-async function renderComparisonRadar() {
-  const container = document.getElementById('comparisonResult');
-  
-  if (selectedForComparison.length < 2) {
-    container.innerHTML = '<div class="alert warning">Vælg mindst 2 assessments</div>';
-    return;
-  }
-  
-  try {
-    // Hent scores
-    const { data: scores, error } = await supabase
-      .from('individual_compass_scores')
-      .select('*')
-      .in('assessment_id', selectedForComparison);
-    
-    if (error) throw error;
-    
-    // Respondent type selector
-    let html = '<div class="compass-container">';
-    html += '<h3 style="margin-bottom:20px">🧭 Sammenligning - Radar Overlay</h3>';
-    
-    html += '<div style="margin-bottom:20px">';
-    html += '<label style="font-weight:600;display:block;margin-bottom:8px">Vælg respondent type:</label>';
-    html += '<select id="comparisonRespondentType" class="input" onchange="updateComparisonRadar()" style="max-width:300px">';
-    html += '<option value="self">👤 Selv</option>';
-    html += '<option value="peer">👥 Kolleger</option>';
-    html += '<option value="leader">👔 Leder</option>';
-    html += '</select>';
-    html += '</div>';
-    
-    html += '<div style="max-width:700px;margin:0 auto">';
-    html += '<canvas id="comparisonRadarChart" style="max-height:500px"></canvas>';
-    html += '</div>';
-    
-    html += '<div style="margin-top:25px">';
-    html += '<button class="btn primary" onclick="downloadComparisonPDF()">📥 Download Sammenligning PDF</button>';
-    html += '<button class="btn" onclick="exportComparisonCSV()" style="margin-left:10px">📊 Eksporter CSV</button>';
-    html += '</div>';
-    
-    html += '</div>';
-    
-    container.innerHTML = html;
-    
-    // Render initial chart
-    updateComparisonRadar();
-    
-  } catch (error) {
-    console.error('Comparison radar error:', error);
-    container.innerHTML = '<div class="alert error">Kunne ikke oprette radar sammenligning</div>';
-  }
+// === Linjegraf: gennemsnit pr. runde (Self/Peer/Leader) ===
+async function renderDevLineProfile(){
+  const ids = selectedForComparison.slice();
+  if (ids.length < 2) return;
+
+  const { data: scores, error } = await supabase
+    .from('individual_compass_scores')
+    .select('assessment_id,respondent_type,score_numeric')
+    .in('assessment_id', ids);
+  if (error) { console.error(error); return; }
+
+  const order = ids.map(id => ({
+    id, label: getAssessmentDisplayName(assessments.find(a=>a.id===id)) || 'Runde'
+  }));
+
+  // gennemsnit per assessment per type
+  const types = ['self','peer','leader'];
+  const series = { self:[], peer:[], leader:[] };
+  order.forEach(({id})=>{
+    types.forEach(t=>{
+      const xs = scores.filter(s=>s.assessment_id===id && s.respondent_type===t).map(s=>+s.score_numeric||0);
+      const avg = xs.length ? (xs.reduce((a,b)=>a+b,0)/xs.length) : null;
+      series[t].push(avg);
+    });
+  });
+
+  const ctx = document.getElementById('devLineProfile').getContext('2d');
+  if (devLineChartProfile) devLineChartProfile.destroy();
+  devLineChartProfile = new Chart(ctx,{
+    type:'line',
+    data:{
+      labels: order.map(o=>o.label),
+      datasets:[
+        {label:'Selv',    data:series.self,   borderWidth:2, tension:.2},
+        {label:'Kolleger',data:series.peer,   borderWidth:2, tension:.2},
+        {label:'Leder',   data:series.leader, borderWidth:2, tension:.2}
+      ]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      scales:{ y:{ beginAtZero:true, min:0, max:5 } },
+      plugins:{ legend:{ position:'bottom' } }
+    }
+  });
 }
 
-async function updateComparisonRadar() {
-  const select = document.getElementById('comparisonRespondentType');
-  if (!select) return;
-  
-  const respondentType = select.value;
-  
-  try {
-    // Hent scores
-    const { data: scores, error } = await supabase
-      .from('individual_compass_scores')
-      .select('*')
-      .in('assessment_id', selectedForComparison)
-      .eq('respondent_type', respondentType);
-    
-    if (error) throw error;
-    
-    // Organiser data
-    const categories = Array.from(new Set(scores.map(s => s.category_name)));
-    const colors = ['#667eea', '#48bb78', '#ed8936', '#f56565'];
-    
-    const datasets = selectedForComparison.map((assessmentId, idx) => {
-      const assessment = assessments.find(a => a.id === assessmentId);
-      const assessmentScores = scores.filter(s => s.assessment_id === assessmentId);
-      
-      return {
-        label: getAssessmentDisplayName(assessment),
-        data: categories.map(cat => {
-          const score = assessmentScores.find(s => s.category_name === cat);
-          return score ? parseFloat(score.score_numeric) : null;
-        }),
-        borderColor: colors[idx % colors.length],
-        backgroundColor: colors[idx % colors.length] + '33',
-        borderWidth: 2,
-        pointRadius: 4,
-        pointHoverRadius: 6
+// === Radar A/B: identisk interaktion som Admin (med kvadrantbaggrund) ===
+async function renderDevRadarProfile(){
+  const a = document.getElementById('devWaveAProfile')?.value;
+  const b = document.getElementById('devWaveBProfile')?.value;
+  if (!a || !b) return;
+
+  const { data: scores, error } = await supabase
+    .from('individual_compass_scores')
+    .select('*')
+    .in('assessment_id', [a,b]);
+  if (error) { console.error(error); return; }
+
+  const cats = Array.from(new Set(scores.map(s=>s.category_name)));
+
+  const by = (id,type)=>cats.map(cat=>{
+    const r = scores.find(x=>x.assessment_id===id && x.category_name===cat && x.respondent_type===type);
+    return r ? (+r.score_numeric||null) : null;
+  });
+
+  // vælg “peer” (kolleger) som default; hvis ingen data, brug “self”
+  const typePref = ['peer','self','leader'].find(t=>scores.some(s=>s.respondent_type===t)) || 'self';
+  const older = by(a, typePref);
+  const newer = by(b, typePref);
+
+  const radCanvas = document.getElementById('devRadarProfile');
+  if (!radCanvas) return;
+
+  // Kvadrant baggrund (løftet fra Admins plugin-tilgang)
+  const quadrantBackgroundPlugin = {
+    id: 'quadrants',
+    beforeDraw(chart){
+      const { ctx, chartArea: {left, top, right, bottom, width, height} } = chart;
+      const cx = (left+right)/2, cy = (top+bottom)/2, r = Math.min(width,height)/2;
+      const degToRad = d => d*Math.PI/180;
+      const drawSector = (a0,a1,fill)=>{
+        ctx.save(); ctx.beginPath();
+        ctx.moveTo(cx,cy);
+        ctx.arc(cx,cy,r,a0,a1);
+        ctx.closePath(); ctx.fillStyle=fill; ctx.fill(); ctx.restore();
       };
-    });
-    
-    const ctx = document.getElementById('comparisonRadarChart');
-    
-    if (comparisonChart) {
-      comparisonChart.destroy();
+      // Farver matcher Admin (svage)
+      drawSector(degToRad(0),   degToRad(90),  'rgba(255,165,0,0.08)'); // Udvikling
+      drawSector(degToRad(90),  degToRad(180), 'rgba(60,179,113,0.08)'); // Resultater
+      drawSector(degToRad(180), degToRad(270), 'rgba(128,128,128,0.08)'); // Stabilitet
+      drawSector(degToRad(270), degToRad(360), 'rgba(100,149,237,0.08)'); // Relationer
     }
-    
-    comparisonChart = new Chart(ctx, {
-      type: 'radar',
-      data: {
-        labels: categories,
-        datasets: datasets
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        scales: {
-          r: {
-            beginAtZero: true,
-            min: 0,
-            max: 5,
-            ticks: {
-              stepSize: 1
-            }
-          }
-        },
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: {
-              padding: 15,
-              font: {
-                size: 13,
-                weight: '600'
-              }
-            }
-          },
-          title: {
-            display: true,
-            text: `Sammenligning - ${respondentType === 'self' ? 'Selv' : respondentType === 'peer' ? 'Kolleger' : 'Leder'}`,
-            font: {
-              size: 18,
-              weight: 'bold'
-            }
-          }
-        }
-      }
-    });
-    
-  } catch (error) {
-    console.error('Update comparison radar error:', error);
-  }
+  };
+
+  const makeDataset = (vals, dashed)=>({
+    label: dashed ? 'Runde A' : 'Runde B',
+    data: vals,
+    borderWidth: 2,
+    borderDash: dashed ? [6,6] : [],
+    pointRadius: 0
+  });
+
+  if (devRadarChartProfile) devRadarChartProfile.destroy();
+  devRadarChartProfile = new Chart(radCanvas.getContext('2d'), {
+    type:'radar',
+    data:{ labels: cats, datasets:[ makeDataset(older,true), makeDataset(newer,false) ] },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      elements:{ line:{ tension:.2 }, point:{ radius:0, hitRadius:6 } },
+      scales:{ r:{ beginAtZero:true, min:0, max:5, ticks:{ display:false }, grid:{ circular:true },
+        angleLines:{ color:'rgba(0,0,0,0.08)' }, pointLabels:{ font:{ size:12, weight:'bold' } } } },
+      plugins:{ legend:{ position:'bottom' } }
+    },
+    plugins:[quadrantBackgroundPlugin]
+  });
 }
 
-async function downloadComparisonPDF() {
-  try {
-    const container = document.getElementById('comparisonResult');
-    if (!container || !container.firstElementChild) {
-      alert('Ingen sammenligning at downloade');
-      return;
-    }
+// === Panel-matrix tabel ===
+async function renderDevTableProfile(){
+  const ids = selectedForComparison.slice();
+  const head = document.getElementById('profileDevTblHead');
+  const body = document.getElementById('profileDevTblBody');
+  if (!head || !body || ids.length < 2) return;
 
-    // Klargør wrapper til pæn PDF (som i kompas PDF)
-    const wrap = document.createElement('div');
-    wrap.style.width = '900px';
-    wrap.style.padding = '32px';
-    wrap.style.background = '#fff';
-    wrap.innerHTML = `
-      <div style="margin-bottom:16px">
-        <h1 style="color:#667eea;margin:0 0 6px 0">⚖️ Sammenligning</h1>
-        <div style="color:#64748b">MA: ${userMA}</div>
-      </div>
-      <div id="cmpPdfArea"></div>
-    `;
-    document.body.appendChild(wrap);
+  const { data: scores, error } = await supabase
+    .from('individual_compass_scores')
+    .select('*')
+    .in('assessment_id', ids);
+  if (error) { console.error(error); return; }
 
-    // Klon det aktuelle indhold (tabel eller radar)
-    const clone = container.cloneNode(true);
-    // Canvas i radar skal re-rendes – håndtér ved at bruge html2canvas direkte på hele området
-    document.getElementById('cmpPdfArea').appendChild(clone);
+  const cats = Array.from(new Set(scores.map(s=>s.category_name)));
+  const cols = ids.map(id=>({
+    id,
+    label: getAssessmentDisplayName(assessments.find(a=>a.id===id)) || 'Runde'
+  }));
 
-    await new Promise(r => setTimeout(r, 400)); // lille pause til layout
+  head.innerHTML = `<tr>
+    <th style="padding:6px 8px;text-align:left;position:sticky;left:0;background:#fff;z-index:1">Kategori</th>
+    ${cols.map(c=>`<th style="padding:6px 8px;text-align:center">${c.label}</th>`).join('')}
+    <th style="padding:6px 8px;text-align:center">Ændring</th>
+  </tr>`;
 
-    const canvas = await html2canvas(wrap, { scale: 2, backgroundColor: '#ffffff' });
-    const imgData = canvas.toDataURL('image/png');
+  body.innerHTML = cats.map((cat,idx)=>{
+    // brug “peer” hvis muligt, ellers “self”
+    const pick = (id)=>['peer','self','leader'].reduce((acc,t)=>{
+      if (acc!=null) return acc;
+      const r = scores.find(s=>s.assessment_id===id && s.category_name===cat && s.respondent_type===t);
+      return r ? (+r.score_numeric||null) : acc;
+    }, null);
 
-    const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
-    const pageWidth = 210;
-    const pageHeight = (canvas.height * pageWidth) / canvas.width;
-    pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, pageHeight);
-    pdf.save(`Sammenligning_${userMA}.pdf`);
+    const vals = cols.map(c=>pick(c.id));
+    const first = vals.find(v=>v!=null) ?? 0;
+    const last  = [...vals].reverse().find(v=>v!=null) ?? 0;
+    const delta = (last||0) - (first||0);
+    const arrow = delta>0 ? '▲' : delta<0 ? '▼' : '━';
+    const color = delta>0 ? 'var(--success)' : delta<0 ? 'var(--error)' : 'var(--muted)';
 
-    document.body.removeChild(wrap);
-  } catch (e) {
-    console.error('Comparison PDF error:', e);
-    alert('Kunne ikke generere PDF');
-  }
+    return `<tr style="border-bottom:1px solid var(--line);background:${idx%2? 'var(--surface)':'#fff'}">
+      <td style="padding:8px;position:sticky;left:0;background:inherit">${cat}</td>
+      ${vals.map(v=>`<td style="padding:8px;text-align:center;font-weight:600">${v!=null? v.toFixed(2): '-'}</td>`).join('')}
+      <td style="padding:8px;text-align:center;color:${color};font-weight:700">${arrow} ${Math.abs(delta).toFixed(2)}</td>
+    </tr>`;
+  }).join('');
 }
 
-async function exportComparisonCSV() {
-  try {
-    if (selectedForComparison.length < 2) {
-      alert('Vælg mindst 2 assessments');
-      return;
-    }
+// === CSV eksport ===
+function exportProfileDevCsv(){
+  const table = document.getElementById('profileDevTbl');
+  if (!table) return;
+  const rows = Array.from(table.querySelectorAll('tr'));
+  const csv = rows.map(tr => Array.from(tr.children).map(td =>
+    `"${(td.textContent||'').replace(/"/g,'""')}"`).join(',')
+  ).join('\n');
 
-    // Hent alle scores (DB + fallback UDV) som i renderComparison
-    let { data: scores, error } = await supabase
-      .from('individual_compass_scores')
-      .select('*')
-      .in('assessment_id', selectedForComparison);
-    if (error) throw error;
-    scores = Array.isArray(scores) ? scores.slice() : [];
-
-    for (const assessmentId of selectedForComparison) {
-      const hasAny = scores.some(s => s.assessment_id === assessmentId);
-      if (hasAny) continue;
-
-      const a = assessments.find(x => x.id === assessmentId);
-      const udv = a?.udv_json;
-      if (!udv || !Array.isArray(udv.scores)) continue;
-
-      let taxonomy = Array.isArray(udv.taxonomy)
-        ? udv.taxonomy.map(t => ({ category_id: t.category_id, category_name: t.category_name }))
-        : Array.isArray(a?.categories)
-          ? a.categories.map(c => ({ category_id: c.category_id, category_name: c.category_name }))
-          : [];
-
-      if (!taxonomy.length) {
-        const ids = Array.from(new Set(udv.scores.map(s => s.category_id)));
-        taxonomy = ids.map((id, i) => ({ category_id: id, category_name: `Kategori ${i + 1}` }));
-      }
-
-      const people = Array.isArray(udv.people) ? udv.people : [];
-      let targetId = null;
-      const match = people.find(p => String(p.employee_no ?? p.ma ?? p.meta?.employee_no ?? '').trim() === String(userMA).trim());
-      if (match) targetId = match.id;
-      else if (people.length === 1) targetId = people[0].id;
-      else targetId = people[0]?.id ?? null;
-
-      ['self', 'peer', 'leader'].forEach(type => {
-        taxonomy.forEach(cat => {
-          const r = udv.scores.find(s =>
-            (String(s.target_id) === String(targetId) || targetId == null) &&
-            (s.category_id === cat.category_id || s.category === cat.category_id || s.category_name === cat.category_name) &&
-            (s.respondent_type === type || s.type === type)
-          );
-          const v = r ? (Number.isFinite(r.value) ? r.value : (Number.isFinite(r.safe_avg) ? r.safe_avg : null)) : null;
-          if (v != null) {
-            scores.push({
-              assessment_id: assessmentId,
-              category_name: cat.category_name,
-              respondent_type: type,
-              score_numeric: v
-            });
-          }
-        });
-      });
-    }
-
-    const assessmentLabels = selectedForComparison.map(id => {
-      const a = assessments.find(x => x.id === id);
-      return { id, label: getAssessmentDisplayName(a) || 'Ukendt' };
-    });
-    const categories = Array.from(new Set(scores.map(s => s.category_name))).filter(Boolean);
-    const respondentTypes = ['self', 'peer', 'leader'];
-
-    // CSV header
-    let csv = 'Respondent,Kategori,' + assessmentLabels.map(a => `"${a.label.replaceAll('"','""')}"`).join(',') + '\n';
-
-    respondentTypes.forEach(type => {
-      const rows = categories.map(cat => {
-        const cells = assessmentLabels.map(a => {
-          const r = scores.find(s => s.respondent_type === type && s.category_name === cat && s.assessment_id === a.id);
-          return r ? Number.parseFloat(r.score_numeric).toFixed(2) : '';
-        });
-        return `"${type}","${cat.replaceAll('"','""')}",${cells.join(',')}`;
-      });
-      csv += rows.join('\n') + '\n';
-    });
-
-    const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Sammenligning_${userMA}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  } catch (e) {
-    console.error('Comparison CSV error:', e);
-    alert('Kunne ikke eksportere CSV');
-  }
+  const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'sammenlign_panel_matrix.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 // ============================================================================
