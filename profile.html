@@ -817,6 +817,10 @@ async function handleUDVUpload(file) {
 
     // Forsøg at parse .UDV med fælles parser (understøtter JSON + base64-JSON)
     let udv = await readUdvFileProfile(new File([rawText], file.name, { type: file.type }));
+    // Bevar oprindeligt filnavn til visning/download
+    if (udv && typeof udv === 'object' && !udv.original_filename) {
+      udv.original_filename = file.name;
+    }
 
     // Hvis ikke parsebart som JSON, gem rå fil som base64-wrapper (bevar adfærd)
     if (!udv || Object.keys(udv).length === 0) {
@@ -825,6 +829,7 @@ async function handleUDVUpload(file) {
       udv = {
         raw_file_base64: b64,
         filename: file.name,
+        original_filename: file.name,
         mimetype: file.type || 'application/octet-stream',
         note: 'unparsed'
       };
@@ -945,7 +950,7 @@ async function handleUDVUpload(file) {
         categories = { categories: [] };
         responses  = {};
         contract   = {};
-        udv = { raw_file_base64: b64, filename: file.name, mimetype: file.type || 'application/octet-stream', note: 'unparsed' };
+        udv = { raw_file_base64: b64, filename: file.name, original_filename: file.name, mimetype: file.type || 'application/octet-stream', note: 'unparsed' };
       }
 
       // Gem i DB
@@ -2144,7 +2149,11 @@ function renderFilesList() {
   list.innerHTML = assessments.map(a => `
     <li class="file-item" data-id="${a.id}">
       <div class="file-info">
-        <div class="file-name">udviklingskontrakt_${(a.project_label || '').replace(/\s+/g,'_')}_${(userMA || '').toString().trim()}.udv</div>
+        <div class="file-name">${
+          (a.udv_json && (a.udv_json.original_filename || a.udv_json.filename))
+            ? (a.udv_json.original_filename || a.udv_json.filename)
+            : `udviklingskontrakt_${(a.project_label || '').replace(/\s+/g,'_')}_${(userMA || '').toString().trim()}.udv`
+        }</div>
         <div class="file-meta">Udgivet ${new Date(a.published_at).toLocaleDateString('da-DK')}</div>
       </div>
       <div style="display:flex;gap:8px">
@@ -2167,7 +2176,9 @@ async function downloadUDV(assessmentId) {
     // 1:1 “Gem”-format (ingen omskrivning) + korrekt MIME + MA i filnavn
     const udvData = assessment.udv_json;
     const safe = (s) => String(s || '').replace(/\s+/g, '_').replace(/[^A-Za-z0-9_\-\.]/g, '');
-    const filename = `udviklingskontrakt_${safe(assessment.project_label)}_${safe(userMA)}.udv`;
+    const filename = (assessment.udv_json && (assessment.udv_json.original_filename || assessment.udv_json.filename))
+      ? String(assessment.udv_json.original_filename || assessment.udv_json.filename)
+      : `udviklingskontrakt_${safe(assessment.project_label)}_${safe(userMA)}.udv`;
 
     const blob = new Blob(
       [JSON.stringify(udvData, null, 2)],
