@@ -9737,10 +9737,10 @@ function contractSetupEventListeners(){
             // Kollegastøtte + Teamroller
             colleagues_selected:  Array.from(contractState.colleaguesSelected ?? new Set()),
             team_roles_selection: Array.from(contractState.team_roles_selected ?? new Set()),
-            // Struktureret + fritekst – ENSARTET
-            colleague_support: (colleague_support || []),    // [{id,name,category}]
-            colleague_support_detail: [],                    // ryddet op
+
+            // Kollegastøtte – kun ren tekst i .UDV
             colleague_support_text: colleague_support_text,
+
 
             // 30/60/90
             plan: (typeof contractSerializePlan === 'function' ? contractSerializePlan() : null),
