@@ -11159,7 +11159,10 @@ async function contractPublish() {
       .from('artifacts')
       .upload(udvPath, udvBlob, { contentType: 'application/kompas-udv+json', upsert: false });
 
-    if (udvUploadError) throw new Error('UDV upload fejl: ' + udvUploadError.message);
+    // Storage er "nice to have" – fejler det (fx 400/permissions), fortsæt publicering alligevel
+    if (udvUploadError) {
+      console.warn('⚠️ UDV upload fejl, fortsætter uden storage:', udvUploadError);
+    }
 
     // === STEP 4: Generér og upload PDF (valgfrit men implementeret) ===
     progressText.textContent = 'Genererer PDF af kontrakt.';
