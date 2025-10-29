@@ -1555,7 +1555,14 @@ function renderDashboard() {
   // Stats
   document.getElementById('statsAssessments').textContent = assessments.length;
   
-  const contractsCount = assessments.filter(a => a.development_contract).length;
+    const hasDC = (a) => {
+    if (a?.development_contract) return true;
+    const udv = typeof a?.udv_json === 'string'
+      ? (()=>{ try { return JSON.parse(a.udv_json); } catch { return null; } })()
+      : a?.udv_json;
+    return !!udv?.contract;
+  };
+  const contractsCount = (assessments || []).filter(hasDC).length;
   document.getElementById('statsContracts').textContent = contractsCount;
   
   // Filer tælles senere når vi implementerer artifacts
@@ -2320,7 +2327,13 @@ function initializeContractTab() {
   // Populate assessment dropdown
   const select = document.getElementById('contractAssessmentSelect');
   
-  const assessmentsWithContract = assessments.filter(a => a.development_contract);
+  const assessmentsWithContract = (assessments || []).filter(a => {
+    if (a?.development_contract) return true;
+    const udv = typeof a?.udv_json === 'string'
+      ? (()=>{ try { return JSON.parse(a.udv_json); } catch { return null; } })()
+      : a?.udv_json;
+    return !!udv?.contract;
+  });
   
   if (assessmentsWithContract.length === 0) {
     document.getElementById('contractEmptyState').style.display = 'block';
@@ -2354,13 +2367,21 @@ function loadContractForAssessment() {
   currentContractAssessment = assessmentId;
   const assessment = assessments.find(a => a.id === assessmentId);
 
-  if (!assessment || !assessment.development_contract) {
+  let dc = assessment?.development_contract || null;
+  if (!dc) {
+    const udv = typeof assessment?.udv_json === 'string'
+      ? (()=>{ try { return JSON.parse(assessment.udv_json); } catch { return null; } })()
+      : assessment?.udv_json;
+    dc = udv?.contract || null;
+  }
+
+  if (!assessment || !dc) {
     document.getElementById('contractContent').innerHTML = '<div class="alert warning">Ingen udviklingskontrakt for denne assessment</div>';
     document.getElementById('contractActions').style.display = 'none';
     return;
   }
 
-  const c = assessment.development_contract || {};
+  const c = dc || {};
   const escOrDash = v => (v === null || v === undefined || v === '' ? '—' : esc(v));
 
   let html = `
