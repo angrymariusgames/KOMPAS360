@@ -594,37 +594,28 @@ async function init() {
     document.getElementById('accountCreated').textContent = new Date(userData.created_at).toLocaleDateString('da-DK');
   }
 
-  // Vis "Skift til Admin", kun hvis brugeren også har en adminrolle
+  // Vis "Skift til Admin" KUN hvis brugeren har rollen 'admin' eller 'programmer'
   try {
+    const switchBtn = document.getElementById('switchToAdminBtn');
+    if (switchBtn) switchBtn.style.display = 'none'; // start skjult
+
     const { data: roleData } = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', authUser.id)
+      .in('role', ['admin','programmer'])   // stramt filter
       .maybeSingle();
 
-    const switchBtn = document.getElementById('switchToAdminBtn');
-    if (!switchBtn) { /* ingen knap i DOM */ }
-    if (roleData?.role) {
-      // Kortlægning: programmer -> master.html, admin -> admin.html
-      const role = roleData.role;
-      // Upload skal være tilladt for alle roller – ingen specialhåndtering
-      try {
-        // no-op
-      } catch {}
+    if (switchBtn && roleData?.role) {
+      const role = roleData.role; // 'admin' eller 'programmer'
       switchBtn.style.display = 'inline-block';
       switchBtn.onclick = () => {
         if (role === 'programmer') {
           window.location.href = 'master.html';
-        } else if (role === 'admin') {
+        } else { // role === 'admin'
           window.location.href = 'admin.html';
-        } else {
-          // Ukendt/anden rolle: vis intet
-          switchBtn.style.display = 'none';
         }
       };
-
-    } else if (switchBtn) {
-      switchBtn.style.display = 'none';
     }
   } catch (e) {
     console.warn('Kunne ikke afgøre om brugeren har admin-rolle:', e);
