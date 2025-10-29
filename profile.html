@@ -1123,7 +1123,13 @@ async function deleteAssessment(assessmentId) {
       await tryDeleteRelated(table, 'assessment_id', assessmentId);
     }
 
-    // 3) hovedpost
+    // 3) frigør evt. FK-referencer fra development_contract -> individual_assessments
+    await supabase
+      .from('development_contract')
+      .update({ published_assessment_id: null })
+      .eq('published_assessment_id', assessmentId);
+
+    // 4) hovedpost
     {
       const { error: delErr } = await supabase
         .from('individual_assessments')
