@@ -108,7 +108,7 @@
     .section-subtitle{color:var(--muted);font-size:.95rem;margin-top:-10px;margin-bottom:16px}
     
     .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px;transition:.2s}
-    .card:hover{box-shadow:0 4px 12px rgba(0,0,0,.08)}
+    .card:hover{box-shadow:0 4px 12px rgba(0,0,0,0.08)}
     .card-title{font-weight:700;font-size:1.1rem;margin-bottom:8px}
     .card-meta{color:var(--muted);font-size:.9rem;margin-bottom:8px}
     .card-actions{display:flex;gap:8px;margin-top:12px}
@@ -180,6 +180,37 @@
     .empty-icon{font-size:3rem;margin-bottom:16px;opacity:.5}
     .empty-title{font-size:1.2rem;font-weight:600;margin-bottom:8px;color:var(--ink)}
     .empty-text{margin-bottom:20px}
+
+    /* ---- MOBIL-FORBEDRINGER UDEN AT ÆNDRE DESKTOP ---- */
+    @media (max-width: 768px){
+      .mu-profile{padding:12px;}
+      .app{border-radius:12px; box-shadow:none;}
+      .mu-profile .header{padding:14px 16px; flex-wrap:wrap; gap:10px}
+      .logo-box{width:44px;height:44px}
+      .title-text h1{font-size:1.25rem}
+      .title-text p{font-size:.9rem}
+
+      .header-actions{gap:8px; width:100%; justify-content:flex-start}
+      .user-info{font-size:.85rem; padding:6px 10px}
+
+      .mu-profile .btn{min-height:44px; padding:10px 12px; touch-action:manipulation}
+      .btn.small{min-height:40px; padding:8px 10px}
+
+      .mu-profile .tabbar{padding:0 10px; scroll-snap-type:x mandatory}
+      .mu-profile .tabbtn{padding:12px 14px; font-size:1rem; scroll-snap-align:start}
+
+      .mu-profile .content{padding:16px}
+
+      .upload-zone{padding:24px}
+      #cmpChart{height:50vh; min-height:220px}
+
+      .file-item{padding:14px}
+    }
+    @media (max-width: 400px){
+      .title-text h1{font-size:1.1rem}
+      .user-info{display:none}
+    }
+    * { -webkit-tap-highlight-color: transparent; }
   </style>
 </head>
 
@@ -692,6 +723,10 @@ function setupTabs() {
         const contentEl = document.getElementById(`tab-${target}`);
         if (contentEl) {
           contentEl.classList.add('active');
+          // Mobil: scroll indhold i fokus så det ikke starter under sticky tabbar
+          if (window.matchMedia('(max-width: 768px)').matches) {
+            contentEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
         } else {
           console.error(`Kunne ikke finde indhold for tab: ${target}`);
           return;
