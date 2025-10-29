@@ -11138,7 +11138,7 @@ async function contractPublish() {
         variant: variantEnum,
         published_at: new Date().toISOString(),
         // lad triggeren sætte published_by = auth.uid()
-        development_contract: udvJson?.development_contract ?? null,
+        development_contract: udvJson?.contract ?? null,
         udv_json: udvJson
       }])
       .select('id')  // virker nu fordi vi har en SELECT-policy på published_by = auth.uid()
@@ -11193,7 +11193,7 @@ async function contractPublish() {
     // Hvis du vil sikre idempotens, kan du køre en defensiv update igen:
     const { error: updErr } = await window.supabaseClient
       .from('individual_assessments')
-      .update({ udv_json: udvJson })
+      .update({ udv_json: udvJson, development_contract: udvJson?.contract ?? null })
       .eq('id', assessmentId);
     if (updErr) console.warn('⚠️ Assessment update fejl:', updErr);
 
