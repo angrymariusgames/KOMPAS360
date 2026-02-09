@@ -637,29 +637,29 @@
 </div>
 
 <script>
-const SUPABASE_URL = "https://wsrstyrsuwhcmmlmnbrz.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzcnN0eXJzdXdoY21tbG1uYnJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MTU0NTIsImV4cCI6MjA3MTE5MTQ1Mn0.Rf3Z3bQGjV5CKXKZr6IMOjzPdbhVJCh3SwuvlkpxUD0";
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
+// ============================================================
+// 1) PURE UI FUNCTIONS — must work even if Supabase fails to load
+// ============================================================
 const $ = (id) => document.getElementById(id);
 let activationData = {};
 
-// Tab switching
 function switchTab(tabName) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   
-  document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
-  $(`${tabName}-panel`).classList.add('active');
+  const tabBtn = document.querySelector(`[data-tab="${tabName}"]`);
+  const panel = $(`${tabName}-panel`);
+  if (tabBtn) tabBtn.classList.add('active');
+  if (panel) panel.classList.add('active');
 }
 
 document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => switchTab(tab.dataset.tab));
 });
 
-// Message display
 function showMessage(elementId, message, type = 'error') {
   const el = $(elementId);
+  if (!el) return;
   el.className = `message ${type}`;
   el.textContent = message;
   el.style.display = 'block';
@@ -669,9 +669,25 @@ function showMessage(elementId, message, type = 'error') {
   }
 }
 
+// ============================================================
+// 2) SUPABASE INITIALIZATION — with error handling
+// ============================================================
+const SUPABASE_URL = "https://wsrstyrsuwhcmmlmnbrz.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzcnN0eXJzdXdoY21tbG1uYnJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MTU0NTIsImV4cCI6MjA3MTE5MTQ1Mn0.Rf3Z3bQGjV5CKXKZr6IMOjzPdbhVJCh3SwuvlkpxUD0";
+
+let supabase = null;
+try {
+  if (!window.supabase) throw new Error('Supabase library failed to load from CDN');
+  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+} catch (err) {
+  console.error('Supabase init failed:', err);
+  showMessage('login-message', 'Kunne ikke oprette forbindelse. Genindlæs siden eller tjek din internetforbindelse.', 'error');
+}
+
 // Login form
 $('login-form').addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (!supabase) { showMessage('login-message', 'Systemfejl: Genindlæs siden.', 'error'); return; }
   showMessage('login-message', '', 'info');
   
   const email = $('login-email').value.trim().toLowerCase();
@@ -728,6 +744,7 @@ $('login-form').addEventListener('submit', async (e) => {
 // Reset password form
 $('reset-form').addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (!supabase) { showMessage('reset-message', 'Systemfejl: Genindlæs siden.', 'error'); return; }
   
   const email = $('reset-email').value.trim().toLowerCase();
   const submitBtn = e.target.querySelector('button[type="submit"]');
@@ -757,6 +774,7 @@ $('reset-form').addEventListener('submit', async (e) => {
 // Activation Step 1
 $('activate-form-step1').addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (!supabase) { showMessage('activate-message', 'Systemfejl: Genindlæs siden.', 'error'); return; }
   
   const key = $('activation-key').value.trim().toUpperCase();
   const email = $('activation-email').value.trim().toLowerCase();
@@ -839,6 +857,7 @@ function validatePassword() {
 // Activation Step 2 - SIMPEL version når email confirmation er slået FRA
 $('activate-form-step2').addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (!supabase) { showMessage('activate-message', 'Systemfejl: Genindlæs siden.', 'error'); return; }
   const password = $('new-password').value;
   const submitBtn = e.target.querySelector('button[type="submit"]');
   submitBtn.disabled = true;
@@ -1000,6 +1019,7 @@ function validateRegisterForm() {
 // Registration form submission
 $('register-form').addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (!supabase) { showMessage('register-message', 'Systemfejl: Genindlæs siden.', 'error'); $('register-message').style.display='block'; return; }
   
   const ma = $('register-ma').value.trim();
   const email = $('register-email').value.trim().toLowerCase();
@@ -1116,7 +1136,7 @@ $('register-form').addEventListener('submit', async (e) => {
 
 
 // Check if already logged in - Håndterer dual profiler (admin + individ)
-supabase.auth.getUser().then(async ({ data }) => {
+if (supabase) supabase.auth.getUser().then(async ({ data }) => {
   if (!data.user) return;
 
   // Tjek om email er bekræftet
