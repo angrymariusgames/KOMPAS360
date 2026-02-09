@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co wss://*.supabase.co">
   <title>KOMPAS • Login</title>
   <link rel="icon" href="data:," />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -381,7 +382,7 @@
           <div class="form-group">
             <label for="activation-key">Aktiveringsnøgle</label>
             <input type="text" id="activation-key" class="input" required 
-                   placeholder="F.eks. ABC123" maxlength="6" style="text-transform:uppercase">
+                   placeholder="ABCD123456" maxlength="10">
             <p class="help-text">Indtast den 6-cifrede kode du har modtaget</p>
           </div>
           
@@ -660,7 +661,7 @@ document.querySelectorAll('.tab').forEach(tab => {
 function showMessage(elementId, message, type = 'error') {
   const el = $(elementId);
   el.className = `message ${type}`;
-  el.innerHTML = message;
+  el.textContent = message;
   el.style.display = 'block';
   
   if (type === 'success') {
@@ -719,6 +720,8 @@ $('login-form').addEventListener('submit', async (e) => {
     }
   } catch (error) {
     showMessage('login-message', error.message || 'Login fejlede', 'error');
+  } finally {
+    $('login-form').querySelector('button').disabled = false;
   }
 });
 
@@ -1070,11 +1073,14 @@ $('register-form').addEventListener('submit', async (e) => {
           <div style="text-align: center;">
             <h3 style="margin-bottom: 12px;">✉️ Bekræft din email</h3>
             <p style="margin-bottom: 8px;">Vi har sendt en bekræftelses-email til:</p>
-            <p style="font-weight: 600; margin-bottom: 12px;">${email}</p>
+            <p style="font-weight: 600; margin-bottom: 12px;" id="confirmed-email-display"></p>
             <p style="font-size: 0.9em; color: var(--muted);">Tjek din indbakke og klik på linket for at aktivere din konto.</p>
             <p style="font-size: 0.9em; color: var(--muted); margin-top: 8px;">Kan du ikke finde emailen? Tjek spam/uønsket.</p>
           </div>
         `;
+        // Safe: use textContent to prevent XSS via email
+        const emailEl = document.getElementById('confirmed-email-display');
+        if (emailEl) emailEl.textContent = email;
       }
       
       // Ingen automatisk redirect - bruger skal bekræfte email først
