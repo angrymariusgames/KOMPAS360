@@ -1125,11 +1125,15 @@ $('register-form').addEventListener('submit', async (e) => {
     $('register-footer').style.display = 'block';
     
     let errorMessage = error.message || 'Registrering fejlede';
-    // Brugervenlige fejlbeskeder (behold, men nu sjældnere relevant)
+    // User-friendly error messages
     if (errorMessage.toLowerCase().includes('already registered') || errorMessage.toLowerCase().includes('duplicate')) {
       errorMessage = 'Denne email findes allerede. Log ind med din eksisterende adgangskode.';
     } else if (errorMessage.includes('Password should be')) {
       errorMessage = 'Adgangskoden er for svag. Prøv en stærkere adgangskode.';
+    } else if (errorMessage.toLowerCase().includes('constraint') || errorMessage.toLowerCase().includes('unique_violation') || errorMessage.toLowerCase().includes('uq_individual')) {
+      errorMessage = 'Dette medarbejdernummer eller denne email er allerede registreret. Log ind i stedet.';
+    } else if (errorMessage.toLowerCase().includes('does not exist')) {
+      errorMessage = 'Der opstod en teknisk fejl. Kontakt venligst support.';
     }
     showMessage('register-message', errorMessage, 'error');
   }
