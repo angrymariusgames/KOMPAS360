@@ -1008,6 +1008,7 @@
                 // Reset all question answers
                 document.querySelectorAll('.rating-input').forEach(input => input.checked = false);
                 document.querySelectorAll('.sg-input').forEach(input => input.checked = false);
+                document.querySelectorAll('.sg-option.selected').forEach(el => el.classList.remove('selected'));
                 
                 // Reset submit button
                 document.getElementById('submit-btn').disabled = true;
