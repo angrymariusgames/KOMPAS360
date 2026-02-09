@@ -482,7 +482,8 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const API_BASE_URL = window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'https://minudvikling.dk';
 
 if (!window.supabase) { console.error('Supabase SDK ikke indlæst'); alert('Genindlæs siden.'); }
-const supabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+const supabaseLib = window.supabase;
+supabase = supabaseLib ? supabaseLib.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 // Global state
 let currentUser = null;
