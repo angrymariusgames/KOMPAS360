@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co wss://*.supabase.co">
     <title>KOMPAS • Evaluering</title>
     <link rel="icon" href="data:,">
     
@@ -622,13 +623,21 @@
     </div>
 
     <!-- Supabase -->
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <script>
         // Supabase configuration
         const SUPABASE_URL = "https://wsrstyrsuwhcmmlmnbrz.supabase.co";
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzcnN0eXJzdXdoY21tbG1uYnJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MTU0NTIsImV4cCI6MjA3MTE5MTQ1Mn0.Rf3Z3bQGjV5CKXKZr6IMOjzPdbhVJCh3SwuvlkpxUD0";
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // XSS protection: escape HTML entities in user-supplied strings
+        function escapeHtml(str) {
+            if (!str) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
 
         // Global state
         let state = {
@@ -680,18 +689,10 @@
                     return;
                 }
 
-                console.log('Loading project with token:', token);
-                console.log('Supabase client:', supabase);
-                console.log('Supabase URL:', supabase.supabaseUrl);
-
                 // Call Supabase function directly
                 const { data, error } = await supabase.rpc('get_project_context', {
                     p_token: token
                 });
-
-                console.log('Full Supabase response:', { data, error });
-                console.log('Response.data:', data);
-                console.log('Response.error:', error);
 
                 if (error) {
                     console.error('Supabase error:', error);
@@ -706,8 +707,7 @@
                     throw new Error('Ingen data modtaget fra server');
                 }
 
-                console.log('Parsed data:', data);
-                console.log('Data.questions length:', data.questions ? data.questions.length : 'undefined');
+                // Data loaded successfully
 
                 state.project = data;
                 
@@ -752,8 +752,8 @@
                 div.onclick = (e) => selectTarget(person.id, e.currentTarget);
                 
                 div.innerHTML = `
-                    <div class="target-name">${person.name || person.full_name}</div>
-                    ${person.employee_no ? `<div class="target-id">Nr. ${person.employee_no}</div>` : ''}
+                    <div class="target-name">${escapeHtml(person.name || person.full_name)}</div>
+                    ${person.employee_no ? `<div class="target-id">Nr. ${escapeHtml(person.employee_no)}</div>` : ''}
                 `;
                 
                 container.appendChild(div);
@@ -784,10 +784,7 @@
         }
 
       function renderQuestions() {
-          console.log('renderQuestions called');
-          console.log('state.project:', state.project);
-          console.log('state.project.questions:', state.project.questions);
-          console.log('questions length:', state.project.questions ? state.project.questions.length : 'undefined');
+          // Debug logging removed for production security
           
           const container = document.getElementById('questions-container');
           container.innerHTML = '';
@@ -807,7 +804,7 @@
             grouped[q.domain][q.category].push(q);
           });
 
-          console.log('grouped questions:', grouped);
+          // Debug logging removed for production security
 
           // Nu renderer vi de faktiske spørgsmål
           Object.entries(grouped).forEach(([domainName, categories]) => {
@@ -829,7 +826,7 @@
                 questionDiv.className = 'question-item';
                 questionDiv.innerHTML = `
                   <div class="question-text">
-                    ${categoryName} – ${q.text}
+                    ${escapeHtml(categoryName)} — ${escapeHtml(q.text)}
                   </div>
                   <div class="rating-container">
                     <div class="rating-scale">
