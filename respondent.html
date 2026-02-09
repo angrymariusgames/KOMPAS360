@@ -1009,6 +1009,10 @@
                 document.querySelectorAll('.rating-input').forEach(input => input.checked = false);
                 document.querySelectorAll('.sg-input').forEach(input => input.checked = false);
                 
+                // Reset submit button
+                document.getElementById('submit-btn').disabled = true;
+                document.getElementById('submit-btn').textContent = 'Afslut evaluering';
+                
                 // Update progress
                 updateProgress();
                 
