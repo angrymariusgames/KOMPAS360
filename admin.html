@@ -1547,6 +1547,14 @@ window.addEventListener('load', function() {
   
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+  // XSS protection: escape HTML entities in user-supplied strings
+  function escapeHtml(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
   // Defensive helpers (krav)
   const byId = (id)=>document.getElementById(id);
   const q = (sel,root=document)=>root.querySelector(sel);
@@ -1751,8 +1759,8 @@ async function handleTabDataLoading(tabName) {
       const tr = document.createElement('tr');
       tr.style.borderBottom = '1px solid var(--line)';
       tr.innerHTML = `
-        <td style="padding:8px">${person.full_name}</td>
-        <td style="padding:8px;color:var(--muted)">${person.employee_no || '—'}</td>
+        <td style="padding:8px">${escapeHtml(person.full_name)}</td>
+        <td style="padding:8px;color:var(--muted)">${escapeHtml(person.employee_no || '—')}</td>
         <td style="padding:8px;text-align:center">
           <button class="btn small" onclick="removeTemporaryPerson(${index})" style="background:#dc3545;color:white;border-color:#dc3545;padding:3px 8px;font-size:0.75rem;border-radius:4px">×</button>
         </td>
@@ -2086,7 +2094,7 @@ async function handleTabDataLoading(tabName) {
     modal.className = 'modal';
     modal.innerHTML = `
       <div class="modal-content">
-        <h3 style="margin-bottom:16px">${title}</h3>
+        <h3 style="margin-bottom:16px">${escapeHtml(title)}</h3>
         <div id="qr-container" style="min-height:400px;display:flex;align-items:center;justify-content:center;background:#fff;">
           <div id="qr-code-div"></div>
         </div>
@@ -2270,15 +2278,15 @@ async function handleTabDataLoading(tabName) {
       
       tr.innerHTML = `
         <td>
-          <strong>${p.title}</strong><br>
-          <span class="muted">${p.info_text || ''}</span>
+          <strong>${escapeHtml(p.title)}</strong><br>
+          <span class="muted">${escapeHtml(p.info_text || '')}</span>
         </td>
         <td>
           <div style="margin-bottom:4px">
-            <strong>${responseCount}</strong> svar
+            <strong>${parseInt(responseCount) || 0}</strong> svar
           </div>
           <div style="font-size:0.8rem;color:var(--muted)">
-            Slettes: ${deletionInfo}
+            Slettes: ${escapeHtml(deletionInfo)}
           </div>
         </td>
         <td>${p.open_at ? new Date(p.open_at).toLocaleString('da-DK') : 'Ikke sat'}</td>
@@ -2628,10 +2636,10 @@ window.showLargeProjectQR = (url, title) => {
       const tr=document.createElement('tr'); 
       tr.style.borderBottom = '1px solid var(--line)';
       tr.innerHTML=`
-        <td style="padding:8px">${p.full_name}</td>
-        <td style="padding:8px;color:var(--muted)">${p.employee_no||'—'}</td>
+        <td style="padding:8px">${escapeHtml(p.full_name)}</td>
+        <td style="padding:8px;color:var(--muted)">${escapeHtml(p.employee_no||'—')}</td>
         <td style="padding:8px;text-align:center">
-          <button class="btn small" onclick="deletePerson('${p.id}')" style="background:#dc3545;color:white;border-color:#dc3545;padding:3px 8px;font-size:0.75rem;border-radius:4px">×</button>
+          <button class="btn small" onclick="deletePerson('${escapeHtml(p.id)}')" style="background:#dc3545;color:white;border-color:#dc3545;padding:3px 8px;font-size:0.75rem;border-radius:4px">×</button>
         </td>
       `; 
       tb.appendChild(tr); 
@@ -2794,8 +2802,8 @@ window.showLargeProjectQR = (url, title) => {
     } catch (error) {
       console.error('Error loading coaching recommendations:', error);
       const errorMsg = error.message || error.toString();
-      $('coaching-keep').innerHTML = `<div style="color:var(--error);padding:12px">❌ Fejl: ${errorMsg}</div>`;
-      $('coaching-develop').innerHTML = `<div style="color:var(--error);padding:12px">❌ Fejl: ${errorMsg}</div>`;
+      $('coaching-keep').innerHTML = `<div style="color:var(--error);padding:12px">❌ Fejl: ${escapeHtml(errorMsg)}</div>`;
+      $('coaching-develop').innerHTML = `<div style="color:var(--error);padding:12px">❌ Fejl: ${escapeHtml(errorMsg)}</div>`;
     }
   }
 
@@ -2909,11 +2917,11 @@ window.showLargeProjectQR = (url, title) => {
       return `
         <div style="border:1px solid #dcfce7;border-radius:8px;padding:12px;background:#f0fdf4">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-            <strong style="color:var(--success)">${item.category_name}</strong>
+            <strong style="color:var(--success)">${escapeHtml(item.category_name)}</strong>
             <span style="background:var(--success);color:white;padding:2px 8px;border-radius:12px;font-size:0.8rem">${item.score}</span>
           </div>
           <div style="font-size:0.9rem;color:var(--muted);margin-bottom:6px">
-            ${item.overview?.synopsis || 'Stærk kompetence'}
+            ${escapeHtml(item.overview?.synopsis || 'Stærk kompetence')}
           </div>
           <div style="margin-top:6px">
             <strong style="font-size:0.85rem;color:var(--success)">✅ Fastholdelsesråd:</strong>
@@ -3894,7 +3902,7 @@ $('resultsLocalUdvFile').onchange = async (e) => {
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
               <div style="flex: 1; margin-right: 8px;">
                 <div style="font-weight: 600; color: #2d3748; font-size: 0.95em; margin-bottom: 2px; line-height: 1.2;">
-                  #${rank} ${r.role_name || ''}
+                  #${rank} ${escapeHtml(r.role_name || '')}
                 </div>
                 <div style="color: ${strengthColor}; font-weight: 600; font-size: 1.1em;">
                   ${pct}%
@@ -3902,8 +3910,8 @@ $('resultsLocalUdvFile').onchange = async (e) => {
               </div>
               <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; background: white; padding: 4px 8px; border-radius: 12px; border: 1px solid #e2e8f0; font-size: 0.8em;">
                 <input type="checkbox" 
-                  data-role-id="${r.role_id}" 
-                  data-role-name="${r.role_name}" 
+                  data-role-id="${escapeHtml(r.role_id)}" 
+                  data-role-name="${escapeHtml(r.role_name)}" 
                   data-role-rank="${rank}"
                   data-role-pct="${pct}"
                   data-role-description="${(r.description || '').replace(/"/g, '&quot;')}"
@@ -5860,12 +5868,12 @@ async function downloadCurrentUdv({ sameName = true } = {}) {
       if (missingMa.length > 0) {
         resultMsg += `\n\nMangler MA/employee_no:\n${missingMa.join('\n')}`;
       }
-      statusEl.innerHTML = resultMsg.replace(/\n/g, '<br>');
+      statusEl.textContent = resultMsg;
       statusEl.style.color = 'var(--muted)';
 
       // Vis forklaringer med linjeskift
       statusEl.style.whiteSpace = 'pre-wrap';
-      statusEl.innerHTML = resultMsg.replace(/\n/g, '<br>');
+      statusEl.textContent = resultMsg;
       statusEl.style.color = 'var(--success)';
 
       // Dialoger for begge årsager
@@ -5888,7 +5896,7 @@ async function downloadCurrentUdv({ sameName = true } = {}) {
     if(!a||!b) return;
     const opts = waves.map((w,i)=>({i, label:`#${i+1} • ${w.project?.title||'Projekt'} • ${w.exported_at?.slice(0,10)||w.meta.file}`}));
     [a,b].forEach(sel=>{
-      sel.innerHTML = opts.map(o=>`<option value="${o.i}">${o.label}</option>`).join('');
+      sel.innerHTML = opts.map(o=>`<option value="${o.i}">${escapeHtml(o.label)}</option>`).join('');
     });
     a.selectedIndex = 0;
     b.selectedIndex = Math.max(1, opts.length-1);
@@ -6281,7 +6289,7 @@ async function downloadCurrentUdv({ sameName = true } = {}) {
         return `<td style="padding:6px 8px;text-align:center">${avg==null? '—' : avg.toFixed(2)}</td>`;
       }).join('');
       return `<tr>
-        <td style="padding:6px 8px;position:sticky;left:0;background:#fff">${p.name}</td>
+        <td style="padding:6px 8px;position:sticky;left:0;background:#fff">${escapeHtml(p.name)}</td>
         ${rowVals}
       </tr>`;
     }).join('');
@@ -6557,7 +6565,7 @@ async function downloadCurrentUdv({ sameName = true } = {}) {
     // Build header
     header.innerHTML = '<th style="padding:8px;border-bottom:1px solid var(--line);width:150px;position:sticky;left:0;background:var(--card);z-index:11">Navn</th>';
     categories.forEach(cat => {
-      header.innerHTML += `<th style="padding:8px;border-bottom:1px solid var(--line);width:60px;text-align:center;font-size:0.75rem">${cat.category_name}</th>`;
+      header.innerHTML += `<th style="padding:8px;border-bottom:1px solid var(--line);width:60px;text-align:center;font-size:0.75rem">${escapeHtml(cat.category_name)}</th>`;
     });
 
     // Calculate all values for global color scaling
@@ -10900,7 +10908,7 @@ async function updatePublishButtonState() {
   }
 
   // Brug robust klient (scope-safe)
-  const db = (window.supabaseClient || window.supabaseClient === null) ? window.supabaseClient : (typeof supabase !== 'undefined' ? supabase : null);
+  const db = (window.supabaseClient && typeof window.supabaseClient.from === 'function') ? window.supabaseClient : (typeof supabase !== 'undefined' ? supabase : null);
 
   try {
     if (!db || typeof db.from !== 'function') throw new Error('Supabase client ikke initialiseret');
