@@ -890,6 +890,14 @@ window.addEventListener('load', function() {
   });
 
   // Auth and logout
+  // XSS protection: escape HTML entities in user-supplied strings
+  function escapeHtml(str) {
+    if (!str && str !== 0) return '';
+    const div = document.createElement('div');
+    div.textContent = String(str);
+    return div.innerHTML;
+  }
+
   $('logoutBtn').onclick = async () => { 
     await supabase.auth.signOut(); 
     window.location.href = 'login.html';
@@ -1210,7 +1218,7 @@ window.addEventListener('load', function() {
       $('healthCheckResults').innerHTML = resultsHtml;
 
     } catch (error) {
-      $('healthCheckResults').innerHTML = `<div class="error-message">Fejl: ${error.message}</div>`;
+      $('healthCheckResults').innerHTML = `<div class="error-message">Fejl: ${escapeHtml(error.message)}</div>`;
     }
   };
 
@@ -1257,13 +1265,13 @@ window.addEventListener('load', function() {
       li.style.alignItems = 'center';
       li.innerHTML = `
         <div>
-          <strong>${t.name}</strong> v${t.version}<br>
-          <span class="muted">${t.description || ''}</span>
+          <strong>${escapeHtml(t.name)}</strong> v${parseInt(t.version) || 0}<br>
+          <span class="muted">${escapeHtml(t.description || '')}</span>
         </div>
         <div class="row">
-          <button class="btn small" onclick="editTemplate('${t.id}')" style="background:var(--brand);color:white;border-color:var(--brand)">Rediger</button>
-          <button class="btn small warning" onclick="versionTemplate('${t.id}')">💾 Version</button>
-          <button class="btn small" onclick="deleteTemplate('${t.id}', '${t.name.replace(/'/g, '\\\'')}')" style="background:#dc3545;color:white;border-color:#dc3545">Slet</button>
+          <button class="btn small" onclick="editTemplate('${escapeHtml(t.id)}')" style="background:var(--brand);color:white;border-color:var(--brand)">Rediger</button>
+          <button class="btn small warning" onclick="versionTemplate('${escapeHtml(t.id)}')">💾 Version</button>
+          <button class="btn small" onclick="deleteTemplate('${escapeHtml(t.id)}', '${escapeHtml(t.name)}')" style="background:#dc3545;color:white;border-color:#dc3545">Slet</button>
         </div>
       `; 
       ul.appendChild(li); 
@@ -1912,27 +1920,27 @@ window.addEventListener('load', function() {
       
       tr.innerHTML = `
         <td>
-          <strong>${p.title}</strong><br>
-          <span class="muted">${p.info_text || ''}</span>
+          <strong>${escapeHtml(p.title)}</strong><br>
+          <span class="muted">${escapeHtml(p.info_text || '')}</span>
         </td>
         <td>
-          ${p.owner_email || 'N/A'}<br>
-          <span class="muted">${p.owner_role || 'ingen rolle'}</span>
+          ${escapeHtml(p.owner_email || 'N/A')}<br>
+          <span class="muted">${escapeHtml(p.owner_role || 'ingen rolle')}</span>
         </td>
         <td>
           ${statusBadge}<br>
-          <strong>${p.response_count || 0}</strong> svar<br>
+          <strong>${parseInt(p.response_count) || 0}</strong> svar<br>
           <div style="font-size:0.8rem;color:var(--muted)">
-            Slettes: ${deletionInfo}
+            Slettes: ${escapeHtml(deletionInfo)}
           </div>
         </td>
         <td>${openAt ? openAt.toLocaleDateString('da-DK') : 'Ikke sat'}</td>
         <td>${closeAt ? closeAt.toLocaleDateString('da-DK') : 'Ikke sat'}</td>
-        <td style="text-align:center">${p.people_count || 0}</td>
+        <td style="text-align:center">${parseInt(p.people_count) || 0}</td>
         <td style="text-align:center">${p.link_url ? '✅' : '—'}</td>
         <td style="text-align:right">
-          <button class="btn small" onclick="viewProject('${p.id}')" style="background:var(--brand);color:white;border-color:var(--brand);margin-right:4px">Se</button>
-          <button class="btn small warning" onclick="purgeProject('${p.id}', '${p.title.replace(/'/g, '\\\'')}')" title="Slet projekt nu">🗑️</button>
+          <button class="btn small" onclick="viewProject('${escapeHtml(p.id)}')" style="background:var(--brand);color:white;border-color:var(--brand);margin-right:4px">Se</button>
+          <button class="btn small warning" onclick="purgeProject('${escapeHtml(p.id)}', '${escapeHtml(p.title)}')" title="Slet projekt nu">🗑️</button>
         </td>
       `;
       
@@ -2050,18 +2058,17 @@ window.addEventListener('load', function() {
     keys.forEach(k => {
       const tr = document.createElement('tr');
       const status = k.used ? `<span style="color:var(--success)">Brugt</span>` : `<span style="color:var(--brand)">Aktiv</span>`;
-      const usedInfo = k.used ? `${new Date(k.used_at).toLocaleDateString()}<br><span class="muted">${k.used_by_email}</span>` : '-';
       
       tr.innerHTML = `
         <td class="checkbox-cell">
-          <input type="checkbox" value="${k.id}" onchange="updateKeySelection()">
+          <input type="checkbox" value="${escapeHtml(k.id)}" onchange="updateKeySelection()">
         </td>
-        <td style="font-family:monospace;font-weight:bold">${k.key_code}</td>
-        <td>${k.email}</td>
+        <td style="font-family:monospace;font-weight:bold">${escapeHtml(k.key_code)}</td>
+        <td>${escapeHtml(k.email)}</td>
         <td>${status}</td>
         <td>${new Date(k.created_at).toLocaleDateString()}</td>
-        <td>${usedInfo}</td>
-        <td>${k.notes || '-'}</td>
+        <td>${k.used ? escapeHtml(new Date(k.used_at).toLocaleDateString()) + '<br><span class="muted">' + escapeHtml(k.used_by_email) + '</span>' : '-'}</td>
+        <td>${escapeHtml(k.notes || '-')}</td>
       `;
       tb.appendChild(tr);
     });
@@ -2108,13 +2115,13 @@ window.addEventListener('load', function() {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td class="checkbox-cell">
-          <input type="checkbox" value="${u.id}" onchange="updateUserSelection()">
+          <input type="checkbox" value="${escapeHtml(u.id)}" onchange="updateUserSelection()">
         </td>
-        <td>${u.email || 'N/A'}</td>
-        <td>${u.role || 'Ingen rolle'}</td>
+        <td>${escapeHtml(u.email || 'N/A')}</td>
+        <td>${escapeHtml(u.role || 'Ingen rolle')}</td>
         <td>${new Date(u.created_at).toLocaleDateString()}</td>
         <td style="text-align:right">
-          <button class="btn small" onclick="removeUserRole('${u.email}')" style="background:#dc3545;color:white;border-color:#dc3545">Fjern rolle</button>
+          <button class="btn small" onclick="removeUserRole('${escapeHtml(u.email)}')" style="background:#dc3545;color:white;border-color:#dc3545">Fjern rolle</button>
         </td>
       `;
       tb.appendChild(tr);
@@ -2467,7 +2474,7 @@ window.addEventListener('load', function() {
                      type === 'warning' ? 'warning-message' :
                      'muted';
     
-    statusDiv.innerHTML = `<div class="${className}">${message}</div>`;
+    statusDiv.innerHTML = `<div class="${className}">${escapeHtml(message)}</div>`;
     
     if(type === 'success' || type === 'info') {
       setTimeout(() => {
@@ -2909,7 +2916,7 @@ window.addEventListener('load', function() {
         </div>
       `;
     } catch (error) {
-      $('versionHistory').innerHTML = `<div class="error-message">Fejl: ${error.message}</div>`;
+      $('versionHistory').innerHTML = `<div class="error-message">Fejl: ${escapeHtml(error.message)}</div>`;
     }
   }
 
@@ -2952,7 +2959,7 @@ window.addEventListener('load', function() {
         </div>
       `;
     } catch (error) {
-      $('systemMetrics').innerHTML = `<div class="error-message">Fejl: ${error.message}</div>`;
+      $('systemMetrics').innerHTML = `<div class="error-message">Fejl: ${escapeHtml(error.message)}</div>`;
     }
   }
 
@@ -3297,7 +3304,7 @@ window.addEventListener('load', function() {
       // Show success message briefly
       const summary = document.getElementById('overview-summary');
       const originalText = summary.innerHTML;
-      summary.innerHTML = `✅ Tildelt ${amount} tokens til ${email}`;
+      summary.innerHTML = `✅ Tildelt ${amount} tokens til ${escapeHtml(email)}`;
       setTimeout(() => { summary.innerHTML = originalText; }, 3000);
 
     } catch (error) {
