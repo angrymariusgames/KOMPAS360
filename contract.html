@@ -442,7 +442,8 @@
     // Supabase init
     const SUPABASE_URL = 'https://wsrstyrsuwhcmmlmnbrz.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzcnN0eXJzdXdoY21tbG1uYnJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MTU0NTIsImV4cCI6MjA3MTE5MTQ1Mn0.Rf3Z3bQGjV5CKXKZr6IMOjzPdbhVJCh3SwuvlkpxUD0';
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const supabaseLib = window.supabase;
+    supabase = supabaseLib.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     
     // Helper function
     const $ = (id) => document.getElementById(id);
