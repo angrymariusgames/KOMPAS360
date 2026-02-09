@@ -1230,8 +1230,8 @@ function renderCompareOptions() {
   document.getElementById('compareEmptyState').style.display = 'none';
   boxes.innerHTML = assessments.map(a => `
     <label class="round-checkbox">
-      <input type="checkbox" value="${a.id}" onchange="updateCompareSelection(this)">
-      <span>${getAssessmentDisplayName(a)} (${a.variant})</span>
+      <input type="checkbox" value="${esc(a.id)}" onchange="updateCompareSelection(this)">
+      <span>${esc(getAssessmentDisplayName(a))} (${esc(a.variant)})</span>
     </label>
   `).join('');
   updateCompareSelection();
@@ -1645,12 +1645,12 @@ function renderDashboard() {
   } else {
     assessmentsList.innerHTML = assessments.map(a => `
       <div class="card">
-        <div class="card-title">${getAssessmentDisplayName(a)}</div>
+        <div class="card-title">${esc(getAssessmentDisplayName(a))}</div>
         <div class="card-meta">
-          ${a.variant} • Udgivet ${new Date(a.published_at).toLocaleDateString('da-DK')}
+          ${esc(a.variant)} • Udgivet ${new Date(a.published_at).toLocaleDateString('da-DK')}
         </div>
         <div class="card-actions">
-          <button class="btn small" onclick="downloadUDV('${a.id}')">Download .UDV</button>
+          <button class="btn small" onclick="downloadUDV('${esc(a.id)}')">Download .UDV</button>
         </div>
       </div>
     `).join('');
@@ -1671,7 +1671,7 @@ function initializeCompassTab() {
   // Byg dropdown KUN fra profilens assessments (inkl. uploadede .UDV)
   const opts = [
     '<option value="">-- Vælg en assessment --</option>',
-    (assessments || []).map(a => `<option value="${a.id}">${getAssessmentDisplayName(a)} (${a.variant})</option>`).join('')
+    (assessments || []).map(a => `<option value="${esc(a.id)}">${esc(getAssessmentDisplayName(a))} (${esc(a.variant)})</option>`).join('')
   ].join('');
   select.innerHTML = opts;
 
