@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co wss://*.supabase.co">
+  <title>KOMPAS • Privatlivspolitik</title>
+  <link rel="icon" href="data:," />
+
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg1:#667eea;--bg2:#764ba2;--ink:#2d3748;--muted:#718096;
+      --card:#ffffff;--line:#e2e8f0;--brand:#667eea;--radius:20px;
+    }
+    body{
+      font-family:"Segoe UI",Tahoma,Geneva,Verdana,sans-serif;
+      background:linear-gradient(135deg,var(--bg1) 0%,var(--bg2) 100%);
+      min-height:100vh;
+      display:grid;
+      place-items:center;
+      padding:20px;
+      color:var(--ink);
+    }
+    .container{
+      width:100%;max-width:720px;
+      background:var(--card);border-radius:var(--radius);
+      box-shadow:0 20px 40px rgba(0,0,0,.15);overflow:hidden;
+    }
+    .header{
+      background:linear-gradient(135deg,#2d3748 0%,#4a5568 100%);
+      color:#fff;padding:32px;text-align:center;
+    }
+    .logo{
+      width:80px;height:80px;margin:0 auto 16px;
+      background:white;border-radius:20px;display:grid;place-items:center;
+    }
+    .logo img{max-width:65px;max-height:65px;width:auto;height:auto;object-fit:contain;}
+    .header .title{font-size:1.8rem;font-weight:800;margin-bottom:8px;}
+    .header .subtitle{opacity:.9;font-size:.95rem;}
+    .content{padding:32px 40px 40px;line-height:1.7;font-size:.95rem;}
+    .content h2{font-size:1.3rem;font-weight:700;color:var(--ink);margin:28px 0 12px;border-bottom:2px solid var(--line);padding-bottom:8px;}
+    .content h2:first-of-type{margin-top:0;}
+    .content p{margin-bottom:12px;color:#4a5568;}
+    .content ul{margin:0 0 12px 20px;color:#4a5568;}
+    .content ul li{margin-bottom:6px;}
+    .content table{width:100%;border-collapse:collapse;margin:12px 0 20px;font-size:.9rem;}
+    .content table th,.content table td{text-align:left;padding:10px 12px;border:1px solid var(--line);}
+    .content table th{background:#f7fafc;font-weight:600;color:var(--ink);}
+    .content table td{color:#4a5568;}
+    .last-updated{font-size:.85rem;color:var(--muted);text-align:center;margin-bottom:20px;}
+    .footer{
+      padding:20px 32px;background:#f7fafc;
+      border-top:1px solid var(--line);text-align:center;
+      color:var(--muted);font-size:.9rem;
+    }
+    .back-link{
+      display:inline-block;margin-top:20px;
+      color:var(--brand);text-decoration:none;font-weight:600;font-size:.95rem;
+    }
+    .back-link:hover{text-decoration:underline;}
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <div class="logo">
+      <img src="./assets/logo.png" alt="logo" onerror="this.style.display='none'">
+    </div>
+    <div class="title">KOMPAS 360</div>
+    <div class="subtitle">Privatlivspolitik</div>
+  </div>
+
+  <div class="content">
+    <p class="last-updated">Sidst opdateret: 9. februar 2026</p>
+
+    <h2>1. Dataansvarlig</h2>
+    <p>Den organisation, der har givet dig adgang til KOMPAS 360 / MinUdvikling-platformen ("Tjenesten"), er dataansvarlig for behandlingen af dine personoplysninger. Platformens tekniske drift varetages på vegne af den dataansvarlige.</p>
+    <p>Kontakt din organisations kontaktperson, hvis du har spørgsmål om behandlingen af dine persondata.</p>
+
+    <h2>2. Hvilke oplysninger indsamler vi?</h2>
+    <p>Vi indsamler og behandler følgende kategorier af personoplysninger:</p>
+    <table>
+      <thead>
+        <tr><th>Kategori</th><th>Eksempler</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Kontooplysninger</td><td>E-mail, medarbejdernummer (MA), adgangskode (krypteret)</td></tr>
+        <tr><td>Evalueringsdata</td><td>Besvarelser af spørgeskemaer, feedback-scorer, kommentarer</td></tr>
+        <tr><td>Rapportdata</td><td>Genererede rapporter, coaching-anbefalinger, teamroller</td></tr>
+        <tr><td>Tekniske data</td><td>IP-adresse, browsertype, login-tidspunkter (logfiler)</td></tr>
+      </tbody>
+    </table>
+    <p>Vi indsamler ikke CPR-numre, helbredsoplysninger eller andre følsomme personoplysninger som defineret i GDPR artikel 9.</p>
+
+    <h2>3. Formål og retsgrundlag</h2>
+    <p>Dine personoplysninger behandles til følgende formål:</p>
+    <ul>
+      <li><strong>Kontoadministration og login</strong> — så du kan tilgå Tjenesten (retsgrundlag: opfyldelse af aftale, GDPR art. 6(1)(b)).</li>
+      <li><strong>Gennemførelse af 360°-evalueringer</strong> — indsamling og sammenstilling af feedback (retsgrundlag: legitim interesse, GDPR art. 6(1)(f), eller samtykke, GDPR art. 6(1)(a)).</li>
+      <li><strong>Rapportering og udviklingsplaner</strong> — generering af individuelle og team-rapporter (retsgrundlag: legitim interesse, GDPR art. 6(1)(f)).</li>
+      <li><strong>Sikkerhed og fejlfinding</strong> — logning til beskyttelse mod misbrug (retsgrundlag: legitim interesse, GDPR art. 6(1)(f)).</li>
+    </ul>
+
+    <h2>4. Opbevaringsperiode</h2>
+    <p>Personoplysninger opbevares kun så længe det er nødvendigt for de formål, de er indsamlet til, eller så længe lovgivningen kræver det. Generelle retningslinjer:</p>
+    <ul>
+      <li>Kontooplysninger slettes når din adgang ophører, medmindre lovkrav tilsiger andet.</li>
+      <li>Evalueringsdata anonymiseres eller slettes senest 24 måneder efter evalueringens afslutning, medmindre din organisation fastsætter en kortere periode.</li>
+      <li>Tekniske logfiler slettes automatisk efter 12 måneder.</li>
+    </ul>
+
+    <h2>5. Deling af data</h2>
+    <p>Dine personoplysninger deles kun med:</p>
+    <ul>
+      <li><strong>Din organisation</strong> — som dataansvarlig har adgang til aggregerede rapporter. Individuelle respondentsvar forbliver anonyme.</li>
+      <li><strong>Databehandlere</strong> — vi bruger Supabase (hosting og database) som teknisk databehandler. Der er indgået databehandleraftale i overensstemmelse med GDPR art. 28.</li>
+    </ul>
+    <p>Vi sælger aldrig dine personoplysninger til tredjeparter.</p>
+
+    <h2>6. Overførsel til tredjelande</h2>
+    <p>Data opbevares primært inden for EU/EØS. Hvis data i undtagelsestilfælde overføres til lande uden for EU/EØS, sker det på grundlag af EU-Kommissionens standardkontraktklausuler (SCC) eller anden gyldig overførselsmekanisme i henhold til GDPR kapitel V.</p>
+
+    <h2>7. Sikkerhed</h2>
+    <p>Vi anvender passende tekniske og organisatoriske foranstaltninger for at beskytte dine personoplysninger, herunder:</p>
+    <ul>
+      <li>Kryptering af data under overførsel (TLS/HTTPS) og i hvile.</li>
+      <li>Adgangsstyring med rollebaserede rettigheder (Row Level Security).</li>
+      <li>Krypteret opbevaring af adgangskoder (bcrypt-hashing).</li>
+      <li>Regelmæssig sikkerhedsgennemgang af platformen.</li>
+    </ul>
+
+    <h2>8. Dine rettigheder</h2>
+    <p>I henhold til GDPR har du følgende rettigheder:</p>
+    <ul>
+      <li><strong>Indsigt</strong> — ret til at se, hvilke oplysninger vi behandler om dig (art. 15).</li>
+      <li><strong>Berigtigelse</strong> — ret til at få ukorrekte oplysninger rettet (art. 16).</li>
+      <li><strong>Sletning</strong> — ret til at få dine oplysninger slettet under visse betingelser (art. 17).</li>
+      <li><strong>Begrænsning</strong> — ret til at begrænse behandlingen (art. 18).</li>
+      <li><strong>Dataportabilitet</strong> — ret til at modtage dine data i et struktureret format (art. 20).</li>
+      <li><strong>Indsigelse</strong> — ret til at gøre indsigelse mod behandling baseret på legitim interesse (art. 21).</li>
+      <li><strong>Tilbagetrækning af samtykke</strong> — hvis behandling er baseret på samtykke, kan du til enhver tid trække det tilbage (art. 7(3)).</li>
+    </ul>
+    <p>For at udøve dine rettigheder, kontakt din organisations kontaktperson eller den dataansvarlige direkte.</p>
+
+    <h2>9. Klage</h2>
+    <p>Du har ret til at indgive en klage til Datatilsynet, hvis du mener, at behandlingen af dine personoplysninger er i strid med GDPR:</p>
+    <p>Datatilsynet, Carl Jacobsens Vej 35, 2500 Valby — <strong>dt@datatilsynet.dk</strong> — www.datatilsynet.dk</p>
+
+    <h2>10. Ændringer</h2>
+    <p>Denne privatlivspolitik kan opdateres. Væsentlige ændringer vil blive meddelt via Tjenesten eller e-mail. Den seneste version er altid tilgængelig via dette link.</p>
+
+    <a href="login.html" class="back-link">← Tilbage til login</a>
+  </div>
+
+  <div class="footer">
+    KOMPAS 360 • Evaluering & Feedback System
+  </div>
+</div>
+
+</body>
+</html>
