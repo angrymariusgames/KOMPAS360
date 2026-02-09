@@ -1545,7 +1545,8 @@ window.addEventListener('load', function() {
 
   console.log('API Base URL konfigureret til:', window.API_BASE_URL);
   
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const supabaseLib = window.supabase;
+  supabase = supabaseLib.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   // XSS protection: escape HTML entities in user-supplied strings
   function escapeHtml(str) {
